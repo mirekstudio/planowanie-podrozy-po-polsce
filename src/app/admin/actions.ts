@@ -1,0 +1,82 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import {
+  createAdminSession,
+  clearAdminSession,
+  isValidPassword,
+} from "@/lib/adminAuth";
+import { supabaseAdmin } from "@/lib/supabaseAdminClient";
+
+export async function login(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+
+  if (!isValidPassword(password)) {
+    redirect("/admin/login?error=1");
+  }
+
+  await createAdminSession();
+  redirect("/admin");
+}
+
+export async function logout() {
+  await clearAdminSession();
+  redirect("/admin/login");
+}
+
+function readPlaceForm(formData: FormData) {
+  const imagePosition = String(formData.get("imagePosition") ?? "");
+
+  return {
+    slug: String(formData.get("slug") ?? "").trim(),
+    title: String(formData.get("title") ?? "").trim(),
+    region: String(formData.get("region") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    long_description: String(formData.get("longDescription") ?? "").trim(),
+    lat: Number(formData.get("lat")),
+    lng: Number(formData.get("lng")),
+    image: String(formData.get("image") ?? "").trim(),
+    image_alt: String(formData.get("imageAlt") ?? "").trim(),
+    image_position: imagePosition === "" ? null : imagePosition,
+    credit_author: String(formData.get("creditAuthor") ?? "").trim(),
+    credit_license: String(formData.get("creditLicense") ?? "").trim(),
+    sort_order: Number(formData.get("sortOrder") ?? 0),
+    tags: formData.getAll("tags").map(String),
+  };
+}
+
+export async function createPlace(formData: FormData) {
+  const values = readPlaceForm(formData);
+
+  const { error } = await supabaseAdmin.from("places").insert(values);
+  if (error) {
+    throw new Error(`Nie udało się dodać miejsca: ${error.message}`);
+  }
+
+  redirect("/admin");
+}
+
+export async function updatePlace(originalSlug: string, formData: FormData) {
+  const values = readPlaceForm(formData);
+
+  const { error } = await supabaseAdmin
+    .from("places")
+    .update(values)
+    .eq("slug", originalSlug);
+
+  if (error) {
+    throw new Error(`Nie udało się zapisać zmian: ${error.message}`);
+  }
+
+  redirect("/admin");
+}
+
+export async function deletePlace(slug: string) {
+  const { error } = await supabaseAdmin.from("places").delete().eq("slug", slug);
+
+  if (error) {
+    throw new Error(`Nie udało się usunąć miejsca: ${error.message}`);
+  }
+
+  redirect("/admin");
+}
