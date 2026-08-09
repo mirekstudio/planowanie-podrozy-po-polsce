@@ -21,7 +21,7 @@ export default async function PlacePage({
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-2xl px-6 py-16">
         <Link
-          href="/"
+          href="/miejsca"
           className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
         >
           ← Powrót do listy miejsc
