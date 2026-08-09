@@ -1,91 +1,23 @@
-import Image from "next/image";
-import Link from "next/link";
-import { getPlaces } from "@/lib/getPlaces";
-
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  const places = await getPlaces();
-  const teaser = places.slice(0, 4);
-
+export default function Home() {
   return (
-    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <div className="relative h-screen w-full overflow-hidden">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster="/images/biskupin.jpg"
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover"
-        >
-          <source
-            src="/videos/intro-pionowe.mp4"
-            type="video/mp4"
-            media="(max-width: 767px)"
-          />
-          <source src="/videos/intro-poziome.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
-
-        <div className="relative mx-auto flex h-full max-w-3xl flex-col justify-end px-6 pb-16 sm:px-12">
-          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-            Odkryj korzenie Polski
-          </h1>
-          <p className="mt-4 max-w-xl text-lg text-zinc-200">
-            Zaplanuj podróż po Wielkopolsce śladami początków polskiej
-            państwowości — Szlakiem Piastowskim dopasowanym do Twojego
-            czasu i zainteresowań.
-          </p>
-          <Link
-            href="/planer"
-            className="mt-6 inline-block self-start rounded-full bg-white px-6 py-3 text-sm font-medium text-black hover:bg-zinc-200"
-          >
-            Zaplanuj podróż
-          </Link>
-        </div>
-      </div>
-
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <section>
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold tracking-tight text-black dark:text-zinc-50">
-              Przykładowe miejsca
-            </h2>
-            <Link
-              href="/miejsca"
-              className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
-            >
-              Zobacz wszystkie →
-            </Link>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {teaser.map((place) => (
-              <Link
-                key={place.slug}
-                href={`/miejsca/${place.slug}`}
-                className="block overflow-hidden rounded-lg border border-black/[.08] bg-white transition-colors hover:border-black/[.2] dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-white/[.3]"
-              >
-                <Image
-                  src={place.image}
-                  alt={place.imageAlt}
-                  width={300}
-                  height={200}
-                  className={`h-24 w-full object-cover ${
-                    place.imagePosition === "top" ? "object-top" : "object-center"
-                  }`}
-                />
-                <p className="p-2 text-sm font-medium text-black dark:text-zinc-50">
-                  {place.title}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </main>
+    <div className="relative h-screen w-full overflow-hidden bg-black">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        poster="/images/biskupin.jpg"
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover"
+      >
+        <source
+          src="/videos/intro-pionowe.mp4"
+          type="video/mp4"
+          media="(max-width: 767px)"
+        />
+        <source src="/videos/intro-poziome.mp4" type="video/mp4" />
+      </video>
     </div>
   );
 }
