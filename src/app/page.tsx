@@ -10,36 +10,46 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <div className="relative h-[420px] overflow-hidden rounded-2xl sm:h-[480px]">
-          <Image
-            src="/images/biskupin.jpg"
-            alt="Rekonstruowana osada obronna w Biskupinie"
-            fill
-            priority
-            className="object-cover"
+      <div className="relative h-screen w-full overflow-hidden">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="/images/biskupin.jpg"
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover"
+        >
+          <source
+            src="/videos/intro-pionowe.mp4"
+            type="video/mp4"
+            media="(max-width: 767px)"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+          <source src="/videos/intro-poziome.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
 
-          <div className="relative flex h-full flex-col justify-end p-8 sm:p-12">
-            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              Odkryj korzenie Polski
-            </h1>
-            <p className="mt-4 max-w-xl text-lg text-zinc-200">
-              Zaplanuj podróż po Wielkopolsce śladami początków polskiej
-              państwowości — Szlakiem Piastowskim dopasowanym do Twojego
-              czasu i zainteresowań.
-            </p>
-            <Link
-              href="/planer"
-              className="mt-6 inline-block self-start rounded-full bg-white px-6 py-3 text-sm font-medium text-black hover:bg-zinc-200"
-            >
-              Zaplanuj podróż
-            </Link>
-          </div>
+        <div className="relative mx-auto flex h-full max-w-3xl flex-col justify-end px-6 pb-16 sm:px-12">
+          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+            Odkryj korzenie Polski
+          </h1>
+          <p className="mt-4 max-w-xl text-lg text-zinc-200">
+            Zaplanuj podróż po Wielkopolsce śladami początków polskiej
+            państwowości — Szlakiem Piastowskim dopasowanym do Twojego
+            czasu i zainteresowań.
+          </p>
+          <Link
+            href="/planer"
+            className="mt-6 inline-block self-start rounded-full bg-white px-6 py-3 text-sm font-medium text-black hover:bg-zinc-200"
+          >
+            Zaplanuj podróż
+          </Link>
         </div>
+      </div>
 
-        <section className="mt-12">
+      <main className="mx-auto max-w-3xl px-6 py-16">
+        <section>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold tracking-tight text-black dark:text-zinc-50">
               Przykładowe miejsca
