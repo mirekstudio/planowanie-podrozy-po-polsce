@@ -27,8 +27,7 @@ export default function HeroVideo() {
         muted={muted}
         loop
         playsInline
-        preload="metadata"
-        poster="/images/biskupin.jpg"
+        preload="auto"
         className="absolute inset-0 h-full w-full object-cover"
       >
         <source
