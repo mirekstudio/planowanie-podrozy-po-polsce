@@ -19,7 +19,7 @@ export default async function PlacePage({
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto max-w-3xl px-6 py-16">
         <Link
           href="/miejsca"
           className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"

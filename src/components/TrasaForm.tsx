@@ -122,8 +122,9 @@ export default function TrasaForm({ places }: { places: Place[] }) {
             )}
 
             <p className="mt-4 text-xs text-zinc-500">
-              Ta trasa zostanie użyta w Planerze zamiast automatycznego
-              dopasowania.
+              Ta trasa jest zapisywana lokalnie w tej przeglądarce. Aby
+              wygenerować pełny plan podróży z automatycznym dopasowaniem
+              miejsc, skorzystaj z Planera.
             </p>
           </>
         )}

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getPlaces } from "@/lib/getPlaces";
 import { generateRoute } from "@/lib/generateRoute";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
@@ -31,6 +32,10 @@ export default async function PlanerWynikPage({
 }) {
   const params = await searchParams;
 
+  if (!params.days) {
+    redirect("/planer");
+  }
+
   const days = Math.max(1, Number(params.days) || 1);
   const interests = params.interests ? params.interests.split(",") : [];
   const transport = params.transport === "camper" ? "camper" : "car";
@@ -57,7 +62,7 @@ export default async function PlanerWynikPage({
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
-      <main className="mx-auto max-w-2xl px-6 py-16">
+      <main className="mx-auto max-w-3xl px-6 py-16">
         <Link
           href="/planer"
           className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"

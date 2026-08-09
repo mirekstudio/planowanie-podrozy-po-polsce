@@ -12,8 +12,8 @@ const links = [
 
 export default function Nav() {
   return (
-    <nav className="border-b border-black/[.08] bg-white dark:border-white/[.145] dark:bg-black">
-      <div className="mx-auto flex max-w-3xl gap-6 px-6 py-4">
+    <nav className="relative z-10 border-b border-black/[.08] bg-white font-sans dark:border-white/[.145] dark:bg-black">
+      <div className="mx-auto flex max-w-3xl flex-wrap gap-x-4 gap-y-2 px-4 py-4 sm:gap-x-6 sm:px-6">
         {links.map((link) => (
           <Link
             key={link.href}
