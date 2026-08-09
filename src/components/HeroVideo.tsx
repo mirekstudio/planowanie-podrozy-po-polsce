@@ -24,7 +24,7 @@ export default function HeroVideo() {
       <video
         ref={videoRef}
         autoPlay
-        muted
+        muted={muted}
         loop
         playsInline
         preload="metadata"
