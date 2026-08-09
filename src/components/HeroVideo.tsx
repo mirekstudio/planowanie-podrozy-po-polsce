@@ -11,7 +11,12 @@ export default function HeroVideo() {
     if (!video) return;
     const next = !video.muted;
     video.muted = next;
+    video.volume = 1;
     setMuted(next);
+    // Safari (zwłaszcza iOS) czasem nie wznawia dźwięku po samym
+    // przełączeniu `muted` na już odtwarzanym wideo — wymaga ponownego
+    // wywołania play() w tej samej interakcji użytkownika.
+    void video.play().catch(() => {});
   }
 
   return (
