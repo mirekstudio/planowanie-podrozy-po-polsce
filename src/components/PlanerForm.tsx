@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { INTEREST_OPTIONS } from "@/lib/interests";
+import { INTEREST_OPTIONS, interestLabel } from "@/lib/interests";
 import {
   geocodeForward,
   geocodeReverse,
@@ -254,7 +254,9 @@ export default function PlanerForm() {
                 onChange={() => toggleInterest(interest)}
                 className="h-4 w-4"
               />
-              <span className="text-black dark:text-zinc-50">{interest}</span>
+              <span className="text-black dark:text-zinc-50">
+                {interestLabel(interest)}
+              </span>
             </label>
           ))}
         </div>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPlaces } from "@/lib/getPlaces";
 import { generateRoute } from "@/lib/generateRoute";
+import { interestLabel } from "@/lib/interests";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
 
 export const dynamic = "force-dynamic";
@@ -99,7 +100,7 @@ export default async function PlanerWynikPage({
               key={interest}
               className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
             >
-              {interest}
+              {interestLabel(interest)}
             </span>
           ))}
         </div>

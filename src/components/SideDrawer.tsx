@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { interestLabel } from "@/lib/interests";
 
 type Category = {
   label: string;
@@ -21,7 +22,7 @@ const iconProps = {
 
 const CATEGORIES: Category[] = [
   {
-    label: "Historia",
+    label: interestLabel("Historia"),
     tag: "Historia",
     icon: (
       <svg {...iconProps}>
