@@ -1,10 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function HeroVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    // Zabezpieczenie dla Safari (desktop) — nie polegamy wyłącznie na
+    // atrybutach autoPlay/muted w JSX, tylko dodatkowo ustawiamy muted
+    // i wywołujemy play() jawnie przez JS, na wypadek gdyby Safari nie
+    // uznał autoplay za dozwolony na podstawie samych atrybutów HTML.
+    video.muted = true;
+    void video.play().catch(() => {});
+  }, []);
 
   function toggleSound() {
     const video = videoRef.current;
