@@ -4,19 +4,42 @@ import { getPlaces } from "@/lib/getPlaces";
 
 export const dynamic = "force-dynamic";
 
-export default async function MiejscaPage() {
-  const places = await getPlaces();
+export default async function MiejscaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kategoria?: string }>;
+}) {
+  const { kategoria } = await searchParams;
+  const allPlaces = await getPlaces();
+  const places = kategoria
+    ? allPlaces.filter((place) => place.tags.includes(kategoria))
+    : allPlaces;
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
         <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          Miejsca
+          {kategoria ? `Miejsca — ${kategoria}` : "Miejsca"}
         </h1>
         <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
-          Kilka przykładowych miejsc, które warto odwiedzić.
+          {kategoria
+            ? "Miejsca dopasowane do wybranej kategorii."
+            : "Kilka przykładowych miejsc, które warto odwiedzić."}
         </p>
+        {kategoria && (
+          <Link
+            href="/miejsca"
+            className="mt-3 inline-block text-sm text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          >
+            ← Wyczyść filtr, pokaż wszystkie miejsca
+          </Link>
+        )}
 
+        {places.length === 0 ? (
+          <p className="mt-10 text-zinc-500 dark:text-zinc-500">
+            Brak miejsc w tej kategorii.
+          </p>
+        ) : (
         <ul className="mt-10 grid gap-4 sm:grid-cols-2">
           {places.map((place) => (
             <li key={place.slug}>
@@ -45,6 +68,7 @@ export default async function MiejscaPage() {
             </li>
           ))}
         </ul>
+        )}
       </main>
     </div>
   );

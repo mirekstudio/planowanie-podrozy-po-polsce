@@ -1,29 +1,43 @@
-import Link from "next/link";
+"use client";
 
-const links = [
-  { href: "/", label: "Start" },
-  { href: "/miejsca", label: "Miejsca" },
-  { href: "/szlaki", label: "Szlaki" },
-  { href: "/mapa", label: "Mapa" },
-  { href: "/trasa", label: "Trasa" },
-  { href: "/planer", label: "Planer" },
-  { href: "/admin", label: "Admin" },
-];
+import Link from "next/link";
+import { useState } from "react";
+import SideDrawer from "@/components/SideDrawer";
 
 export default function Nav() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <nav className="relative z-10 border-b border-black/[.08] bg-white font-sans dark:border-white/[.145] dark:bg-black">
-      <div className="mx-auto flex max-w-3xl flex-wrap gap-x-4 gap-y-2 px-4 py-4 sm:gap-x-6 sm:px-6">
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-sm font-medium text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+    <>
+      <header className="relative z-10 border-b border-black/[.08] bg-white font-sans dark:border-white/[.145] dark:bg-black">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Otwórz menu"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-black/5 dark:text-zinc-400 dark:hover:bg-white/10"
           >
-            {link.label}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              className="h-5 w-5"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <Link
+            href="/"
+            className="text-sm font-semibold text-black dark:text-zinc-50"
+          >
+            Planowanie podróży po Polsce
           </Link>
-        ))}
-      </div>
-    </nav>
+        </div>
+      </header>
+
+      <SideDrawer open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
