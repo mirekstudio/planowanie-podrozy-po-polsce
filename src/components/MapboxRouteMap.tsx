@@ -39,8 +39,65 @@ async function fetchDrivingRoute(
   };
 }
 
+// Mapbox GL renderuje text-field własnymi glifami (SDF) generowanymi po
+// stronie serwera, które nie obejmują emoji — dlatego ikony emoji
+// rysujemy na canvasie (tam używana jest zwykła czcionka systemowa) i
+// rejestrujemy jako obrazek przez map.addImage(), a warstwa POI używa
+// icon-image zamiast text-field.
+function emojiToImageData(emoji: string, size: number): ImageData {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.font = `${Math.round(size * 0.75)}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(emoji, size / 2, size / 2 + size * 0.05);
+  return ctx.getImageData(0, 0, size, size);
+}
+
 const ROUTE_SOURCE_ID = "driving-route";
 const ROUTE_LAYER_ID = "driving-route-line";
+
+type PoiCategoryId = "fuel" | "restaurants" | "shops";
+
+const POI_CATEGORIES: {
+  id: PoiCategoryId;
+  label: string;
+  emoji: string;
+  layerId: string;
+  filter: mapboxgl.FilterSpecification;
+}[] = [
+  {
+    id: "fuel",
+    label: "Stacje paliw",
+    emoji: "⛽",
+    layerId: "poi-fuel",
+    filter: [
+      "all",
+      ["==", ["get", "class"], "motorist"],
+      ["==", ["get", "maki"], "fuel"],
+    ],
+  },
+  {
+    id: "restaurants",
+    label: "Restauracje",
+    emoji: "🍽️",
+    layerId: "poi-restaurants",
+    filter: ["==", ["get", "class"], "food_and_drink"],
+  },
+  {
+    id: "shops",
+    label: "Sklepy / centra handlowe",
+    emoji: "🛒",
+    layerId: "poi-shops",
+    filter: [
+      "any",
+      ["==", ["get", "class"], "store_like"],
+      ["==", ["get", "class"], "food_and_drink_stores"],
+    ],
+  },
+];
 
 export default function MapboxRouteMap({
   stops,
@@ -50,8 +107,30 @@ export default function MapboxRouteMap({
   startPoint?: GeocodedPlace | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [error, setError] = useState(false);
+  const [activeCategories, setActiveCategories] = useState<
+    Record<PoiCategoryId, boolean>
+  >({ fuel: false, restaurants: false, shops: false });
+  const activeCategoriesRef = useRef(activeCategories);
+  activeCategoriesRef.current = activeCategories;
+
+  function togglePoiCategory(id: PoiCategoryId) {
+    setActiveCategories((current) => {
+      const next = { ...current, [id]: !current[id] };
+      const category = POI_CATEGORIES.find((c) => c.id === id);
+      const map = mapRef.current;
+      if (map && category && map.getLayer(category.layerId)) {
+        map.setLayoutProperty(
+          category.layerId,
+          "visibility",
+          next[id] ? "visible" : "none",
+        );
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset UI state when stops/startPoint change, before (re)creating the map instance
@@ -75,6 +154,60 @@ export default function MapboxRouteMap({
     });
 
     map.addControl(new mapboxgl.NavigationControl(), "top-left");
+    mapRef.current = map;
+
+    function addPoiLayers() {
+      POI_CATEGORIES.forEach((category) => {
+        if (map.getLayer(category.layerId)) return;
+
+        const iconId = `${category.layerId}-icon`;
+        if (!map.hasImage(iconId)) {
+          map.addImage(iconId, emojiToImageData(category.emoji, 44));
+        }
+
+        map.addLayer({
+          id: category.layerId,
+          type: "symbol",
+          source: "composite",
+          "source-layer": "poi_label",
+          filter: category.filter,
+          layout: {
+            "icon-image": iconId,
+            "icon-size": 0.6,
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            visibility: activeCategoriesRef.current[category.id]
+              ? "visible"
+              : "none",
+          },
+        });
+
+        map.on("mouseenter", category.layerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", category.layerId, () => {
+          map.getCanvas().style.cursor = "";
+        });
+        map.on("click", category.layerId, (e) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
+          const name =
+            (feature.properties?.name as string | undefined) ??
+            category.label;
+
+          new mapboxgl.Popup({ offset: 12 })
+            .setLngLat(e.lngLat)
+            .setHTML(`<div style="color:#111;">${name}</div>`)
+            .addTo(map);
+        });
+      });
+    }
+
+    if (map.isStyleLoaded()) {
+      addPoiLayers();
+    } else {
+      map.once("load", addPoiLayers);
+    }
 
     const bounds = new mapboxgl.LngLatBounds();
 
@@ -213,6 +346,7 @@ export default function MapboxRouteMap({
 
     return () => {
       cancelled = true;
+      mapRef.current = null;
       map.remove();
     };
   }, [stops, startPoint]);
@@ -229,6 +363,26 @@ export default function MapboxRouteMap({
 
   return (
     <div>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {POI_CATEGORIES.map((category) => {
+          const active = activeCategories[category.id];
+          return (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => togglePoiCategory(category.id)}
+              aria-pressed={active}
+              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+                active
+                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                  : "border-black/[.08] text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+              }`}
+            >
+              {category.emoji} {category.label}
+            </button>
+          );
+        })}
+      </div>
       <div
         ref={containerRef}
         style={{ height: "400px", width: "100%", borderRadius: "0.75rem" }}
