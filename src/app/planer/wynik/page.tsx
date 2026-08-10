@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getPlaces } from "@/lib/getPlaces";
 import { generateRoute } from "@/lib/generateRoute";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
+import StartNavigationButton from "@/components/StartNavigationButton";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +104,8 @@ export default async function PlanerWynikPage({
             </span>
           ))}
         </div>
+
+        <StartNavigationButton stops={route.stops} startPoint={startPoint} />
 
         {route.usedFallback && interests.length > 0 && (
           <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
