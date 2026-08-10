@@ -8,6 +8,7 @@ import {
   geocodeReverse,
   type GeocodedPlace,
 } from "@/lib/geocoding";
+import LocationPermissionModal from "@/components/LocationPermissionModal";
 
 type StartPointMessage = { type: "success" | "error"; text: string };
 
@@ -18,6 +19,7 @@ export default function PlanerForm() {
   const [startPointMessage, setStartPointMessage] =
     useState<StartPointMessage | null>(null);
   const [manualAddress, setManualAddress] = useState("");
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [geolocating, setGeolocating] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
@@ -63,12 +65,10 @@ export default function PlanerForm() {
       },
       (error) => {
         setGeolocating(false);
-        const denied = error.code === error.PERMISSION_DENIED;
+        void error;
         setStartPointMessage({
           type: "error",
-          text: denied
-            ? "Odmówiono dostępu do lokalizacji. Wpisz miejsce startu ręcznie poniżej."
-            : "Nie udało się pobrać lokalizacji. Wpisz miejsce startu ręcznie poniżej.",
+          text: "Nie udało się pobrać lokalizacji, wpisz ją ręcznie poniżej.",
         });
       },
     );
@@ -153,7 +153,7 @@ export default function PlanerForm() {
         <div className="mt-3 flex flex-col gap-3">
           <button
             type="button"
-            onClick={handleUseLocation}
+            onClick={() => setShowLocationModal(true)}
             disabled={geolocating}
             className="self-start rounded-full border border-black/[.08] px-4 py-2 text-sm font-medium text-black hover:border-black/[.2] disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
           >
@@ -161,6 +161,16 @@ export default function PlanerForm() {
               ? "Pobieranie lokalizacji…"
               : "Użyj mojej aktualnej lokalizacji"}
           </button>
+
+          {showLocationModal && (
+            <LocationPermissionModal
+              onAllow={() => {
+                setShowLocationModal(false);
+                handleUseLocation();
+              }}
+              onDismiss={() => setShowLocationModal(false)}
+            />
+          )}
 
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <span className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
