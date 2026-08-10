@@ -189,7 +189,9 @@ export default function MapboxRouteMap({
           map.getCanvas().style.cursor = "";
         });
         map.on("click", category.layerId, (e) => {
-          const feature = e.features?.[0];
+          const feature = e.features?.[0] as
+            | { properties?: Record<string, unknown> }
+            | undefined;
           if (!feature) return;
           const name =
             (feature.properties?.name as string | undefined) ??
