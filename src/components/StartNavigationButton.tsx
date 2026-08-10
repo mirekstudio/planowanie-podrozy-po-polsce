@@ -1,22 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Place } from "@/data/places";
 import type { GeocodedPlace } from "@/lib/geocoding";
 
 type Coord = { lat: number; lng: number };
+type NavApp = "google" | "apple";
+
+const STORAGE_KEY = "nav-app-preference";
 
 // Praktyczny limit punktów pośrednich obsługiwanych niezawodnie przez
 // link Google Maps (oficjalnie dopuszczalne jest więcej, ale powyżej
 // tej liczby zdarza się, że przeglądarka/aplikacja obcina trasę).
 const MAX_GOOGLE_WAYPOINTS = 23;
 
-function detectPlatform(): "ios" | "android" | "desktop" {
-  if (typeof navigator === "undefined") return "desktop";
-  const ua = navigator.userAgent || "";
-  if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
-  if (/Android/i.test(ua)) return "android";
-  return "desktop";
+function getStoredPreference(): NavApp | null {
+  if (typeof window === "undefined") return null;
+  const value = window.localStorage.getItem(STORAGE_KEY);
+  return value === "google" || value === "apple" ? value : null;
 }
 
 function buildGoogleMapsUrl(points: Coord[]): {
@@ -59,7 +60,38 @@ export default function StartNavigationButton({
   stops: Place[];
   startPoint?: GeocodedPlace | null;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [preferred, setPreferred] = useState<NavApp | null>(null);
+  const [lastOpened, setLastOpened] = useState<NavApp | null>(null);
   const [truncatedNotice, setTruncatedNotice] = useState(false);
+
+  useEffect(() => {
+    setPreferred(getStoredPreference());
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
 
   const points: Coord[] = [
     ...(startPoint ? [{ lat: startPoint.lat, lng: startPoint.lng }] : []),
@@ -68,10 +100,13 @@ export default function StartNavigationButton({
 
   if (points.length < 2) return null;
 
-  const platform = detectPlatform();
+  function openWith(app: NavApp) {
+    window.localStorage.setItem(STORAGE_KEY, app);
+    setPreferred(app);
+    setLastOpened(app);
+    setOpen(false);
 
-  function handleClick() {
-    if (detectPlatform() === "ios") {
+    if (app === "apple") {
       window.open(buildAppleMapsUrl(points), "_blank");
       return;
     }
@@ -82,10 +117,12 @@ export default function StartNavigationButton({
   }
 
   return (
-    <div className="mt-4">
+    <div ref={containerRef} className="relative max-w-xs text-right">
       <button
         type="button"
-        onClick={handleClick}
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-haspopup="menu"
         className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
       >
         <svg
@@ -102,7 +139,44 @@ export default function StartNavigationButton({
         Start — nawiguj
       </button>
 
-      {platform === "ios" && (
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-black/[.08] bg-white p-1.5 text-left shadow-xl dark:border-white/[.145] dark:bg-zinc-900"
+        >
+          <p className="px-2.5 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-600">
+            Otwórz w
+          </p>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => openWith("google")}
+            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+          >
+            <span>Google Maps</span>
+            {preferred === "google" && (
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                ostatnio
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => openWith("apple")}
+            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+          >
+            <span>Apple Maps</span>
+            {preferred === "apple" && (
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                ostatnio
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {lastOpened === "apple" && (
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
           Otworzy się aplikacja Mapy. Jeśli nie wszystkie przystanki wczytają
           się automatycznie, dodaj pozostałe ręcznie w aplikacji.

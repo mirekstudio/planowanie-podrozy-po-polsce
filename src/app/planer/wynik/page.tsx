@@ -105,8 +105,6 @@ export default async function PlanerWynikPage({
           ))}
         </div>
 
-        <StartNavigationButton stops={route.stops} startPoint={startPoint} />
-
         {route.usedFallback && interests.length > 0 && (
           <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
             Żadne miejsce w bazie nie pasuje do wybranych zainteresowań —
@@ -116,6 +114,10 @@ export default async function PlanerWynikPage({
 
         <div className="mt-8">
           <MapboxRouteMapLoader stops={route.stops} startPoint={startPoint} />
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <StartNavigationButton stops={route.stops} startPoint={startPoint} />
         </div>
 
         <ol className="mt-8 flex flex-col gap-4">
