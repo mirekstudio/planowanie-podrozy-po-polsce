@@ -261,6 +261,17 @@ export default function SideDrawer({
           <hr className="my-2 border-black/[.08] dark:border-white/[.145]" />
 
           <DrawerLink
+            href="/polska-w-pigulce"
+            onClick={onClose}
+            label="Polska w pigułce"
+            icon={
+              <svg {...iconProps}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8h.01M11 11h1v6h1" />
+              </svg>
+            }
+          />
+          <DrawerLink
             href="/szlaki"
             onClick={onClose}
             label="Szlaki samochodowe"
