@@ -71,10 +71,15 @@ export default function PlanerForm() {
           text: "Nie udało się pobrać lokalizacji, wpisz ją ręcznie poniżej.",
         });
       },
-      // Safari potrafi "wisieć" bez limitu czasu, jeśli nie poda się
-      // jawnego timeoutu — bez tego przycisk mógłby zostać w stanie
-      // "Pobieranie lokalizacji…" w nieskończoność.
-      { timeout: 10000, maximumAge: 0 },
+      // Limit czasu liczy się od razu po wywołaniu getCurrentPosition,
+      // WLICZAJĄC czas oczekiwania na reakcję użytkownika w systemowym
+      // oknie z pytaniem o zgodę — zbyt krótki timeout (wcześniej 10s)
+      // potrafił wygasnąć, zanim użytkownik zdążył kliknąć "Zezwól" w
+      // tym oknie, zwłaszcza że desktopowy Safari ustala lokalizację
+      // przez Wi-Fi (wolniej niż GPS na telefonie). maximumAge > 0
+      // pozwala użyć niedawno ustalonej pozycji przy kolejnej próbie
+      // zamiast za każdym razem czekać na pełny, powolny pomiar od zera.
+      { timeout: 27000, maximumAge: 60000 },
     );
   }
 
