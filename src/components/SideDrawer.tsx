@@ -305,6 +305,30 @@ export default function SideDrawer({
                 </svg>
               }
             />
+            <FeaturedLink
+              href="/mapa"
+              onClick={onClose}
+              label="Mapa"
+              icon={
+                <svg {...iconProps}>
+                  <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+                  <path d="M9 4v14M15 6v14" />
+                </svg>
+              }
+            />
+            <FeaturedLink
+              href="/trasa"
+              onClick={onClose}
+              label="Trasa"
+              icon={
+                <svg {...iconProps}>
+                  <path d="M8 6h13M8 12h13M8 18h13" />
+                  <circle cx="4" cy="6" r="1" fill="currentColor" />
+                  <circle cx="4" cy="12" r="1" fill="currentColor" />
+                  <circle cx="4" cy="18" r="1" fill="currentColor" />
+                </svg>
+              }
+            />
           </div>
 
           <hr className="my-2 border-black/[.08] dark:border-white/[.145]" />
@@ -371,30 +395,6 @@ export default function SideDrawer({
           <p className="px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-600">
             Więcej
           </p>
-          <DrawerLink
-            href="/mapa"
-            onClick={onClose}
-            label="Mapa"
-            icon={
-              <svg {...iconProps}>
-                <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
-                <path d="M9 4v14M15 6v14" />
-              </svg>
-            }
-          />
-          <DrawerLink
-            href="/trasa"
-            onClick={onClose}
-            label="Trasa"
-            icon={
-              <svg {...iconProps}>
-                <path d="M8 6h13M8 12h13M8 18h13" />
-                <circle cx="4" cy="6" r="1" fill="currentColor" />
-                <circle cx="4" cy="12" r="1" fill="currentColor" />
-                <circle cx="4" cy="18" r="1" fill="currentColor" />
-              </svg>
-            }
-          />
           <DrawerLink
             href="/admin"
             onClick={onClose}
