@@ -15,7 +15,7 @@ export default function Nav() {
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Otwórz menu"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-black/5 dark:text-zinc-400 dark:hover:bg-white/10"
+            className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-black/5 dark:text-zinc-400 dark:hover:bg-white/10"
           >
             <svg
               viewBox="0 0 24 24"

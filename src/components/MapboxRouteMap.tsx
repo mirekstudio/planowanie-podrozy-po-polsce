@@ -110,11 +110,14 @@ export default function MapboxRouteMap({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [error, setError] = useState(false);
+  const [mapError, setMapError] = useState(false);
   const [activeCategories, setActiveCategories] = useState<
     Record<PoiCategoryId, boolean>
   >({ fuel: false, restaurants: false, shops: false });
   const activeCategoriesRef = useRef(activeCategories);
-  activeCategoriesRef.current = activeCategories;
+  useEffect(() => {
+    activeCategoriesRef.current = activeCategories;
+  }, [activeCategories]);
 
   function togglePoiCategory(id: PoiCategoryId) {
     setActiveCategories((current) => {
@@ -136,6 +139,7 @@ export default function MapboxRouteMap({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset UI state when stops/startPoint change, before (re)creating the map instance
     setRouteInfo(null);
     setError(false);
+    setMapError(false);
 
     const hasContent = stops.length > 0 || !!startPoint;
     if (!containerRef.current || !hasContent || !MAPBOX_TOKEN) return;
@@ -155,6 +159,7 @@ export default function MapboxRouteMap({
 
     map.addControl(new mapboxgl.NavigationControl(), "top-left");
     mapRef.current = map;
+    map.on("error", () => setMapError(true));
 
     function addPoiLayers() {
       POI_CATEGORIES.forEach((category) => {
@@ -374,7 +379,7 @@ export default function MapboxRouteMap({
               type="button"
               onClick={() => togglePoiCategory(category.id)}
               aria-pressed={active}
-              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-full border px-3 py-3 text-sm font-medium transition-colors ${
                 active
                   ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
                   : "border-black/[.08] text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
@@ -385,10 +390,18 @@ export default function MapboxRouteMap({
           );
         })}
       </div>
-      <div
-        ref={containerRef}
-        style={{ height: "400px", width: "100%", borderRadius: "0.75rem" }}
-      />
+      <div className="relative">
+        <div
+          ref={containerRef}
+          style={{ height: "400px", width: "100%", borderRadius: "0.75rem" }}
+        />
+        {mapError && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/90 p-4 text-center text-sm text-zinc-600 dark:bg-black/80 dark:text-zinc-400">
+            Nie udało się załadować mapy. Sprawdź połączenie z internetem i
+            odśwież stronę.
+          </div>
+        )}
+      </div>
       {routeInfo && (
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
           Trasa samochodowa: {routeInfo.distanceKm.toFixed(0)} km, ok.{" "}

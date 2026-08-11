@@ -71,6 +71,10 @@ export default function PlanerForm() {
           text: "Nie udało się pobrać lokalizacji, wpisz ją ręcznie poniżej.",
         });
       },
+      // Safari potrafi "wisieć" bez limitu czasu, jeśli nie poda się
+      // jawnego timeoutu — bez tego przycisk mógłby zostać w stanie
+      // "Pobieranie lokalizacji…" w nieskończoność.
+      { timeout: 10000, maximumAge: 0 },
     );
   }
 
@@ -155,7 +159,7 @@ export default function PlanerForm() {
             type="button"
             onClick={() => setShowLocationModal(true)}
             disabled={geolocating}
-            className="self-start rounded-full border border-black/[.08] px-4 py-2 text-sm font-medium text-black hover:border-black/[.2] disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+            className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-black/[.2] disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
           >
             {geolocating
               ? "Pobieranie lokalizacji…"
@@ -194,13 +198,13 @@ export default function PlanerForm() {
                   }
                 }}
                 placeholder="np. Poznań, ul. Główna 1"
-                className="flex-1 rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+                className="flex-1 rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
               />
               <button
                 type="button"
                 onClick={handleGeocodeAddress}
                 disabled={geocoding || !manualAddress.trim()}
-                className="shrink-0 rounded-lg border border-black/[.08] px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-white/[.145]"
+                className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium disabled:opacity-50 dark:border-white/[.145]"
               >
                 {geocoding ? "Szukam…" : "Znajdź"}
               </button>
@@ -333,7 +337,7 @@ export default function PlanerForm() {
                 onChange={(e) =>
                   handleNumChildrenChange(Number(e.target.value))
                 }
-                className="rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+                className="rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
               />
             </label>
 
@@ -350,7 +354,7 @@ export default function PlanerForm() {
                   onChange={(e) =>
                     handleChildAgeChange(index, Number(e.target.value))
                   }
-                  className="rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+                  className="rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
                 />
               </label>
             ))}
@@ -368,13 +372,13 @@ export default function PlanerForm() {
           max={20}
           value={numAdults}
           onChange={(e) => setNumAdults(Number(e.target.value))}
-          className="mt-1 max-w-[8rem] rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+          className="mt-1 max-w-[8rem] rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
         />
       </label>
 
       <button
         type="submit"
-        className="self-start rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
       >
         Generuj trasę
       </button>

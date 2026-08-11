@@ -97,7 +97,7 @@ export default function TrasaForm({ places }: { places: Place[] }) {
                       onClick={() => move(index, -1)}
                       disabled={index === 0}
                       aria-label={`Przenieś ${place.title} wyżej`}
-                      className="rounded border border-black/[.08] px-2 py-1 text-sm text-zinc-600 disabled:opacity-30 dark:border-white/[.145] dark:text-zinc-400"
+                      className="flex h-11 w-11 items-center justify-center rounded border border-black/[.08] text-sm text-zinc-600 disabled:opacity-30 dark:border-white/[.145] dark:text-zinc-400"
                     >
                       ↑
                     </button>
@@ -106,7 +106,7 @@ export default function TrasaForm({ places }: { places: Place[] }) {
                       onClick={() => move(index, 1)}
                       disabled={index === route.length - 1}
                       aria-label={`Przenieś ${place.title} niżej`}
-                      className="rounded border border-black/[.08] px-2 py-1 text-sm text-zinc-600 disabled:opacity-30 dark:border-white/[.145] dark:text-zinc-400"
+                      className="flex h-11 w-11 items-center justify-center rounded border border-black/[.08] text-sm text-zinc-600 disabled:opacity-30 dark:border-white/[.145] dark:text-zinc-400"
                     >
                       ↓
                     </button>

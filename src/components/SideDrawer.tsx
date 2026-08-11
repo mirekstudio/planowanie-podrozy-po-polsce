@@ -109,7 +109,7 @@ function DrawerLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
+      className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
         bold
           ? "font-semibold text-black dark:text-zinc-50"
           : "text-zinc-700 dark:text-zinc-300"
@@ -131,7 +131,7 @@ function DrawerStat({
   count: number;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-zinc-700 dark:text-zinc-300">
+    <div className="flex items-center justify-between rounded-lg px-3 py-3 text-sm text-zinc-700 dark:text-zinc-300">
       <span className="flex items-center gap-3">
         {icon}
         {label}
@@ -203,7 +203,7 @@ export default function SideDrawer({
             type="button"
             onClick={onClose}
             aria-label="Zamknij menu"
-            className="rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white"
+            className="-mr-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
           >
             <svg
               viewBox="0 0 24 24"

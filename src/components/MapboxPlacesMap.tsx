@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Place } from "@/data/places";
@@ -9,8 +9,11 @@ import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 export default function MapboxPlacesMap({ places }: { places: Place[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset error state before (re)creating the map instance
+    setMapError(false);
     if (!containerRef.current || places.length === 0) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -22,6 +25,8 @@ export default function MapboxPlacesMap({ places }: { places: Place[] }) {
       zoom: 7,
     });
     mapRef.current = map;
+
+    map.on("error", () => setMapError(true));
 
     map.addControl(new mapboxgl.NavigationControl(), "top-left");
 
@@ -76,9 +81,17 @@ export default function MapboxPlacesMap({ places }: { places: Place[] }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{ height: "500px", width: "100%", borderRadius: "0.75rem" }}
-    />
+    <div className="relative">
+      <div
+        ref={containerRef}
+        style={{ height: "500px", width: "100%", borderRadius: "0.75rem" }}
+      />
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/90 p-4 text-center text-sm text-zinc-600 dark:bg-black/80 dark:text-zinc-400">
+          Nie udało się załadować mapy. Sprawdź połączenie z internetem i
+          odśwież stronę.
+        </div>
+      )}
+    </div>
   );
 }

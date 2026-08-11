@@ -18,7 +18,7 @@ export default function DeleteButton({
     >
       <button
         type="submit"
-        className="text-sm text-red-600 hover:underline dark:text-red-400"
+        className="rounded-lg px-3 py-3 text-sm text-red-600 hover:underline dark:text-red-400"
       >
         Usuń
       </button>

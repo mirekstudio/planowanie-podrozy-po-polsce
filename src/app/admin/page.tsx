@@ -29,7 +29,7 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/new"
-          className="mt-6 inline-block rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="mt-6 inline-block rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
         >
           + Dodaj nowe miejsce
         </Link>

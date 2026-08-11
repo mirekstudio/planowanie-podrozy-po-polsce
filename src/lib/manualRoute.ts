@@ -14,10 +14,21 @@ export function getManualRoute(): string[] {
 
 export function setManualRoute(slugs: string[]): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slugs));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slugs));
+  } catch {
+    // Safari w trybie prywatnym (i inne restrykcyjne ustawienia) może
+    // rzucić wyjątkiem przy zapisie do localStorage — trasa po prostu
+    // nie zostanie zapamiętana między odświeżeniami, ale appka ma
+    // działać dalej.
+  }
 }
 
 export function clearManualRoute(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // jw.
+  }
 }

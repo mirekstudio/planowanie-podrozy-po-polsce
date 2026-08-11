@@ -16,8 +16,23 @@ const MAX_GOOGLE_WAYPOINTS = 23;
 
 function getStoredPreference(): NavApp | null {
   if (typeof window === "undefined") return null;
-  const value = window.localStorage.getItem(STORAGE_KEY);
-  return value === "google" || value === "apple" ? value : null;
+  try {
+    const value = window.localStorage.getItem(STORAGE_KEY);
+    return value === "google" || value === "apple" ? value : null;
+  } catch {
+    // Safari w trybie prywatnym potrafi rzucić wyjątkiem przy dostępie
+    // do localStorage — po prostu nie proponujemy wtedy domyślnego
+    // wyboru, menu dalej działa normalnie.
+    return null;
+  }
+}
+
+function storePreference(app: NavApp) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, app);
+  } catch {
+    // jw. — brak zapisu nie powinien zablokować otwarcia nawigacji.
+  }
 }
 
 function buildGoogleMapsUrl(points: Coord[]): {
@@ -62,13 +77,12 @@ export default function StartNavigationButton({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [preferred, setPreferred] = useState<NavApp | null>(null);
+  const [preferred, setPreferred] = useState<NavApp | null>(() =>
+    getStoredPreference(),
+  );
   const [lastOpened, setLastOpened] = useState<NavApp | null>(null);
   const [truncatedNotice, setTruncatedNotice] = useState(false);
-
-  useEffect(() => {
-    setPreferred(getStoredPreference());
-  }, []);
+  const [popupBlocked, setPopupBlocked] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -101,19 +115,28 @@ export default function StartNavigationButton({
   if (points.length < 2) return null;
 
   function openWith(app: NavApp) {
-    window.localStorage.setItem(STORAGE_KEY, app);
+    storePreference(app);
     setPreferred(app);
     setLastOpened(app);
+    setPopupBlocked(false);
     setOpen(false);
 
+    let url: string;
     if (app === "apple") {
-      window.open(buildAppleMapsUrl(points), "_blank");
-      return;
+      url = buildAppleMapsUrl(points);
+    } else {
+      const google = buildGoogleMapsUrl(points);
+      url = google.url;
+      if (google.truncated) setTruncatedNotice(true);
     }
 
-    const { url, truncated } = buildGoogleMapsUrl(points);
-    if (truncated) setTruncatedNotice(true);
-    window.open(url, "_blank");
+    const newWindow = window.open(url, "_blank");
+    if (!newWindow) {
+      // Przeglądarka (np. Safari) zablokowała wyskakujące okno —
+      // informujemy o tym zamiast ciszy, żeby nie wyglądało to jak
+      // brak reakcji na kliknięcie.
+      setPopupBlocked(true);
+    }
   }
 
   return (
@@ -123,7 +146,7 @@ export default function StartNavigationButton({
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
       >
         <svg
           viewBox="0 0 24 24"
@@ -151,7 +174,7 @@ export default function StartNavigationButton({
             type="button"
             role="menuitem"
             onClick={() => openWith("google")}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+            className="flex w-full items-center justify-between rounded-lg px-2.5 py-3 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
           >
             <span>Google Maps</span>
             {preferred === "google" && (
@@ -164,7 +187,7 @@ export default function StartNavigationButton({
             type="button"
             role="menuitem"
             onClick={() => openWith("apple")}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+            className="flex w-full items-center justify-between rounded-lg px-2.5 py-3 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
           >
             <span>Apple Maps</span>
             {preferred === "apple" && (
@@ -176,7 +199,13 @@ export default function StartNavigationButton({
         </div>
       )}
 
-      {lastOpened === "apple" && (
+      {popupBlocked && (
+        <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+          Przeglądarka zablokowała otwarcie nawigacji. Zezwól na wyskakujące
+          okna dla tej strony i spróbuj ponownie.
+        </p>
+      )}
+      {lastOpened === "apple" && !popupBlocked && (
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
           Otworzy się aplikacja Mapy. Jeśli nie wszystkie przystanki wczytają
           się automatycznie, dodaj pozostałe ręcznie w aplikacji.

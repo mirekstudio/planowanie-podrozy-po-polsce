@@ -14,7 +14,7 @@ function Field({
       <input
         name={name}
         {...props}
-        className="rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+        className="rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
       />
     </label>
   );
@@ -33,7 +33,7 @@ function TextArea({
       <textarea
         name={name}
         {...props}
-        className="rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+        className="rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
       />
     </label>
   );
@@ -115,7 +115,7 @@ export default function PlaceForm({
         <select
           name="imagePosition"
           defaultValue={place?.imagePosition ?? ""}
-          className="rounded-lg border border-black/[.08] bg-white px-3 py-2 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+          className="rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
         >
           <option value="">Środek (domyślnie)</option>
           <option value="top">Góra</option>
@@ -167,7 +167,7 @@ export default function PlaceForm({
       </div>
       <button
         type="submit"
-        className="mt-2 self-start rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="mt-2 self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
       >
         Zapisz
       </button>
