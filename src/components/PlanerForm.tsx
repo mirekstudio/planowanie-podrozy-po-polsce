@@ -65,11 +65,22 @@ export default function PlanerForm() {
       },
       (error) => {
         setGeolocating(false);
-        void error;
-        setStartPointMessage({
-          type: "error",
-          text: "Nie udało się pobrać lokalizacji, wpisz ją ręcznie poniżej.",
-        });
+        // Rozróżniamy dokładny powód, żeby użytkownik (i my przy
+        // diagnozowaniu) widział, czy to odmowa dostępu (ustawienia
+        // systemu/przeglądarki), przekroczony czas, czy chwilowy brak
+        // sygnału — zamiast zawsze tego samego ogólnego komunikatu.
+        let text = "Nie udało się pobrać lokalizacji, wpisz ją ręcznie poniżej.";
+        if (error.code === error.PERMISSION_DENIED) {
+          text =
+            "Odmówiono dostępu do lokalizacji (sprawdź ustawienia lokalizacji dla tej przeglądarki w systemie). Wpisz adres ręcznie poniżej.";
+        } else if (error.code === error.TIMEOUT) {
+          text =
+            "Przekroczono limit czasu pobierania lokalizacji. Spróbuj ponownie lub wpisz adres ręcznie poniżej.";
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          text =
+            "Nie udało się chwilowo ustalić lokalizacji. Spróbuj ponownie lub wpisz adres ręcznie poniżej.";
+        }
+        setStartPointMessage({ type: "error", text });
       },
       // Limit czasu liczy się od razu po wywołaniu getCurrentPosition,
       // WLICZAJĄC czas oczekiwania na reakcję użytkownika w systemowym
