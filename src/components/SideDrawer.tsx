@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 type Category = {
   label: string;
@@ -121,15 +121,66 @@ function DrawerLink({
   );
 }
 
+function FeaturedLink({
+  href,
+  icon,
+  label,
+  onClick,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-xl bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-black hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+    >
+      {icon}
+      <span>{label}</span>
+    </Link>
+  );
+}
+
 function DrawerStat({
   icon,
   label,
   count,
+  disabledNote,
+  onDisabledClick,
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
+  disabledNote?: string;
+  onDisabledClick?: () => void;
 }) {
+  if (disabledNote) {
+    return (
+      <button
+        type="button"
+        onClick={onDisabledClick}
+        aria-disabled="true"
+        className="flex w-full cursor-not-allowed items-center justify-between rounded-lg px-3 py-3 text-left text-sm text-zinc-400 dark:text-zinc-600"
+      >
+        <span className="flex items-center gap-3">
+          {icon}
+          <span className="flex flex-col items-start">
+            <span>{label}</span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-600">
+              {disabledNote}
+            </span>
+          </span>
+        </span>
+        <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-400 dark:bg-white/10 dark:text-zinc-600">
+          {count}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className="flex items-center justify-between rounded-lg px-3 py-3 text-sm text-zinc-700 dark:text-zinc-300">
       <span className="flex items-center gap-3">
@@ -150,6 +201,8 @@ export default function SideDrawer({
   open: boolean;
   onClose: () => void;
 }) {
+  const [notice, setNotice] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open) return;
 
@@ -164,6 +217,16 @@ export default function SideDrawer({
       window.removeEventListener("keydown", handleKey);
     };
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  function showComingSoonNotice() {
+    setNotice("Ta funkcja pojawi się wkrótce – wymaga założenia konta.");
+  }
 
   return (
     <div
@@ -219,6 +282,33 @@ export default function SideDrawer({
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-3">
+          <div className="flex flex-col gap-2 pb-1">
+            <FeaturedLink
+              href="/polska-w-pigulce"
+              onClick={onClose}
+              label="Polska w pigułce"
+              icon={
+                <svg {...iconProps}>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8h.01M11 11h1v6h1" />
+                </svg>
+              }
+            />
+            <FeaturedLink
+              href="/planer"
+              onClick={onClose}
+              label="Zaplanuj podróż"
+              icon={
+                <svg {...iconProps}>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M15 9l-2 5-5 2 2-5 5-2Z" strokeLinejoin="round" />
+                </svg>
+              }
+            />
+          </div>
+
+          <hr className="my-2 border-black/[.08] dark:border-white/[.145]" />
+
           <DrawerLink
             href="/miejsca"
             onClick={onClose}
@@ -229,6 +319,8 @@ export default function SideDrawer({
           <DrawerStat
             count={0}
             label="Ulubione"
+            disabledNote="Wymaga konta"
+            onDisabledClick={showComingSoonNotice}
             icon={
               <svg {...iconProps}>
                 <path d="M12 20s-7-4.35-9.5-8.5C.5 8 2 4.5 5.5 4.5c2.1 0 3.5 1.2 4.2 2.3.1.2.2.3.3.5.1-.2.2-.3.3-.5.7-1.1 2.1-2.3 4.2-2.3 3.5 0 5 3.5 3 7C19 15.65 12 20 12 20Z" />
@@ -238,6 +330,8 @@ export default function SideDrawer({
           <DrawerStat
             count={0}
             label="Odwiedzone"
+            disabledNote="Wymaga konta"
+            onDisabledClick={showComingSoonNotice}
             icon={
               <svg {...iconProps}>
                 <circle cx="12" cy="12" r="9" />
@@ -261,17 +355,6 @@ export default function SideDrawer({
           <hr className="my-2 border-black/[.08] dark:border-white/[.145]" />
 
           <DrawerLink
-            href="/polska-w-pigulce"
-            onClick={onClose}
-            label="Polska w pigułce"
-            icon={
-              <svg {...iconProps}>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 8h.01M11 11h1v6h1" />
-              </svg>
-            }
-          />
-          <DrawerLink
             href="/szlaki"
             onClick={onClose}
             label="Szlaki samochodowe"
@@ -279,17 +362,6 @@ export default function SideDrawer({
               <svg {...iconProps}>
                 <path d="M8 21 11 3h2l3 18" />
                 <path d="M12 8v2M12 13v2M12 18v1" />
-              </svg>
-            }
-          />
-          <DrawerLink
-            href="/planer"
-            onClick={onClose}
-            label="Zaplanuj podróż"
-            icon={
-              <svg {...iconProps}>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M15 9l-2 5-5 2 2-5 5-2Z" strokeLinejoin="round" />
               </svg>
             }
           />
@@ -335,6 +407,19 @@ export default function SideDrawer({
             }
           />
         </nav>
+
+        <div
+          className={`pointer-events-none sticky bottom-0 px-3 pb-3 transition-opacity duration-200 ${
+            notice ? "opacity-100" : "opacity-0"
+          }`}
+          aria-live="polite"
+        >
+          {notice && (
+            <p className="rounded-lg bg-black px-3 py-2.5 text-xs text-white shadow-lg dark:bg-white dark:text-black">
+              {notice}
+            </p>
+          )}
+        </div>
       </aside>
     </div>
   );
