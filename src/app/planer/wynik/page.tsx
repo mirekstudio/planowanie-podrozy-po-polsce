@@ -2,11 +2,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getPlaces } from "@/lib/getPlaces";
-import { generateRoute } from "@/lib/generateRoute";
+import { generateRouteVariants, type RouteVariant } from "@/lib/generateRoute";
+import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
 import StartNavigationButton from "@/components/StartNavigationButton";
+import SelectRouteButton from "@/components/SelectRouteButton";
 
 export const dynamic = "force-dynamic";
+
+type SearchParams = {
+  days?: string;
+  interests?: string;
+  transport?: string;
+  travelGroup?: string;
+  numAdults?: string;
+  children?: string;
+  startLat?: string;
+  startLng?: string;
+  startLabel?: string;
+  variant?: string;
+};
 
 function parseNumberList(value: string | undefined): number[] {
   if (!value) return [];
@@ -16,20 +31,20 @@ function parseNumberList(value: string | undefined): number[] {
     .filter((n) => !Number.isNaN(n));
 }
 
+function hrefForVariant(params: SearchParams, variantId?: string): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "variant" || !value) continue;
+    search.set(key, value);
+  }
+  if (variantId) search.set("variant", variantId);
+  return `/planer/wynik?${search.toString()}`;
+}
+
 export default async function PlanerWynikPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    days?: string;
-    interests?: string;
-    transport?: string;
-    travelGroup?: string;
-    numAdults?: string;
-    children?: string;
-    startLat?: string;
-    startLng?: string;
-    startLabel?: string;
-  }>;
+  searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
 
@@ -54,56 +69,124 @@ export default async function PlanerWynikPage({
       : null;
 
   const places = await getPlaces();
-  const route = generateRoute(places, {
+  const variants = generateRouteVariants(places, {
     days,
     interests,
     startPoint,
     childrenAges: travelGroup === "family" ? childrenAges : undefined,
   });
 
+  const selectedVariant = params.variant
+    ? variants.find((v) => v.id === params.variant)
+    : undefined;
+
+  const chips = (
+    <div className="mt-4 flex flex-wrap gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+      <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
+        {days} {days === 1 ? "dzień" : "dni"}
+      </span>
+      <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
+        {transport === "camper" ? "Camper" : "Samochód"}
+      </span>
+      <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
+        {travelGroup === "family"
+          ? `Rodzina: ${numAdults} dorosłych, ${childrenAges.length} dzieci`
+          : `${numAdults} dorosłych`}
+      </span>
+      {startPoint && (
+        <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
+          🏁 Start: {startPoint.label}
+        </span>
+      )}
+      {interests.map((interest) => (
+        <span
+          key={interest}
+          className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
+        >
+          {interest}
+        </span>
+      ))}
+    </div>
+  );
+
+  if (!selectedVariant) {
+    return (
+      <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
+        <main className="mx-auto max-w-3xl px-6 py-16">
+          <Link
+            href="/planer"
+            className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          >
+            ← Zmień parametry
+          </Link>
+
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
+            Wybierz wariant trasy
+          </h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Przygotowaliśmy {variants.length}{" "}
+            {variants.length === 1 ? "wariant" : "warianty"} na podstawie
+            Twoich preferencji. Kliknij kartę, aby zobaczyć pełną trasę.
+          </p>
+
+          {chips}
+
+          {variants.length > 0 && variants[0].route.usedFallback && interests.length > 0 && (
+            <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+              Żadne miejsce w bazie nie pasuje do wybranych zainteresowań —
+              pokazujemy warianty ze wszystkich dostępnych miejsc.
+            </p>
+          )}
+
+          {variants.length === 0 ? (
+            <p className="mt-8 text-sm text-zinc-500">
+              Nie udało się wygenerować żadnej trasy dla podanych parametrów.
+            </p>
+          ) : (
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {variants.map((variant) => (
+                <VariantCard
+                  key={variant.id}
+                  variant={variant}
+                  startPoint={startPoint}
+                  href={hrefForVariant(params, variant.id)}
+                />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  const route = selectedVariant.route;
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <Link
-          href="/planer"
-          className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
-        >
-          ← Zmień parametry
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <Link
+            href={hrefForVariant(params)}
+            className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          >
+            ← Wróć do wariantów
+          </Link>
+          <Link
+            href="/planer"
+            className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          >
+            Zmień parametry
+          </Link>
+        </div>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          Twoja trasa
+          {selectedVariant.title}
         </h1>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          {selectedVariant.summary}
+        </p>
 
-        <div className="mt-4 flex flex-wrap gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-            {days} {days === 1 ? "dzień" : "dni"}
-          </span>
-          <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-            {transport === "camper" ? "Camper" : "Samochód"}
-          </span>
-          <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-            {travelGroup === "family"
-              ? `Rodzina: ${numAdults} dorosłych, ${childrenAges.length} dzieci`
-              : `${numAdults} dorosłych`}
-          </span>
-          <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-            Limit dzienny: {route.dailyHoursLimit.toFixed(1)} h
-          </span>
-          {startPoint && (
-            <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-              🏁 Start: {startPoint.label}
-            </span>
-          )}
-          {interests.map((interest) => (
-            <span
-              key={interest}
-              className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
-            >
-              {interest}
-            </span>
-          ))}
-        </div>
+        {chips}
 
         {route.usedFallback && interests.length > 0 && (
           <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
@@ -116,7 +199,8 @@ export default async function PlanerWynikPage({
           <MapboxRouteMapLoader stops={route.stops} startPoint={startPoint} />
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <SelectRouteButton />
           <StartNavigationButton stops={route.stops} startPoint={startPoint} />
         </div>
 
@@ -187,5 +271,57 @@ export default async function PlanerWynikPage({
         )}
       </main>
     </div>
+  );
+}
+
+function VariantCard({
+  variant,
+  startPoint,
+  href,
+}: {
+  variant: RouteVariant;
+  startPoint: { lat: number; lng: number } | null;
+  href: string;
+}) {
+  const usedDays = variant.route.days.filter((d) => d.places.length > 0).length;
+  const thumbnail = buildRouteThumbnailUrl(
+    variant.route.stops.map((p) => ({ lat: p.lat, lng: p.lng })),
+    startPoint,
+  );
+
+  return (
+    <Link
+      href={href}
+      className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-black/[.2] dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-white/[.3]"
+    >
+      <div className="aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800">
+        {thumbnail && (
+          // Mapbox Static Images API zwraca gotowy obraz pod dynamicznym
+          // URL-em (współrzędne przystanków) — next/image wymagałby
+          // rejestracji domeny w next.config, zwykły <img> jest prostszy.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnail}
+            alt={`Podgląd trasy: ${variant.title}`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h2 className="font-semibold text-black dark:text-zinc-50">
+          {variant.title}
+        </h2>
+        <p className="text-sm text-zinc-500">
+          {usedDays} {usedDays === 1 ? "dzień" : "dni"} •{" "}
+          {variant.route.stops.length}{" "}
+          {variant.route.stops.length === 1 ? "przystanek" : "przystanków"}
+        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {variant.summary}
+        </p>
+      </div>
+    </Link>
   );
 }
