@@ -107,6 +107,12 @@ function calcTotalDistance(stops: Place[], start: Coordinates | null): number {
   return total;
 }
 
+export function filterByInterests(places: Place[], interests: string[]): Place[] {
+  return interests.length > 0
+    ? places.filter((place) => place.tags.some((tag) => interests.includes(tag)))
+    : places;
+}
+
 export function generateRoute(
   places: Place[],
   options: RouteOptions,
@@ -124,12 +130,7 @@ export function generateRoute(
   const dailyHoursLimit = baseDailyHoursLimit * paceFactor;
   const visitHours = VISIT_HOURS / paceFactor;
 
-  let candidates =
-    options.interests.length > 0
-      ? places.filter((place) =>
-          place.tags.some((tag) => options.interests.includes(tag)),
-        )
-      : places;
+  let candidates = filterByInterests(places, options.interests);
 
   const usedFallback = candidates.length === 0;
   if (usedFallback) {

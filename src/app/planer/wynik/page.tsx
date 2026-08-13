@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getPlaces } from "@/lib/getPlaces";
+import type { Place } from "@/data/places";
+import { getRoutePlaces } from "@/lib/getRoutePlaces";
 import { generateRouteVariants, type RouteVariant } from "@/lib/generateRoute";
 import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
@@ -68,7 +69,8 @@ export default async function PlanerWynikPage({
         }
       : null;
 
-  const places = await getPlaces();
+  const places = await getRoutePlaces({ interests, startPoint });
+  const usedSupplement = places.some((p) => p.source === "basic");
   const variants = generateRouteVariants(places, {
     days,
     interests,
@@ -131,6 +133,14 @@ export default async function PlanerWynikPage({
 
           {chips}
 
+          {usedSupplement && (
+            <p className="mt-4 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-700 dark:text-blue-400">
+              W naszej bazie było za mało pasujących miejsc, więc trasę
+              uzupełniliśmy propozycjami z Geoapify (oznaczone jako
+              „Odkryj więcej”).
+            </p>
+          )}
+
           {variants.length > 0 && variants[0].route.usedFallback && interests.length > 0 && (
             <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
               Żadne miejsce w bazie nie pasuje do wybranych zainteresowań —
@@ -188,6 +198,14 @@ export default async function PlanerWynikPage({
 
         {chips}
 
+        {usedSupplement && (
+          <p className="mt-4 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-700 dark:text-blue-400">
+            W naszej bazie było za mało pasujących miejsc, więc trasę
+            uzupełniliśmy propozycjami z Geoapify (oznaczone jako „Odkryj
+            więcej”).
+          </p>
+        )}
+
         {route.usedFallback && interests.length > 0 && (
           <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
             Żadne miejsce w bazie nie pasuje do wybranych zainteresowań —
@@ -231,31 +249,7 @@ export default async function PlanerWynikPage({
               ) : (
                 <div className="mt-3 flex flex-col gap-3">
                   {dayPlaces.map((place) => (
-                    <Link
-                      key={place.slug}
-                      href={`/miejsca/${place.slug}`}
-                      className="flex gap-4 rounded-lg border border-black/[.08] p-3 hover:border-black/[.2] dark:border-white/[.145] dark:hover:border-white/[.3]"
-                    >
-                      <Image
-                        src={place.image}
-                        alt={place.imageAlt}
-                        width={96}
-                        height={96}
-                        className={`h-20 w-20 shrink-0 rounded-lg object-cover ${
-                          place.imagePosition === "top"
-                            ? "object-top"
-                            : "object-center"
-                        }`}
-                      />
-                      <div>
-                        <p className="font-medium text-black dark:text-zinc-50">
-                          {place.title}
-                        </p>
-                        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                          {place.description}
-                        </p>
-                      </div>
-                    </Link>
+                    <ItineraryPlaceCard key={place.slug} place={place} />
                   ))}
                 </div>
               )}
@@ -271,6 +265,88 @@ export default async function PlanerWynikPage({
         )}
       </main>
     </div>
+  );
+}
+
+function ItineraryPlaceCard({ place }: { place: Place }) {
+  const isBasic = place.source === "basic";
+
+  const content = (
+    <>
+      {isBasic ? (
+        place.image ? (
+          // Zdjęcia z Geoapify pochodzą z różnych domen (zależnie od
+          // miejsca) — next/image wymagałby zarejestrowania każdej z
+          // nich w next.config, zwykły <img> jest prostszy i wystarczający
+          // dla miniatury.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={place.image}
+            alt={place.imageAlt}
+            className="h-20 w-20 shrink-0 rounded-lg object-cover"
+          />
+        ) : (
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-2xl dark:bg-zinc-800">
+            📍
+          </div>
+        )
+      ) : (
+        <Image
+          src={place.image}
+          alt={place.imageAlt}
+          width={96}
+          height={96}
+          className={`h-20 w-20 shrink-0 rounded-lg object-cover ${
+            place.imagePosition === "top" ? "object-top" : "object-center"
+          }`}
+        />
+      )}
+      <div className="flex flex-1 flex-col gap-1">
+        <p className="font-medium text-black dark:text-zinc-50">
+          {place.title}
+        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {place.description}
+        </p>
+        <span
+          className={`mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+            isBasic
+              ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
+              : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+          }`}
+        >
+          {isBasic ? "Odkryj więcej →" : "★ Poleca przewodnik"}
+        </span>
+      </div>
+    </>
+  );
+
+  const className =
+    "flex gap-4 rounded-lg border border-black/[.08] p-3 dark:border-white/[.145]";
+
+  if (isBasic) {
+    if (place.sourceUrl) {
+      return (
+        <a
+          href={place.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${className} hover:border-black/[.2] dark:hover:border-white/[.3]`}
+        >
+          {content}
+        </a>
+      );
+    }
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <Link
+      href={`/miejsca/${place.slug}`}
+      className={`${className} hover:border-black/[.2] dark:hover:border-white/[.3]`}
+    >
+      {content}
+    </Link>
   );
 }
 

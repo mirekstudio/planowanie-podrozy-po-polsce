@@ -36,6 +36,7 @@ function mapRow(row: PlaceRow): Place {
     },
     sortOrder: row.sort_order,
     tags: row.tags ?? [],
+    source: "curated",
   };
 }
 
