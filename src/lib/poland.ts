@@ -43,40 +43,53 @@ export type SubRegion = {
   id: string;
   title: string;
   summary: string;
-  anchor: Coordinates;
+  // Więcej niż jedna kotwica na podregion — polskie wybrzeże nie jest
+  // prostą linią, więc jeden punkt + promień 45 km (patrz
+  // TIGHT_COASTAL_RADIUS_METERS w getRoutePlaces.ts) nie objąłby np. i
+  // Trójmiasta, i Helu, i całej Mierzei Wiślańskiej naraz — te leżą po
+  // kolei jakieś 35-90 km od siebie. Każda kotwica to osobne zapytanie do
+  // Geoapify (patrz getRoutePlaces.ts), a wyniki są łączone i tagowane
+  // wspólnym ID podregionu.
+  anchors: Coordinates[];
 };
 
-// Polskie wybrzeże rozciąga się na ok. 500 km (Świnoujście–granica z
-// Rosją) — jeden punkt-kotwica (REGION_TYPE_ANCHORS.Morze) i promień
-// 60-90 km wystarczają na trasę 2-3-dniową, ale przy dłuższych podróżach
-// (5-7+ dni) skupiają całą trasę na wąskim wycinku wybrzeża. Dla takich
-// "rozciągniętych" typów regionu warianty trasy mają być geograficznie
-// różne — każdy pokrywający inny odcinek — zamiast tylko różnić się
-// tempem zwiedzania w tym samym miejscu. Góry i Jeziora nie mają tu
-// wpisu: Tatry i Mazury są znacznie bardziej zwarte geograficznie, więc
-// jeden punkt-kotwica wystarcza.
+// Polskie wybrzeże rozciąga się na ok. 500 km (Świnoujście–Piaski przy
+// granicy z Rosją) — jeden punkt-kotwica (REGION_TYPE_ANCHORS.Morze) i
+// promień 60-90 km wystarczają na trasę 2-3-dniową, ale przy dłuższych
+// podróżach (5-7+ dni) skupiają całą trasę na wąskim wycinku wybrzeża.
+// Dla takich "rozciągniętych" typów regionu warianty trasy mają być
+// geograficznie różne — każdy pokrywający inny odcinek — zamiast tylko
+// różnić się tempem zwiedzania w tym samym miejscu. Góry i Jeziora nie
+// mają tu wpisu: Tatry i Mazury są znacznie bardziej zwarte geograficznie,
+// więc jeden punkt-kotwica wystarcza.
 export const COASTAL_SUB_REGIONS: SubRegion[] = [
   {
     id: "zachodnie-wybrzeze",
     title: "Zachodnie wybrzeże",
     summary: "Świnoujście – Kołobrzeg",
-    anchor: { lat: 54.04, lng: 14.91 },
+    anchors: [
+      { lat: 53.9099, lng: 14.2477 }, // Świnoujście
+      { lat: 54.1752, lng: 15.5762 }, // Kołobrzeg
+    ],
   },
   {
     id: "srodkowe-wybrzeze",
     title: "Środkowe wybrzeże",
-    summary: "Łeba – Słowiński Park Narodowy",
-    anchor: { lat: 54.7597, lng: 17.5536 },
+    summary: "Łeba – Władysławowo",
+    anchors: [
+      { lat: 54.7597, lng: 17.5536 }, // Łeba
+      { lat: 54.7909, lng: 18.4083 }, // Władysławowo
+    ],
   },
   {
     id: "wschodnie-wybrzeze",
     title: "Wschodnie wybrzeże",
-    summary: "Trójmiasto – Hel",
-    // Prosty środek geometryczny Gdańsk-Hel wypada na środku Zatoki
-    // Gdańskiej (Hel to długi, wąski półwysep zakrzywiony w morze) — w
-    // testach dawał promień wyszukiwania bez żadnego lądu w zasięgu.
-    // Gdynia leży realnie na lądzie, w Trójmieście, w stronę Helu.
-    anchor: { lat: 54.5189, lng: 18.5305 }, // Gdynia
+    summary: "Trójmiasto – Hel – Mierzeja Wiślana",
+    anchors: [
+      { lat: 54.5189, lng: 18.5305 }, // Gdynia (Trójmiasto)
+      { lat: 54.6023, lng: 18.8113 }, // Hel
+      { lat: 54.3833, lng: 19.45 }, // Krynica Morska (Mierzeja Wiślana, w stronę Piasków)
+    ],
   },
 ];
 

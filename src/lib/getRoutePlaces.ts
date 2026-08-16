@@ -39,6 +39,18 @@ function limitForDays(days: number): number {
   return Math.min(16, 4 + Math.ceil(days * 1.5));
 }
 
+// Podregion może mieć kilka kotwic (patrz SubRegion w poland.ts) — ten
+// sam realny obiekt (ten sam Geoapify place_id) może się znaleźć w
+// wynikach więcej niż jednej z nich, gdy leżą blisko siebie.
+function dedupeByExternalId(results: ExternalPlaceResult[]): ExternalPlaceResult[] {
+  const seen = new Set<string>();
+  return results.filter((r) => {
+    if (seen.has(r.externalId)) return false;
+    seen.add(r.externalId);
+    return true;
+  });
+}
+
 function centroid(points: Coordinates[]): Coordinates | null {
   if (points.length === 0) return null;
   const sum = points.reduce(
@@ -182,15 +194,24 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
 
   if (subRegions.length > 0) {
     const resultsPerSubRegion = await Promise.all(
-      subRegions.map((sub) =>
-        fetchSupplementFrom(
-          sub.anchor,
-          options.interests,
-          options.regionTypes,
-          options.days,
-          excludePoints,
-        ).then((results) => ({ subRegionId: sub.id, results })),
-      ),
+      subRegions.map(async (sub) => {
+        // Kilka kotwic na podregion (patrz komentarz przy SubRegion) —
+        // pytamy Geoapify o każdą z osobna i łączymy wyniki, bo jeden
+        // punkt + wąski promień nie objąłby np. naraz i Trójmiasta, i
+        // Helu, i Mierzei Wiślańskiej.
+        const resultsPerAnchor = await Promise.all(
+          sub.anchors.map((anchor) =>
+            fetchSupplementFrom(
+              anchor,
+              options.interests,
+              options.regionTypes,
+              options.days,
+              excludePoints,
+            ),
+          ),
+        );
+        return { subRegionId: sub.id, results: dedupeByExternalId(resultsPerAnchor.flat()) };
+      }),
     );
 
     return [

@@ -259,12 +259,67 @@ const CURATED_SUB_REGION_RADIUS_KM = 120;
 // zazębiały, przez co dwa "różne" warianty wychodziłyby identyczne.
 // Miejsca kuratorskie takiego tagu nie mają, więc dla nich jedyną opcją
 // jest zwykły filtr odległości od kotwicy.
-function withinSubRegion(places: Place[], subRegionId: string, anchor: Coordinates): Place[] {
+function withinSubRegion(places: Place[], subRegionId: string, anchors: Coordinates[]): Place[] {
   return places.filter((place) =>
     place.source === "basic"
       ? place.region === subRegionId
-      : distanceKm(anchor, place) <= CURATED_SUB_REGION_RADIUS_KM,
+      : anchors.some((anchor) => distanceKm(anchor, place) <= CURATED_SUB_REGION_RADIUS_KM),
   );
+}
+
+// Rozdziela pulę miejsc podregionu między jego kotwice (np. Trójmiasto /
+// Hel / Mierzeja Wiślana) — każde miejsce trafia do klastra najbliższej
+// kotwicy. Potrzebne, bo zwykły chciwy algorytm najbliższego sąsiada
+// (orderByProximity), puszczony na całej połączonej puli, utyka w
+// najgęstszym klastrze (np. plaże Trójmiasta) i przy skromnym limicie
+// przystanków nigdy nie "przeskakuje" do odleglejszego (Mierzeja
+// Wiślana) — mimo że dane dla niego realnie istnieją.
+function clusterByNearestAnchor(places: Place[], anchors: Coordinates[]): Place[][] {
+  const clusters: Place[][] = anchors.map(() => []);
+  for (const place of places) {
+    let bestIndex = 0;
+    let bestDistance = Infinity;
+    anchors.forEach((anchor, index) => {
+      const d = distanceKm(anchor, place);
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestIndex = index;
+      }
+    });
+    clusters[bestIndex].push(place);
+  }
+  return clusters;
+}
+
+// Rozdziela liczbę dni na `parts` możliwie równych części (reszta trafia
+// do pierwszych klastrów), żeby każda kotwica podregionu dostała
+// proporcjonalny kawałek trasy zamiast zera dni.
+function distributeDays(totalDays: number, parts: number): number[] {
+  const base = Math.floor(totalDays / parts);
+  const remainder = totalDays % parts;
+  return Array.from({ length: parts }, (_, i) => base + (i < remainder ? 1 : 0));
+}
+
+// Łączy kilka wygenerowanych mini-tras (jedna na kotwicę podregionu) w
+// jedną, z ponownie ponumerowanymi dniami po kolei.
+function mergeRoutes(routes: GeneratedRoute[], startPoint: Coordinates | null): GeneratedRoute {
+  const stops = routes.flatMap((r) => r.stops);
+  const days: RouteDay[] = [];
+  let dayNumber = 0;
+  for (const r of routes) {
+    for (const d of r.days) {
+      dayNumber += 1;
+      days.push({ day: dayNumber, places: d.places });
+    }
+  }
+
+  return {
+    stops,
+    days,
+    totalDistanceKm: calcTotalDistance(stops, startPoint),
+    usedFallback: routes.some((r) => r.usedFallback),
+    dailyHoursLimit: routes[0]?.dailyHoursLimit ?? DAILY_HOURS_MAX,
+  };
 }
 
 // Zwraca od 1 do 3 wariantów tej samej trasy dla tych samych preferencji.
@@ -298,7 +353,7 @@ export function generateRouteVariants(
           summary: sub.summary,
           focusTag: null as string | null,
           paceFactor: 1,
-          geoAnchor: sub.anchor as Coordinates | null,
+          geoAnchors: sub.anchors as Coordinates[] | null,
         }))
       : options.interests.length >= 2
         ? options.interests.slice(0, 3).map((interest) => ({
@@ -307,7 +362,7 @@ export function generateRouteVariants(
             summary: `Priorytet dla miejsc związanych z „${interest}”, reszta dnia dopełniona pozostałymi zainteresowaniami.`,
             focusTag: interest as string | null,
             paceFactor: 1,
-            geoAnchor: null as Coordinates | null,
+            geoAnchors: null as Coordinates[] | null,
           }))
         : PACE_VARIANTS.map((variant) => ({
             id: variant.id,
@@ -315,22 +370,50 @@ export function generateRouteVariants(
             summary: variant.summary,
             focusTag: (options.interests[0] ?? null) as string | null,
             paceFactor: variant.paceFactor,
-            geoAnchor: null as Coordinates | null,
+            geoAnchors: null as Coordinates[] | null,
           }));
 
   const seenSignatures = new Set<string>();
   const variants: RouteVariant[] = [];
 
   for (const spec of specs) {
-    const candidatePool = spec.geoAnchor
-      ? withinSubRegion(places, spec.id, spec.geoAnchor)
-      : places;
+    let route: GeneratedRoute;
 
-    const route = generateRoute(candidatePool, {
-      ...options,
-      focusTag: spec.focusTag,
-      paceFactor: spec.paceFactor,
-    });
+    if (spec.geoAnchors && spec.geoAnchors.length > 1) {
+      // Kilka kotwic w tym podregionie (patrz clusterByNearestAnchor) —
+      // dzielimy dni proporcjonalnie i liczymy osobną mini-trasę na
+      // każdą, żeby np. "Trójmiasto – Hel – Mierzeja Wiślana" faktycznie
+      // odwiedzało wszystkie trzy, a nie utykało w samym Trójmieście.
+      const candidatePool = withinSubRegion(places, spec.id, spec.geoAnchors);
+      const clusters = clusterByNearestAnchor(candidatePool, spec.geoAnchors);
+      const dayCount = Math.max(1, options.days);
+      const daysPerCluster = distributeDays(dayCount, clusters.length);
+
+      const subRoutes = clusters
+        .map((clusterPlaces, i) =>
+          daysPerCluster[i] > 0
+            ? generateRoute(clusterPlaces, {
+                ...options,
+                days: daysPerCluster[i],
+                focusTag: spec.focusTag,
+                paceFactor: spec.paceFactor,
+              })
+            : null,
+        )
+        .filter((r): r is GeneratedRoute => r !== null);
+
+      route = mergeRoutes(subRoutes, options.startPoint ?? null);
+    } else {
+      const candidatePool = spec.geoAnchors
+        ? withinSubRegion(places, spec.id, spec.geoAnchors)
+        : places;
+
+      route = generateRoute(candidatePool, {
+        ...options,
+        focusTag: spec.focusTag,
+        paceFactor: spec.paceFactor,
+      });
+    }
 
     if (route.stops.length === 0) continue;
 
