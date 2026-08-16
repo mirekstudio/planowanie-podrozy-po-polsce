@@ -306,17 +306,6 @@ export default function SideDrawer({
               }
             />
             <FeaturedLink
-              href="/mapa"
-              onClick={onClose}
-              label="Mapa"
-              icon={
-                <svg {...iconProps}>
-                  <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
-                  <path d="M9 4v14M15 6v14" />
-                </svg>
-              }
-            />
-            <FeaturedLink
               href="/trasa"
               onClick={onClose}
               label="Planowanie trasy"
@@ -326,6 +315,17 @@ export default function SideDrawer({
                   <circle cx="4" cy="6" r="1" fill="currentColor" />
                   <circle cx="4" cy="12" r="1" fill="currentColor" />
                   <circle cx="4" cy="18" r="1" fill="currentColor" />
+                </svg>
+              }
+            />
+            <FeaturedLink
+              href="/mapa"
+              onClick={onClose}
+              label="Mapa"
+              icon={
+                <svg {...iconProps}>
+                  <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+                  <path d="M9 4v14M15 6v14" />
                 </svg>
               }
             />
