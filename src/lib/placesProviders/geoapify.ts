@@ -74,6 +74,7 @@ type GeoapifyPlaceFeature = {
 
 type GeoapifyDetailsFeature = {
   properties: {
+    name?: string;
     description?: string;
     website?: string;
     wiki_and_media?: {
@@ -82,6 +83,7 @@ type GeoapifyDetailsFeature = {
       wikimedia_commons?: string;
     };
   };
+  geometry?: { coordinates: [number, number] };
 };
 
 async function fetchPlaces({
@@ -167,6 +169,45 @@ async function fetchPlaces({
   }
 }
 
+// Dociąga na żywo szczegóły jednego miejsca po jego Geoapify place_id.
+// Miejsca "podstawowe" nie mają własnego rekordu w Supabase (ich dane
+// nigdy nie są zapisywane — powstają tylko na czas generowania trasy),
+// więc strona szczegółów odpytuje o nie ponownie w tym miejscu.
+async function fetchPlaceDetails(externalId: string): Promise<ExternalPlaceResult | null> {
+  if (!GEOAPIFY_API_KEY) return null;
+
+  try {
+    const detailUrl =
+      `${PLACE_DETAILS_URL}?id=${externalId}` +
+      `&features=details&lang=pl&apiKey=${GEOAPIFY_API_KEY}`;
+    const res = await fetch(detailUrl);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const feature = data.features?.[0] as GeoapifyDetailsFeature | undefined;
+    if (!feature?.properties.name || !feature.geometry?.coordinates) return null;
+
+    const [lng, lat] = feature.geometry.coordinates;
+    const description =
+      feature.properties.description?.trim() ||
+      "Dodatkowe miejsce, znalezione poza naszą kuratorską bazą.";
+
+    return {
+      externalId,
+      title: feature.properties.name,
+      description: description.slice(0, 600),
+      lat,
+      lng,
+      image: feature.properties.wiki_and_media?.image ?? null,
+      imageAlt: feature.properties.name,
+      sourceUrl:
+        feature.properties.wiki_and_media?.wikipedia ?? feature.properties.website ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export const geoapifyProvider: PlacesProvider = {
   id: "geoapify",
   attribution: {
@@ -174,4 +215,5 @@ export const geoapifyProvider: PlacesProvider = {
     license: "ODbL",
   },
   fetchPlaces,
+  fetchPlaceDetails,
 };

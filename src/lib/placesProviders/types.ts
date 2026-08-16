@@ -34,4 +34,11 @@ export interface PlacesProvider {
   // Geoapify), więc nie może być zaszyta na stałe poza providerem.
   attribution: { author: string; license: string };
   fetchPlaces(params: PlacesProviderParams): Promise<ExternalPlaceResult[]>;
+  // Opcjonalne — dociąga na żywo szczegóły pojedynczego miejsca po jego
+  // ID u tego dostawcy. Używane przez stronę szczegółów dla miejsc
+  // "podstawowych" (bez własnego rekordu w Supabase — ich dane nigdzie
+  // nie są zapisywane, więc trzeba je odpytać ponownie). Dostawca może
+  // tego nie obsługiwać (brak odpowiedniego endpointu) — wtedy po prostu
+  // nie definiuje tej metody.
+  fetchPlaceDetails?(externalId: string): Promise<ExternalPlaceResult | null>;
 }

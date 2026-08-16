@@ -2,8 +2,82 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPlaceBySlug } from "@/lib/getPlaces";
+import { activePlacesProvider } from "@/lib/placesProviders";
+import type { ExternalPlaceResult } from "@/lib/placesProviders";
 
 export const dynamic = "force-dynamic";
+
+// Miejsca "podstawowe" (z Geoapify) nie mają własnego rekordu w Supabase
+// — ich dane nigdy nie są zapisywane, powstają tylko na czas generowania
+// trasy. Slug takiego miejsca to zawsze "<id-dostawcy>-<jego-id>" (patrz
+// toBasicPlace w getRoutePlaces.ts), więc rozpoznajemy je po prefiksie i
+// dociągamy dane ponownie, na żywo, zamiast pytać Supabase.
+function BasicPlacePage({ result }: { result: ExternalPlaceResult }) {
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${result.lat},${result.lng}`;
+
+  return (
+    <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
+      <main className="mx-auto max-w-3xl px-6 py-16">
+        <Link
+          href="/miejsca"
+          className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+        >
+          ← Powrót do listy miejsc
+        </Link>
+
+        <span className="mt-4 inline-flex w-fit items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+          Odkryj więcej — miejsce spoza naszej kuratorskiej bazy
+        </span>
+
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
+          {result.title}
+        </h1>
+
+        {result.image && (
+          <div className="mt-6 overflow-hidden rounded-xl">
+            {/* Zdjęcia z Geoapify pochodzą z różnych domen — next/image
+                wymagałby zarejestrowania każdej z nich w next.config. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={result.image}
+              alt={result.imageAlt}
+              className="h-72 w-full object-cover"
+            />
+          </div>
+        )}
+
+        <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
+          {result.description}
+        </p>
+
+        <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-500">
+          Współrzędne: {result.lat.toFixed(5)}, {result.lng.toFixed(5)}
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+          >
+            Otwórz w Mapach Google
+          </a>
+          {result.sourceUrl && (
+            <a
+              href={result.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+            >
+              Zobacz źródło ↗
+            </a>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export default async function PlacePage({
   params,
@@ -11,6 +85,15 @@ export default async function PlacePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  const basicPrefix = `${activePlacesProvider.id}-`;
+  if (slug.startsWith(basicPrefix) && activePlacesProvider.fetchPlaceDetails) {
+    const externalId = slug.slice(basicPrefix.length);
+    const result = await activePlacesProvider.fetchPlaceDetails(externalId);
+    if (!result) notFound();
+    return <BasicPlacePage result={result} />;
+  }
+
   const place = await getPlaceBySlug(slug);
 
   if (!place) {

@@ -365,29 +365,14 @@ function ItineraryPlaceCard({ place }: { place: Place }) {
   );
 
   const className =
-    "flex gap-4 rounded-lg border border-black/[.08] p-3 dark:border-white/[.145]";
+    "flex gap-4 rounded-lg border border-black/[.08] p-3 hover:border-black/[.2] dark:border-white/[.145] dark:hover:border-white/[.3]";
 
-  if (isBasic) {
-    if (place.sourceUrl) {
-      return (
-        <a
-          href={place.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${className} hover:border-black/[.2] dark:hover:border-white/[.3]`}
-        >
-          {content}
-        </a>
-      );
-    }
-    return <div className={className}>{content}</div>;
-  }
-
+  // Miejsca "podstawowe" (Geoapify) też prowadzą do /miejsca/[slug] — ta
+  // strona rozpoznaje ich slug (prefiks dostawcy) i dociąga dane na
+  // żywo, więc "Odkryj więcej" zawsze gdzieś prowadzi, niezależnie od
+  // tego, czy dane miejsce ma własną stronę na Wikipedii czy nie.
   return (
-    <Link
-      href={`/miejsca/${place.slug}`}
-      className={`${className} hover:border-black/[.2] dark:hover:border-white/[.3]`}
-    >
+    <Link href={`/miejsca/${place.slug}`} className={className}>
       {content}
     </Link>
   );
