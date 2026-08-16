@@ -284,6 +284,17 @@ export default function SideDrawer({
         <nav className="flex flex-1 flex-col gap-1 p-3">
           <div className="flex flex-col gap-2 pb-1">
             <FeaturedLink
+              href="/mapa"
+              onClick={onClose}
+              label="Mapa"
+              icon={
+                <svg {...iconProps}>
+                  <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+                  <path d="M9 4v14M15 6v14" />
+                </svg>
+              }
+            />
+            <FeaturedLink
               href="/polska-w-pigulce"
               onClick={onClose}
               label="Polska w pigułce"
@@ -315,17 +326,6 @@ export default function SideDrawer({
                   <circle cx="4" cy="6" r="1" fill="currentColor" />
                   <circle cx="4" cy="12" r="1" fill="currentColor" />
                   <circle cx="4" cy="18" r="1" fill="currentColor" />
-                </svg>
-              }
-            />
-            <FeaturedLink
-              href="/mapa"
-              onClick={onClose}
-              label="Mapa"
-              icon={
-                <svg {...iconProps}>
-                  <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
-                  <path d="M9 4v14M15 6v14" />
                 </svg>
               }
             />
