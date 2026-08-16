@@ -1,6 +1,7 @@
 import type { Place } from "@/data/places";
 import { getPlaces } from "@/lib/getPlaces";
 import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
+import { distanceKm } from "@/lib/geo";
 import { activePlacesProvider, type ExternalPlaceResult } from "@/lib/placesProviders";
 import {
   REGION_TYPE_ANCHORS,
@@ -143,14 +144,29 @@ async function fetchSupplementFrom(
   exclude: Coordinates[],
 ): Promise<ExternalPlaceResult[]> {
   const tightCoastal = (regionTypes ?? []).includes("Morze") && interests.includes("Relaks");
-  return activePlacesProvider.fetchPlaces({
+  const radiusMeters = radiusMetersForDays(days, tightCoastal);
+
+  const results = await activePlacesProvider.fetchPlaces({
     center,
-    radiusMeters: radiusMetersForDays(days, tightCoastal),
+    radiusMeters,
     interests,
     regionTypes,
     limit: limitForDays(days),
     exclude,
   });
+
+  // "bias" u Geoapify tylko PREFERUJE wyniki bliżej `center`, nie
+  // wyklucza reszty (jedynym twardym ograniczeniem w zapytaniu jest
+  // prostokąt granic Polski) — przy rzadko występującej kategorii w
+  // okolicy danej kotwicy potrafiło to zwrócić wynik odległy o
+  // dziesiątki km, mimo że formalnie "najbliższy" spośród tego, co
+  // Geoapify miało pod ręką. To dokładało miejscom z jednego podregionu
+  // (np. "Środkowe wybrzeże") przystanki realnie leżące w sąsiednim
+  // (np. Trójmiasto). Twarde odcięcie po promieniu naprawia to.
+  const radiusKm = radiusMeters / 1000;
+  return results.filter(
+    (r) => distanceKm(center, { lat: r.lat, lng: r.lng }) <= radiusKm,
+  );
 }
 
 export type GetRoutePlacesOptions = Pick<

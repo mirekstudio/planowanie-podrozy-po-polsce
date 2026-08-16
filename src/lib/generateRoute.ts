@@ -243,6 +243,19 @@ function routeSignature(route: GeneratedRoute): string {
   return route.stops.map((place) => place.slug).join(",");
 }
 
+// Opis wariantu geograficznego ("Łeba – Władysławowo") był wcześniej
+// statycznym tekstem z definicji podregionu — niezależnym od tego, jakie
+// przystanki faktycznie trafiły do trasy. Budujemy go teraz z pierwszego
+// i ostatniego RZECZYWISTEGO przystanku w wygenerowanej trasie, żeby
+// zawsze odzwierciedlał to, co appka naprawdę wybrała, a nie z góry
+// założony zakres.
+function describeRouteSpan(route: GeneratedRoute, fallback: string): string {
+  if (route.stops.length === 0) return fallback;
+  const first = route.stops[0].title;
+  const last = route.stops[route.stops.length - 1].title;
+  return first === last ? first : `${first} – ${last}`;
+}
+
 // Promień (wokół kotwicy podregionu) używany TYLKO dla miejsc kuratorskich
 // — one nie wiedzą, do którego podregionu należą (patrz niżej), więc dla
 // nich to jedyny dostępny sposób. Dla dłuższego czasu nie próbujemy tu być
@@ -424,7 +437,7 @@ export function generateRouteVariants(
     variants.push({
       id: spec.id,
       title: spec.title,
-      summary: spec.summary,
+      summary: spec.geoAnchors ? describeRouteSpan(route, spec.summary) : spec.summary,
       route,
     });
   }
