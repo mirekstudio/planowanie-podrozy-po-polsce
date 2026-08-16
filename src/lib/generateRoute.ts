@@ -1,6 +1,6 @@
 import type { Place } from "@/data/places";
 import { distanceKm } from "@/lib/geo";
-import { SPREAD_REGION_SUB_REGIONS } from "@/lib/poland";
+import { SPREAD_REGION_SUB_REGIONS, type Bounds } from "@/lib/poland";
 
 const VISIT_HOURS = 2.5;
 const DAILY_HOURS_MAX = 7;
@@ -243,17 +243,84 @@ function routeSignature(route: GeneratedRoute): string {
   return route.stops.map((place) => place.slug).join(",");
 }
 
-// Opis wariantu geograficznego ("Łeba – Władysławowo") był wcześniej
-// statycznym tekstem z definicji podregionu — niezależnym od tego, jakie
-// przystanki faktycznie trafiły do trasy. Budujemy go teraz z pierwszego
-// i ostatniego RZECZYWISTEGO przystanku w wygenerowanej trasie, żeby
-// zawsze odzwierciedlał to, co appka naprawdę wybrała, a nie z góry
-// założony zakres.
-function describeRouteSpan(route: GeneratedRoute, fallback: string): string {
-  if (route.stops.length === 0) return fallback;
-  const first = route.stops[0].title;
-  const last = route.stops[route.stops.length - 1].title;
-  return first === last ? first : `${first} – ${last}`;
+// Poprzednio opis wariantu geograficznego był budowany z tytułu pierwszego
+// i ostatniego przystanku w wygenerowanej trasie (np. "Plaża dla psów –
+// Wejście 5") — to bywało bezsensowne, bo kolejność zwiedzania nie jest
+// tym samym co "opis całej trasy", a nazwy pojedynczych plaż z Geoapify
+// (numerowane "Wejście X") nic nie mówią same z siebie. Wracamy do
+// stałego, czytelnego opisu podregionu (np. "Łeba – Władysławowo") — jest
+// teraz zaufany, bo enforceSubRegionBounds (patrz niżej) GWARANTUJE, że
+// każdy przystanek faktycznie leży w granicach tego podregionu.
+function isWithinBounds(place: Coordinates, bounds: Bounds): boolean {
+  return (
+    place.lat >= bounds.minLat &&
+    place.lat <= bounds.maxLat &&
+    place.lng >= bounds.minLng &&
+    place.lng <= bounds.maxLng
+  );
+}
+
+// Twardy "strażnik" puszczany PO całej logice doboru miejsc (wyszukiwaniu,
+// kotwicach, klastrowaniu) — nie ufa niczemu z powyższego. Sprawdza KAŻDY
+// wybrany przystanek względem bounding boxa podregionu i, jeśli któryś
+// wypada poza granicami, zastępuje go najbliższym nieużytym jeszcze
+// miejscem, które FAKTYCZNIE w tych granicach leży (przeszukując całą
+// dostępną pulę `allPlaces`, nie tylko tę, z której zbudowano trasę — bo
+// to właśnie ta pula mogła zawierać błędnie zakwalifikowany punkt). Gdy
+// brak zamiennika, przystanek jest po prostu usuwany, nigdy nie
+// akceptujemy punktu spoza granic.
+function enforceSubRegionBounds(
+  route: GeneratedRoute,
+  bounds: Bounds,
+  allPlaces: Place[],
+  startPoint: Coordinates | null,
+): GeneratedRoute {
+  const usedSlugs = new Set(route.stops.map((p) => p.slug));
+  const replacements = allPlaces.filter(
+    (p) => isWithinBounds(p, bounds) && !usedSlugs.has(p.slug),
+  );
+
+  let changed = false;
+
+  const days: RouteDay[] = route.days.map((day) => {
+    const places = day.places
+      .map((place) => {
+        if (isWithinBounds(place, bounds)) return place;
+
+        changed = true;
+        let bestIndex = -1;
+        let bestDistance = Infinity;
+        replacements.forEach((candidate, i) => {
+          const d = distanceKm(place, candidate);
+          if (d < bestDistance) {
+            bestDistance = d;
+            bestIndex = i;
+          }
+        });
+
+        if (bestIndex === -1) return null;
+
+        const replacement = replacements[bestIndex];
+        replacements.splice(bestIndex, 1);
+        usedSlugs.add(replacement.slug);
+        return replacement;
+      })
+      .filter((p): p is Place => p !== null);
+
+    return { day: day.day, places };
+  });
+
+  if (!changed) return route;
+
+  const stops = days.flatMap((d) => d.places);
+
+  return {
+    stops,
+    days,
+    totalDistanceKm: calcTotalDistance(stops, startPoint),
+    usedFallback: route.usedFallback,
+    dailyHoursLimit: route.dailyHoursLimit,
+  };
 }
 
 // Promień (wokół kotwicy podregionu) używany TYLKO dla miejsc kuratorskich
@@ -367,6 +434,7 @@ export function generateRouteVariants(
           focusTag: null as string | null,
           paceFactor: 1,
           geoAnchors: sub.anchors as Coordinates[] | null,
+          bounds: sub.bounds as Bounds | null,
         }))
       : options.interests.length >= 2
         ? options.interests.slice(0, 3).map((interest) => ({
@@ -376,6 +444,7 @@ export function generateRouteVariants(
             focusTag: interest as string | null,
             paceFactor: 1,
             geoAnchors: null as Coordinates[] | null,
+            bounds: null as Bounds | null,
           }))
         : PACE_VARIANTS.map((variant) => ({
             id: variant.id,
@@ -384,6 +453,7 @@ export function generateRouteVariants(
             focusTag: (options.interests[0] ?? null) as string | null,
             paceFactor: variant.paceFactor,
             geoAnchors: null as Coordinates[] | null,
+            bounds: null as Bounds | null,
           }));
 
   const seenSignatures = new Set<string>();
@@ -428,6 +498,13 @@ export function generateRouteVariants(
       });
     }
 
+    // Twardy strażnik na końcu — patrz komentarz przy enforceSubRegionBounds.
+    // Nie ufamy, że wyszukiwanie/kotwice/klastrowanie powyżej same
+    // zagwarantowały poprawny obszar; sprawdzamy to tutaj jawnie, po fakcie.
+    if (spec.bounds) {
+      route = enforceSubRegionBounds(route, spec.bounds, places, options.startPoint ?? null);
+    }
+
     if (route.stops.length === 0) continue;
 
     const signature = routeSignature(route);
@@ -437,7 +514,7 @@ export function generateRouteVariants(
     variants.push({
       id: spec.id,
       title: spec.title,
-      summary: spec.geoAnchors ? describeRouteSpan(route, spec.summary) : spec.summary,
+      summary: spec.summary,
       route,
     });
   }

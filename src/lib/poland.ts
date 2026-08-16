@@ -39,6 +39,13 @@ export const REGION_TYPE_ANCHORS: Partial<Record<string, Coordinates>> = {
 // (np. pusta baza kuratorska i brak punktu startowego).
 export const POLAND_CENTER: Coordinates = { lat: 52.0, lng: 19.0 };
 
+export type Bounds = {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+};
+
 export type SubRegion = {
   id: string;
   title: string;
@@ -51,6 +58,16 @@ export type SubRegion = {
   // Geoapify (patrz getRoutePlaces.ts), a wyniki są łączone i tagowane
   // wspólnym ID podregionu.
   anchors: Coordinates[];
+  // Twarda granica podregionu — NIEZALEŻNA od kotwic/promieni wyszukiwania.
+  // Kotwica + promień to tylko heurystyka do WYSZUKIWANIA (Geoapify "bias"
+  // niczego nie wyklucza, tylko preferuje) — nie daje twardej gwarancji, że
+  // wynik faktycznie leży w tym podregionie, a nie w sąsiednim (np. wynik
+  // znaleziony w promieniu od Władysławowa, ale realnie leżący już w
+  // Trójmieście). `bounds` to ostateczny, osobny "strażnik" sprawdzany PO
+  // wygenerowaniu całej trasy — patrz enforceSubRegionBounds w
+  // generateRoute.ts — który odrzuca i zastępuje każdy punkt spoza tego
+  // prostokąta, niezależnie od tego, skąd/jak został znaleziony.
+  bounds: Bounds;
 };
 
 // Polskie wybrzeże rozciąga się na ok. 500 km (Świnoujście–Piaski przy
@@ -71,6 +88,7 @@ export const COASTAL_SUB_REGIONS: SubRegion[] = [
       { lat: 53.9099, lng: 14.2477 }, // Świnoujście
       { lat: 54.1752, lng: 15.5762 }, // Kołobrzeg
     ],
+    bounds: { minLat: 53.6, maxLat: 54.9, minLng: 14.1, maxLng: 16.2 },
   },
   {
     id: "srodkowe-wybrzeze",
@@ -80,6 +98,10 @@ export const COASTAL_SUB_REGIONS: SubRegion[] = [
       { lat: 54.7597, lng: 17.5536 }, // Łeba
       { lat: 54.7909, lng: 18.4083 }, // Władysławowo
     ],
+    // Zachodnia granica trochę przed Ustką/Rowami (16.2), wschodnia tuż za
+    // Władysławowem (18.45) — celowo PRZED Gdynią/Trójmiastem (~18.5+),
+    // żeby nie zazębiało się z wariantem wschodnim.
+    bounds: { minLat: 54.4, maxLat: 54.95, minLng: 16.2, maxLng: 18.45 },
   },
   {
     id: "wschodnie-wybrzeze",
@@ -90,6 +112,7 @@ export const COASTAL_SUB_REGIONS: SubRegion[] = [
       { lat: 54.6023, lng: 18.8113 }, // Hel
       { lat: 54.3833, lng: 19.45 }, // Krynica Morska (Mierzeja Wiślana, w stronę Piasków)
     ],
+    bounds: { minLat: 54.25, maxLat: 54.9, minLng: 18.45, maxLng: 19.8 },
   },
 ];
 
