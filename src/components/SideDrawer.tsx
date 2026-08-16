@@ -319,7 +319,7 @@ export default function SideDrawer({
             <FeaturedLink
               href="/trasa"
               onClick={onClose}
-              label="Trasa"
+              label="Planowanie trasy"
               icon={
                 <svg {...iconProps}>
                   <path d="M8 6h13M8 12h13M8 18h13" />
