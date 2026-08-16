@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { getPlaceBySlug } from "@/lib/getPlaces";
 import { activePlacesProvider } from "@/lib/placesProviders";
 import type { ExternalPlaceResult } from "@/lib/placesProviders";
+import { getPlaceSaveStatus } from "@/lib/userPlaces";
+import SavePlaceButtons from "@/components/SavePlaceButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +13,19 @@ export const dynamic = "force-dynamic";
 // — ich dane nigdy nie są zapisywane, powstają tylko na czas generowania
 // trasy. Slug takiego miejsca to zawsze "<id-dostawcy>-<jego-id>" (patrz
 // toBasicPlace w getRoutePlaces.ts), więc rozpoznajemy je po prefiksie i
-// dociągamy dane ponownie, na żywo, zamiast pytać Supabase.
-function BasicPlacePage({ result }: { result: ExternalPlaceResult }) {
+// dociągamy dane ponownie, na żywo, zamiast pytać Supabase. Ulubione/
+// odwiedzone działają tak samo dla nich jak dla miejsc kuratorskich —
+// tabele favorites/visited trzymają slug jako zwykły tekst, bez wymogu,
+// żeby istniał w tabeli places.
+async function BasicPlacePage({
+  slug,
+  result,
+}: {
+  slug: string;
+  result: ExternalPlaceResult;
+}) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${result.lat},${result.lng}`;
+  const { isFavorite, isVisited } = await getPlaceSaveStatus(slug);
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
@@ -74,6 +86,20 @@ function BasicPlacePage({ result }: { result: ExternalPlaceResult }) {
             </a>
           )}
         </div>
+
+        <div className="mt-4">
+          <SavePlaceButtons
+            place={{
+              slug,
+              title: result.title,
+              image: result.image,
+              imageAlt: result.imageAlt,
+              source: "basic",
+            }}
+            initialFavorite={isFavorite}
+            initialVisited={isVisited}
+          />
+        </div>
       </main>
     </div>
   );
@@ -91,7 +117,7 @@ export default async function PlacePage({
     const externalId = slug.slice(basicPrefix.length);
     const result = await activePlacesProvider.fetchPlaceDetails(externalId);
     if (!result) notFound();
-    return <BasicPlacePage result={result} />;
+    return <BasicPlacePage slug={slug} result={result} />;
   }
 
   const place = await getPlaceBySlug(slug);
@@ -99,6 +125,8 @@ export default async function PlacePage({
   if (!place) {
     notFound();
   }
+
+  const { isFavorite, isVisited } = await getPlaceSaveStatus(slug);
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
@@ -133,6 +161,20 @@ export default async function PlacePage({
           Zdjęcie: {place.credit.author}, {place.credit.license}, Wikimedia
           Commons
         </p>
+
+        <div className="mt-4">
+          <SavePlaceButtons
+            place={{
+              slug: place.slug,
+              title: place.title,
+              image: place.image,
+              imageAlt: place.imageAlt,
+              source: place.source ?? "curated",
+            }}
+            initialFavorite={isFavorite}
+            initialVisited={isVisited}
+          />
+        </div>
 
         <div className="mt-6 flex flex-col gap-4 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
           {/* longDescription może mieć kilka akapitów rozdzielonych pustą

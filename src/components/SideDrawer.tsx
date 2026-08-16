@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Category = {
   label: string;
@@ -148,49 +151,42 @@ function DrawerStat({
   icon,
   label,
   count,
-  disabledNote,
-  onDisabledClick,
+  signedIn,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   count: number;
-  disabledNote?: string;
-  onDisabledClick?: () => void;
+  signedIn: boolean;
+  onClick: () => void;
 }) {
-  if (disabledNote) {
-    return (
-      <button
-        type="button"
-        onClick={onDisabledClick}
-        aria-disabled="true"
-        className="flex w-full cursor-not-allowed items-center justify-between rounded-lg px-3 py-3 text-left text-sm text-zinc-400 dark:text-zinc-600"
-      >
-        <span className="flex items-center gap-3">
-          {icon}
-          <span className="flex flex-col items-start">
-            <span>{label}</span>
-            <span className="text-xs text-zinc-400 dark:text-zinc-600">
-              {disabledNote}
-            </span>
-          </span>
-        </span>
-        <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-400 dark:bg-white/10 dark:text-zinc-600">
-          {count}
-        </span>
-      </button>
-    );
-  }
-
   return (
-    <div className="flex items-center justify-between rounded-lg px-3 py-3 text-sm text-zinc-700 dark:text-zinc-300">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
+        signedIn
+          ? "text-zinc-700 dark:text-zinc-300"
+          : "text-zinc-400 dark:text-zinc-600"
+      }`}
+    >
       <span className="flex items-center gap-3">
         {icon}
-        {label}
+        <span className="flex flex-col items-start">
+          <span>{label}</span>
+          {!signedIn && (
+            <span className="text-xs text-zinc-400 dark:text-zinc-600">
+              Wymaga konta — kliknij, żeby się zalogować
+            </span>
+          )}
+        </span>
       </span>
-      <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
-        {count}
-      </span>
-    </div>
+      {signedIn && (
+        <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -201,7 +197,11 @@ export default function SideDrawer({
   open: boolean;
   onClose: () => void;
 }) {
-  const [notice, setNotice] = useState<string | null>(null);
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [visitedCount, setVisitedCount] = useState(0);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -219,13 +219,41 @@ export default function SideDrawer({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(null), 2500);
-    return () => clearTimeout(timer);
-  }, [notice]);
+    // Gdy niezalogowany, DrawerStat i tak nie pokazuje licznika (patrz
+    // `signedIn` niżej) — nie ma po co go tu zerować.
+    if (!open || !user) return;
+    // Odświeżane przy każdym otwarciu menu, a nie tylko po zalogowaniu —
+    // liczniki mogły się zmienić na innej stronie (np. po dodaniu miejsca
+    // do ulubionych), a SideDrawer żyje przez cały czas w layoucie i sam
+    // się o tym nie dowie.
+    const supabase = createSupabaseBrowserClient();
+    supabase
+      .from("favorites")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => setFavoriteCount(count ?? 0));
+    supabase
+      .from("visited")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => setVisitedCount(count ?? 0));
+  }, [open, user]);
 
-  function showComingSoonNotice() {
-    setNotice("Ta funkcja pojawi się wkrótce – wymaga założenia konta.");
+  function goToLoginOrPage(page: "/ulubione" | "/odwiedzone") {
+    onClose();
+    if (user) {
+      router.push(page);
+    } else {
+      router.push(`/login?redirect=${encodeURIComponent(page)}`);
+    }
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    setSigningOut(false);
+    onClose();
+    router.push("/");
+    router.refresh();
   }
 
   return (
@@ -341,10 +369,10 @@ export default function SideDrawer({
           />
 
           <DrawerStat
-            count={0}
+            count={favoriteCount}
             label="Ulubione"
-            disabledNote="Wymaga konta"
-            onDisabledClick={showComingSoonNotice}
+            signedIn={Boolean(user)}
+            onClick={() => goToLoginOrPage("/ulubione")}
             icon={
               <svg {...iconProps}>
                 <path d="M12 20s-7-4.35-9.5-8.5C.5 8 2 4.5 5.5 4.5c2.1 0 3.5 1.2 4.2 2.3.1.2.2.3.3.5.1-.2.2-.3.3-.5.7-1.1 2.1-2.3 4.2-2.3 3.5 0 5 3.5 3 7C19 15.65 12 20 12 20Z" />
@@ -352,10 +380,10 @@ export default function SideDrawer({
             }
           />
           <DrawerStat
-            count={0}
+            count={visitedCount}
             label="Odwiedzone"
-            disabledNote="Wymaga konta"
-            onDisabledClick={showComingSoonNotice}
+            signedIn={Boolean(user)}
+            onClick={() => goToLoginOrPage("/odwiedzone")}
             icon={
               <svg {...iconProps}>
                 <circle cx="12" cy="12" r="9" />
@@ -408,17 +436,56 @@ export default function SideDrawer({
           />
         </nav>
 
-        <div
-          className={`pointer-events-none sticky bottom-0 px-3 pb-3 transition-opacity duration-200 ${
-            notice ? "opacity-100" : "opacity-0"
-          }`}
-          aria-live="polite"
-        >
-          {notice && (
-            <p className="rounded-lg bg-black px-3 py-2.5 text-xs text-white shadow-lg dark:bg-white dark:text-black">
-              {notice}
-            </p>
-          )}
+        <div className="sticky bottom-0 border-t border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900">
+          {!loading &&
+            (user ? (
+              <div className="flex items-center gap-3 rounded-lg px-3 py-2">
+                {user.user_metadata?.avatar_url ? (
+                  // Awatar z Google — zewnętrzny URL, next/image wymagałby
+                  // rejestracji domeny lh3.googleusercontent.com.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-full"
+                  />
+                ) : (
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-sm font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                    {(user.email ?? "?").charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-black dark:text-zinc-50">
+                    {user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email}
+                  </p>
+                  {(user.user_metadata?.full_name || user.user_metadata?.name) && (
+                    <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                      {user.email}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  className="shrink-0 rounded-full border border-black/[.08] px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-black/[.2] disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-white/[.3]"
+                >
+                  {signingOut ? "..." : "Wyloguj"}
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-medium text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+              >
+                <svg {...iconProps}>
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+                </svg>
+                Zaloguj się
+              </Link>
+            ))}
         </div>
       </aside>
     </div>
