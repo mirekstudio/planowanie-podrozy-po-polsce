@@ -2,14 +2,42 @@ import type { Place } from "@/data/places";
 import { getPlaces } from "@/lib/getPlaces";
 import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
 import { activePlacesProvider, type ExternalPlaceResult } from "@/lib/placesProviders";
-import { REGION_TYPE_ANCHORS, POLAND_CENTER, isWithinPoland } from "@/lib/poland";
+import {
+  REGION_TYPE_ANCHORS,
+  SPREAD_REGION_SUB_REGIONS,
+  POLAND_CENTER,
+  isWithinPoland,
+  type SubRegion,
+} from "@/lib/poland";
 
 // Poniżej tej liczby pasujących miejsc kuratorskich uznajemy, że nie da
 // się z nich ułożyć sensownej trasy, i dociągamy uzupełnienie z
 // zewnętrznego dostawcy (patrz src/lib/placesProviders).
 const MIN_MATCHING_CURATED_PLACES = 4;
-const SUPPLEMENT_RADIUS_METERS = 60_000;
-const SUPPLEMENT_LIMIT = 8;
+
+// Promień i liczba dociąganych miejsc rosną z liczbą dni podróży — 2-dniowy
+// wypad nie potrzebuje szukać 300 km dalej, ale 7-dniowa trasa camperem
+// powinna mieć z czego wybierać na całej rozpiętości, a nie tylko w
+// promieniu 60 km od jednego punktu (stąd wcześniej trasy na dłuższe
+// pobyty kurczyły się do wąskiego wycinka wybrzeża).
+//
+// Wyjątek: kombinacja Morze+Relaks ma promień celowo WĄSKI i niezależny od
+// liczby dni — kategorie takie jak "camping" czy "beach.beach_resort" nie
+// są same w sobie nadmorskie (Geoapify nie ma pojęcia "blisko wybrzeża"),
+// więc przy promieniu skalowanym do 90 km dla 7-dniowej podróży wyniki
+// ciągnęły dziesiątki km w głąb lądu. Zasięg całego wybrzeża i tak dają
+// trzy niezależne kotwice podregionów (patrz SPREAD_REGION_SUB_REGIONS),
+// nie potrzeba do tego szerokiego promienia wokół jednej z nich.
+const TIGHT_COASTAL_RADIUS_METERS = 45_000;
+
+function radiusMetersForDays(days: number, tightCoastal: boolean): number {
+  if (tightCoastal) return TIGHT_COASTAL_RADIUS_METERS;
+  return Math.min(90_000, 40_000 + days * 8_000);
+}
+
+function limitForDays(days: number): number {
+  return Math.min(16, 4 + Math.ceil(days * 1.5));
+}
 
 function centroid(points: Coordinates[]): Coordinates | null {
   if (points.length === 0) return null;
@@ -57,11 +85,20 @@ function toBasicPlace(
   result: ExternalPlaceResult,
   tags: string[],
   regionType: string[],
+  subRegionId: string | null,
 ): Place {
   return {
     slug: `${activePlacesProvider.id}-${result.externalId}`,
     title: result.title,
-    region: "",
+    // Miejsca "podstawowe" nie mają prawdziwego regionu administracyjnego
+    // (nie pytamy o niego), więc dla wariantów geograficznych (patrz
+    // SPREAD_REGION_SUB_REGIONS) trzymamy tu ID podregionu, z którego
+    // dane miejsce zostało dociągnięte — to on, a nie odległość liczona
+    // po fakcie, decyduje w generateRouteVariants, do którego wariantu
+    // (np. "wschodnie-wybrzeze") to miejsce należy. Odległość zawodzi,
+    // gdy sąsiednie kotwice leżą blisko siebie (np. Łeba i Gdynia, ~70 km)
+    // — promienie się nakładają i dwa warianty wychodzą identyczne.
+    region: subRegionId ?? "",
     description: result.description,
     longDescription: result.description,
     lat: result.lat,
@@ -77,18 +114,36 @@ function toBasicPlace(
     // atrakcji, więc te dwa pola zostają puste — patrz komentarz przy
     // filterCandidates w generateRoute.ts. typ_regionu jest wyjątkiem:
     // gdy wyszukiwanie było zakotwiczone na konkretnym typie regionu
-    // (patrz regionAnchor), wyniki geograficznie z tego regionu, więc
-    // uczciwie możemy je nim otagować — inaczej filtr regionu sam by je
-    // odrzucał, mimo że to właśnie po nie sięgnęliśmy.
+    // (patrz regionAnchor/podregiony), wyniki geograficznie z tego
+    // regionu, więc uczciwie możemy je nim otagować — inaczej filtr
+    // regionu sam by je odrzucał, mimo że to właśnie po nie sięgnęliśmy.
     regionType,
     surroundings: [],
     nearbyAttraction: null,
   };
 }
 
+async function fetchSupplementFrom(
+  center: Coordinates,
+  interests: string[],
+  regionTypes: string[] | undefined,
+  days: number,
+  exclude: Coordinates[],
+): Promise<ExternalPlaceResult[]> {
+  const tightCoastal = (regionTypes ?? []).includes("Morze") && interests.includes("Relaks");
+  return activePlacesProvider.fetchPlaces({
+    center,
+    radiusMeters: radiusMetersForDays(days, tightCoastal),
+    interests,
+    regionTypes,
+    limit: limitForDays(days),
+    exclude,
+  });
+}
+
 export type GetRoutePlacesOptions = Pick<
   RouteOptions,
-  "interests" | "startPoint" | "regionTypes" | "surroundings" | "nearbyAttractions"
+  "days" | "interests" | "startPoint" | "regionTypes" | "surroundings" | "nearbyAttractions"
 >;
 
 // Zwraca pulę miejsc do generowania trasy: najpierw baza kuratorska
@@ -106,13 +161,7 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
     return curated;
   }
 
-  const center = pickSearchCenter(
-    options.regionTypes,
-    matching,
-    curated,
-    options.startPoint,
-  );
-
+  const excludePoints = curated.map((p) => ({ lat: p.lat, lng: p.lng }));
   const tags = options.interests;
   // Tylko te wybrane typy regionu, dla których faktycznie mamy
   // geograficzną kotwicę (patrz REGION_TYPE_ANCHORS) — to nimi otagujemy
@@ -120,16 +169,55 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
   const geoAnchoredRegionTypes = (options.regionTypes ?? []).filter(
     (type) => type in REGION_TYPE_ANCHORS,
   );
-  const results = await activePlacesProvider.fetchPlaces({
+
+  // Typy regionu geograficznie "rozciągnięte" (na razie tylko Morze —
+  // patrz komentarz przy SPREAD_REGION_SUB_REGIONS) szukają równolegle
+  // wokół kilku punktów wzdłuż całego obszaru, zamiast jednego punktu w
+  // jego środku — inaczej dłuższe podróże kurczyły się do wąskiego
+  // wycinka wokół jednej kotwicy (np. tylko Koszalin-Słupsk dla "Morze"
+  // zamiast całego wybrzeża).
+  const subRegions: SubRegion[] = (options.regionTypes ?? []).flatMap(
+    (type) => SPREAD_REGION_SUB_REGIONS[type] ?? [],
+  );
+
+  if (subRegions.length > 0) {
+    const resultsPerSubRegion = await Promise.all(
+      subRegions.map((sub) =>
+        fetchSupplementFrom(
+          sub.anchor,
+          options.interests,
+          options.regionTypes,
+          options.days,
+          excludePoints,
+        ).then((results) => ({ subRegionId: sub.id, results })),
+      ),
+    );
+
+    return [
+      ...curated,
+      ...resultsPerSubRegion.flatMap(({ subRegionId, results }) =>
+        results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes, subRegionId)),
+      ),
+    ];
+  }
+
+  const center = pickSearchCenter(
+    options.regionTypes,
+    matching,
+    curated,
+    options.startPoint,
+  );
+
+  const results = await fetchSupplementFrom(
     center,
-    radiusMeters: SUPPLEMENT_RADIUS_METERS,
-    interests: options.interests,
-    limit: SUPPLEMENT_LIMIT,
-    exclude: curated.map((p) => ({ lat: p.lat, lng: p.lng })),
-  });
+    options.interests,
+    options.regionTypes,
+    options.days,
+    excludePoints,
+  );
 
   return [
     ...curated,
-    ...results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes)),
+    ...results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes, null)),
   ];
 }

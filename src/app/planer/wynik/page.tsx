@@ -80,6 +80,7 @@ export default async function PlanerWynikPage({
       : null;
 
   const places = await getRoutePlaces({
+    days,
     interests,
     startPoint,
     regionTypes,

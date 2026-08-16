@@ -22,6 +22,10 @@ export type PlacesProviderParams = {
   // Punkty (np. miejsca kuratorskie), których sąsiedztwa provider
   // powinien unikać, żeby nie dublować tego, co już mamy w bazie.
   exclude: Coordinates[];
+  // Opcjonalnie — typ_regionu, dla którego szukamy (np. "Morze"). Dostawca
+  // może to wykorzystać, żeby dobrać trafniejsze kategorie (patrz np.
+  // rozszerzenie kategorii dla kombinacji Morze+Relaks w geoapify.ts).
+  regionTypes?: string[];
 };
 
 // Wspólny interfejs dla każdego dostawcy danych o miejscach spoza naszej

@@ -38,3 +38,48 @@ export const REGION_TYPE_ANCHORS: Partial<Record<string, Coordinates>> = {
 // Ostateczny fallback, gdy nie ma żadnego innego punktu odniesienia
 // (np. pusta baza kuratorska i brak punktu startowego).
 export const POLAND_CENTER: Coordinates = { lat: 52.0, lng: 19.0 };
+
+export type SubRegion = {
+  id: string;
+  title: string;
+  summary: string;
+  anchor: Coordinates;
+};
+
+// Polskie wybrzeże rozciąga się na ok. 500 km (Świnoujście–granica z
+// Rosją) — jeden punkt-kotwica (REGION_TYPE_ANCHORS.Morze) i promień
+// 60-90 km wystarczają na trasę 2-3-dniową, ale przy dłuższych podróżach
+// (5-7+ dni) skupiają całą trasę na wąskim wycinku wybrzeża. Dla takich
+// "rozciągniętych" typów regionu warianty trasy mają być geograficznie
+// różne — każdy pokrywający inny odcinek — zamiast tylko różnić się
+// tempem zwiedzania w tym samym miejscu. Góry i Jeziora nie mają tu
+// wpisu: Tatry i Mazury są znacznie bardziej zwarte geograficznie, więc
+// jeden punkt-kotwica wystarcza.
+export const COASTAL_SUB_REGIONS: SubRegion[] = [
+  {
+    id: "zachodnie-wybrzeze",
+    title: "Zachodnie wybrzeże",
+    summary: "Świnoujście – Kołobrzeg",
+    anchor: { lat: 54.04, lng: 14.91 },
+  },
+  {
+    id: "srodkowe-wybrzeze",
+    title: "Środkowe wybrzeże",
+    summary: "Łeba – Słowiński Park Narodowy",
+    anchor: { lat: 54.7597, lng: 17.5536 },
+  },
+  {
+    id: "wschodnie-wybrzeze",
+    title: "Wschodnie wybrzeże",
+    summary: "Trójmiasto – Hel",
+    // Prosty środek geometryczny Gdańsk-Hel wypada na środku Zatoki
+    // Gdańskiej (Hel to długi, wąski półwysep zakrzywiony w morze) — w
+    // testach dawał promień wyszukiwania bez żadnego lądu w zasięgu.
+    // Gdynia leży realnie na lądzie, w Trójmieście, w stronę Helu.
+    anchor: { lat: 54.5189, lng: 18.5305 }, // Gdynia
+  },
+];
+
+export const SPREAD_REGION_SUB_REGIONS: Partial<Record<string, SubRegion[]>> = {
+  Morze: COASTAL_SUB_REGIONS,
+};

@@ -14,7 +14,7 @@ const PLACES_URL = "https://api.geoapify.com/v2/places";
 const PLACE_DETAILS_URL = "https://api.geoapify.com/v2/place-details";
 
 const MIN_DISTANCE_FROM_CURATED_KM = 1;
-const MAX_DETAIL_LOOKUPS = 8;
+const MAX_DETAIL_LOOKUPS = 24;
 
 // Mapowanie naszych kategorii zainteresowań (z formularza planera i z
 // kategorii przeglądania w bocznym menu) na kategorie turystyczne
@@ -54,10 +54,44 @@ const INTEREST_TO_GEOAPIFY_CATEGORIES: Record<string, string[]> = {
 
 const DEFAULT_CATEGORIES = ["tourism.sights", "tourism.attraction", "heritage", "natural"];
 
-function categoriesForInterests(interests: string[]): string {
+// Dla kombinacji "Morze" + "Relaks" sam interest-owy zestaw dla Relaks
+// (leisure.park, leisure.spa, beach, natural.water) jest zbyt ogólny —
+// w praktyce zwracał przypadkowe atrakcje zamiast typowych miejsc
+// nadmorskiego wypoczynku. Poniższe kategorie to realne kategorie z
+// oficjalnej listy Geoapify (apidocs.geoapify.com/docs/places/#categories),
+// celowo ograniczone do takich, które są SPECYFICZNE dla wybrzeża — plaże,
+// kurorty plażowe, wydmy, kempingi (istotne przy podróży camperem), molo i
+// latarnie. Celowo NIE ma tu "leisure.park" ani "tourism.attraction.
+// viewpoint" — te kategorie istnieją wszędzie (parki i punkty widokowe są
+// też 80 km w głębi lądu), więc w testach ciągnęły trasę daleko od morza.
+// Uwaga: "natural.beach" i "tourism.resort" nie istnieją w tej
+// taksonomii — najbliższe realne odpowiedniki to "natural.coastal" i
+// "beach.beach_resort", których używamy tutaj zamiast nich.
+const COASTAL_RELAX_CATEGORIES = [
+  "beach",
+  "beach.beach_resort",
+  "natural.coastal",
+  "natural.sand.dune",
+  "camping",
+  "man_made.pier",
+  "man_made.lighthouse",
+  "tourism.sights.lighthouse",
+];
+
+function resolveCategories(interests: string[], regionTypes: string[] | undefined): string {
+  // Dla Morze+Relaks kategorie ZASTĘPUJEMY, nie dokładamy — bazowy zestaw
+  // dla Relaks zawiera "natural.water", które pasuje do KAŻDEGO zbiornika
+  // wodnego (też śródlądowego jeziora czy stawu). W testach to właśnie ta
+  // szeroka kategoria zalewała wyniki miejscami typu "Jezioro X" 50-80 km
+  // w głębi lądu zamiast plaż i promenad nad samym morzem.
+  if ((regionTypes ?? []).includes("Morze") && interests.includes("Relaks")) {
+    return COASTAL_RELAX_CATEGORIES.join(",");
+  }
+
   const categories = interests.flatMap(
     (interest) => INTEREST_TO_GEOAPIFY_CATEGORIES[interest] ?? [],
   );
+
   const unique = Array.from(new Set(categories));
   return (unique.length > 0 ? unique : DEFAULT_CATEGORIES).join(",");
 }
@@ -69,6 +103,7 @@ type GeoapifyPlaceFeature = {
     formatted?: string;
     lat: number;
     lon: number;
+    country_code?: string;
   };
 };
 
@@ -100,10 +135,11 @@ async function fetchPlaces({
   interests,
   limit,
   exclude,
+  regionTypes,
 }: PlacesProviderParams): Promise<ExternalPlaceResult[]> {
   if (!GEOAPIFY_API_KEY) return [];
 
-  const categories = categoriesForInterests(interests);
+  const categories = resolveCategories(interests, regionTypes);
 
   try {
     // "filter" jest twardym ograniczeniem (wyklucza wyniki spoza obszaru),
@@ -127,6 +163,13 @@ async function fetchPlaces({
 
     const candidates = features.filter((feature) => {
       if (!feature.properties.name) return false;
+      // filter=rect (POLAND_BOUNDS) to prostokąt, nie dokładny wielokąt
+      // granic — w okolicach Świnoujścia/Cieszyna itp. potrafi objąć wąski
+      // skrawek sąsiedniego kraju. country_code z samych danych Geoapify
+      // to prosty, darmowy dodatkowy filtr precyzyjniejszy niż prostokąt.
+      if (feature.properties.country_code && feature.properties.country_code !== "pl") {
+        return false;
+      }
       const point = { lat: feature.properties.lat, lng: feature.properties.lon };
       return !exclude.some(
         (curated) => distanceKm(curated, point) < MIN_DISTANCE_FROM_CURATED_KM,

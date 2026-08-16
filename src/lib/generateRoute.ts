@@ -1,5 +1,6 @@
 import type { Place } from "@/data/places";
 import { distanceKm } from "@/lib/geo";
+import { SPREAD_REGION_SUB_REGIONS } from "@/lib/poland";
 
 const VISIT_HOURS = 2.5;
 const DAILY_HOURS_MAX = 7;
@@ -242,42 +243,96 @@ function routeSignature(route: GeneratedRoute): string {
   return route.stops.map((place) => place.slug).join(",");
 }
 
+// Promień (wokół kotwicy podregionu) używany TYLKO dla miejsc kuratorskich
+// — one nie wiedzą, do którego podregionu należą (patrz niżej), więc dla
+// nich to jedyny dostępny sposób. Dla dłuższego czasu nie próbujemy tu być
+// zbyt precyzyjni: kuratorskich miejsc jest mało i zwykle żadne nie
+// wypadnie w promieniu wybrzeża, co jest ok — wariant i tak wypełni się
+// miejscami "podstawowymi".
+const CURATED_SUB_REGION_RADIUS_KM = 120;
+
+// Ogranicza pulę kandydatów do jednego podregionu geograficznego. Miejsca
+// "podstawowe" (z Geoapify) są otagowane wprost ID podregionu, z którego
+// zostały dociągnięte (patrz toBasicPlace w getRoutePlaces.ts) — to
+// dokładniejsze niż liczenie odległości po fakcie, bo sąsiednie kotwice
+// bywają blisko siebie (np. Łeba i Gdynia, ~70 km) i promienie by się
+// zazębiały, przez co dwa "różne" warianty wychodziłyby identyczne.
+// Miejsca kuratorskie takiego tagu nie mają, więc dla nich jedyną opcją
+// jest zwykły filtr odległości od kotwicy.
+function withinSubRegion(places: Place[], subRegionId: string, anchor: Coordinates): Place[] {
+  return places.filter((place) =>
+    place.source === "basic"
+      ? place.region === subRegionId
+      : distanceKm(anchor, place) <= CURATED_SUB_REGION_RADIUS_KM,
+  );
+}
+
 // Zwraca od 1 do 3 wariantów tej samej trasy dla tych samych preferencji.
-// Jeśli użytkownik zaznaczył kilka zainteresowań, warianty różnią się tym,
-// które z nich jest priorytetowe przy doborze miejsc. W przeciwnym razie
-// różnią się tempem zwiedzania (a przez to też doborem miejsc, bo inny
-// limit godzin dziennie mieści inną liczbę przystanków). Identyczne w
-// skutkach warianty są odfiltrowywane, więc czasem wynikiem jest tylko 1-2.
+// Kolejność priorytetu, którą wymiar różnicujemy:
+// 1) Jeśli wybrano geograficznie "rozciągnięty" typ regionu (na razie
+//    tylko Morze — patrz SPREAD_REGION_SUB_REGIONS), warianty różnią się
+//    odcinkiem wybrzeża (zachodnie/środkowe/wschodnie) — każdy liczony na
+//    puli miejsc ograniczonej do okolic innej kotwicy, więc trasy są
+//    naprawdę geograficznie różne, a nie tylko innym tempem w tym samym
+//    miejscu.
+// 2) W przeciwnym razie, jeśli zaznaczono kilka zainteresowań, warianty
+//    różnią się tym, które z nich jest priorytetowe przy doborze miejsc.
+// 3) W przeciwnym razie różnią się tempem zwiedzania (a przez to też
+//    doborem miejsc, bo inny limit godzin dziennie mieści inną liczbę
+//    przystanków).
+// Identyczne w skutkach lub puste warianty są odfiltrowywane, więc czasem
+// wynikiem jest tylko 1-2.
 export function generateRouteVariants(
   places: Place[],
   options: RouteOptions,
 ): RouteVariant[] {
+  const subRegions = (options.regionTypes ?? []).flatMap(
+    (type) => SPREAD_REGION_SUB_REGIONS[type] ?? [],
+  );
+
   const specs =
-    options.interests.length >= 2
-      ? options.interests.slice(0, 3).map((interest) => ({
-          id: interest,
-          title: `Wariant skupiony na: ${interest}`,
-          summary: `Priorytet dla miejsc związanych z „${interest}”, reszta dnia dopełniona pozostałymi zainteresowaniami.`,
-          focusTag: interest,
+    subRegions.length > 0
+      ? subRegions.slice(0, 3).map((sub) => ({
+          id: sub.id,
+          title: sub.title,
+          summary: sub.summary,
+          focusTag: null as string | null,
           paceFactor: 1,
+          geoAnchor: sub.anchor as Coordinates | null,
         }))
-      : PACE_VARIANTS.map((variant) => ({
-          id: variant.id,
-          title: variant.title,
-          summary: variant.summary,
-          focusTag: options.interests[0] ?? null,
-          paceFactor: variant.paceFactor,
-        }));
+      : options.interests.length >= 2
+        ? options.interests.slice(0, 3).map((interest) => ({
+            id: interest,
+            title: `Wariant skupiony na: ${interest}`,
+            summary: `Priorytet dla miejsc związanych z „${interest}”, reszta dnia dopełniona pozostałymi zainteresowaniami.`,
+            focusTag: interest as string | null,
+            paceFactor: 1,
+            geoAnchor: null as Coordinates | null,
+          }))
+        : PACE_VARIANTS.map((variant) => ({
+            id: variant.id,
+            title: variant.title,
+            summary: variant.summary,
+            focusTag: (options.interests[0] ?? null) as string | null,
+            paceFactor: variant.paceFactor,
+            geoAnchor: null as Coordinates | null,
+          }));
 
   const seenSignatures = new Set<string>();
   const variants: RouteVariant[] = [];
 
   for (const spec of specs) {
-    const route = generateRoute(places, {
+    const candidatePool = spec.geoAnchor
+      ? withinSubRegion(places, spec.id, spec.geoAnchor)
+      : places;
+
+    const route = generateRoute(candidatePool, {
       ...options,
       focusTag: spec.focusTag,
       paceFactor: spec.paceFactor,
     });
+
+    if (route.stops.length === 0) continue;
 
     const signature = routeSignature(route);
     if (seenSignatures.has(signature)) continue;
