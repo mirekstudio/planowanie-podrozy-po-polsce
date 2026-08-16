@@ -10,6 +10,13 @@ import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 type RouteInfo = {
   distanceKm: number;
   durationMin: number;
+  // Pierwszy odcinek trasy (start → pierwszy przystanek) — wydzielony z
+  // pełnej trasy, żeby pokazać osobno "ile zajmie sam dojazd", zanim
+  // zacznie się właściwe zwiedzanie. Ustawiony tylko wtedy, gdy podano
+  // punkt startowy (inaczej pierwszy odcinek to po prostu dwa pierwsze
+  // przystanki, co nie ma tego znaczenia).
+  firstLegDistanceKm?: number;
+  firstLegDurationMin?: number;
 };
 
 type LineStringGeometry = {
@@ -19,6 +26,7 @@ type LineStringGeometry = {
 
 async function fetchDrivingRoute(
   waypoints: { lat: number; lng: number }[],
+  hasStartPoint: boolean,
 ): Promise<{ geometry: LineStringGeometry; info: RouteInfo } | null> {
   const coords = waypoints.map((w) => `${w.lng},${w.lat}`).join(";");
   const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coords}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
@@ -30,11 +38,19 @@ async function fetchDrivingRoute(
   const route = data.routes?.[0];
   if (!route) return null;
 
+  // Mapbox Directions zwraca trasę podzieloną na "legs" — po jednym na
+  // każdy odcinek między kolejnymi waypointami. Gdy pierwszym waypointem
+  // jest punkt startowy, legs[0] to dokładnie "start → pierwszy
+  // przystanek", bez potrzeby osobnego zapytania do API.
+  const firstLeg = hasStartPoint ? route.legs?.[0] : undefined;
+
   return {
     geometry: route.geometry,
     info: {
       distanceKm: route.distance / 1000,
       durationMin: route.duration / 60,
+      firstLegDistanceKm: firstLeg ? firstLeg.distance / 1000 : undefined,
+      firstLegDurationMin: firstLeg ? firstLeg.duration / 60 : undefined,
     },
   };
 }
@@ -305,7 +321,7 @@ export default function MapboxRouteMap({
     ];
 
     if (waypoints.length > 1) {
-      fetchDrivingRoute(waypoints)
+      fetchDrivingRoute(waypoints, Boolean(startPoint))
         .then((result) => {
           if (cancelled) return;
           if (!result) {
@@ -406,6 +422,13 @@ export default function MapboxRouteMap({
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
           Trasa samochodowa: {routeInfo.distanceKm.toFixed(0)} km, ok.{" "}
           {(routeInfo.durationMin / 60).toFixed(1)} h jazdy
+        </p>
+      )}
+      {routeInfo?.firstLegDurationMin !== undefined && (
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-500">
+          🚗 Dojazd do pierwszego przystanku: {routeInfo.firstLegDistanceKm?.toFixed(0)}{" "}
+          km, ok. {(routeInfo.firstLegDurationMin / 60).toFixed(1)} h — dopiero
+          potem zaczyna się zwiedzanie
         </p>
       )}
       {error && (

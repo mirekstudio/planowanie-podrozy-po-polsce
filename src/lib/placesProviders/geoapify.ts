@@ -1,4 +1,5 @@
 import { distanceKm } from "@/lib/geo";
+import { POLAND_BOUNDS } from "@/lib/poland";
 import type {
   ExternalPlaceResult,
   PlacesProvider,
@@ -95,10 +96,17 @@ async function fetchPlaces({
   const categories = categoriesForInterests(interests);
 
   try {
+    // "filter" jest twardym ograniczeniem (wyklucza wyniki spoza obszaru),
+    // a "bias" tylko preferuje wyniki bliżej podanego punktu, nie
+    // wykluczając reszty — dlatego to filter=rect musi wyznaczać granicę
+    // Polski, a nie promień wokół center (który bywa punktem startowym
+    // użytkownika spoza kraju, np. Zurychem). Wcześniej używaliśmy tu
+    // filter=circle wokół center, co przy zagranicznym punkcie startowym
+    // dosłownie szukało miejsc za granicą zamiast w Polsce.
     const searchUrl =
       `${PLACES_URL}?categories=${encodeURIComponent(categories)}` +
-      `&filter=circle:${center.lng},${center.lat},${radiusMeters}` +
-      `&bias=proximity:${center.lng},${center.lat}` +
+      `&filter=rect:${POLAND_BOUNDS.minLng},${POLAND_BOUNDS.minLat},${POLAND_BOUNDS.maxLng},${POLAND_BOUNDS.maxLat}` +
+      `&bias=circle:${center.lng},${center.lat},${radiusMeters}` +
       `&limit=${Math.min(limit * 3, 40)}&lang=pl&apiKey=${GEOAPIFY_API_KEY}`;
 
     const searchRes = await fetch(searchUrl);

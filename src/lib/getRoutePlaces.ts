@@ -2,6 +2,7 @@ import type { Place } from "@/data/places";
 import { getPlaces } from "@/lib/getPlaces";
 import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
 import { activePlacesProvider, type ExternalPlaceResult } from "@/lib/placesProviders";
+import { REGION_TYPE_ANCHORS, POLAND_CENTER, isWithinPoland } from "@/lib/poland";
 
 // Poniżej tej liczby pasujących miejsc kuratorskich uznajemy, że nie da
 // się z nich ułożyć sensownej trasy, i dociągamy uzupełnienie z
@@ -19,7 +20,44 @@ function centroid(points: Coordinates[]): Coordinates | null {
   return { lat: sum.lat / points.length, lng: sum.lng / points.length };
 }
 
-function toBasicPlace(result: ExternalPlaceResult, tags: string[]): Place {
+// Jeśli wybrano typ regionu wskazujący na konkretny obszar Polski (np.
+// "Morze"), to on wyznacza środek wyszukiwania — niezależnie od tego,
+// gdzie jest punkt startowy. Dzięki temu "Morze" ze startem w Zurychu
+// nadal szuka nad Bałtykiem, a nie w promieniu od Zurychu.
+function regionAnchor(regionTypes: string[] | undefined): Coordinates | null {
+  const anchors = (regionTypes ?? [])
+    .map((type) => REGION_TYPE_ANCHORS[type])
+    .filter((a): a is Coordinates => Boolean(a));
+  return centroid(anchors);
+}
+
+// Wybiera środek wyszukiwania miejsc podstawowych, z priorytetem:
+// 1) obszar geograficzny wskazany przez typ_regionu (jeśli konkretny),
+// 2) środek ciężkości już pasujących miejsc kuratorskich (zawsze w Polsce),
+// 3) punkt startowy — ale TYLKO jeśli leży w Polsce (start za granicą,
+//    np. w Zurychu, nie może przesuwać wyszukiwania poza kraj),
+// 4) środek ciężkości całej bazy kuratorskiej,
+// 5) geograficzny środek Polski jako ostateczny fallback.
+function pickSearchCenter(
+  regionTypes: string[] | undefined,
+  matching: Place[],
+  curated: Place[],
+  startPoint: Coordinates | null | undefined,
+): Coordinates {
+  return (
+    regionAnchor(regionTypes) ??
+    centroid(matching.map((p) => ({ lat: p.lat, lng: p.lng }))) ??
+    (startPoint && isWithinPoland(startPoint) ? startPoint : null) ??
+    centroid(curated.map((p) => ({ lat: p.lat, lng: p.lng }))) ??
+    POLAND_CENTER
+  );
+}
+
+function toBasicPlace(
+  result: ExternalPlaceResult,
+  tags: string[],
+  regionType: string[],
+): Place {
   return {
     slug: `${activePlacesProvider.id}-${result.externalId}`,
     title: result.title,
@@ -35,10 +73,14 @@ function toBasicPlace(result: ExternalPlaceResult, tags: string[]): Place {
     tags,
     source: "basic",
     sourceUrl: result.sourceUrl,
-    // Dostawcy zewnętrzni nie znają naszej taksonomii regionu/otoczenia/
-    // bliskości atrakcji, więc te miejsca zostają bez tych tagów — patrz
-    // komentarz przy filterCandidates w generateRoute.ts.
-    regionType: [],
+    // Dostawcy zewnętrzni nie znają naszej taksonomii otoczenia/bliskości
+    // atrakcji, więc te dwa pola zostają puste — patrz komentarz przy
+    // filterCandidates w generateRoute.ts. typ_regionu jest wyjątkiem:
+    // gdy wyszukiwanie było zakotwiczone na konkretnym typie regionu
+    // (patrz regionAnchor), wyniki geograficznie z tego regionu, więc
+    // uczciwie możemy je nim otagować — inaczej filtr regionu sam by je
+    // odrzucał, mimo że to właśnie po nie sięgnęliśmy.
+    regionType,
     surroundings: [],
     nearbyAttraction: null,
   };
@@ -53,8 +95,9 @@ export type GetRoutePlacesOptions = Pick<
 // (Supabase), a jeśli dla wybranych filtrów (zainteresowania, typ
 // regionu, otoczenie, bliskość atrakcji) jest w niej za mało pasujących
 // miejsc, dokłada do niej miejsca "podstawowe" z aktywnego dostawcy
-// danych zewnętrznych, w promieniu wokół punktu startowego (lub środka
-// ciężkości pasujących miejsc kuratorskich, gdy nie podano startu).
+// danych zewnętrznych — zawsze z terytorium Polski (patrz pickSearchCenter
+// i twardy filtr granic w placesProviders/geoapify.ts), niezależnie od
+// tego, gdzie faktycznie znajduje się punkt startowy użytkownika.
 export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Place[]> {
   const curated = await getPlaces();
   const matching = filterCandidates(curated, options);
@@ -63,18 +106,20 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
     return curated;
   }
 
-  const center =
-    options.startPoint ??
-    centroid(
-      (matching.length > 0 ? matching : curated).map((p) => ({
-        lat: p.lat,
-        lng: p.lng,
-      })),
-    );
-
-  if (!center) return curated;
+  const center = pickSearchCenter(
+    options.regionTypes,
+    matching,
+    curated,
+    options.startPoint,
+  );
 
   const tags = options.interests;
+  // Tylko te wybrane typy regionu, dla których faktycznie mamy
+  // geograficzną kotwicę (patrz REGION_TYPE_ANCHORS) — to nimi otagujemy
+  // znalezione miejsca, bo to właśnie po nie sięgaliśmy wyszukiwaniem.
+  const geoAnchoredRegionTypes = (options.regionTypes ?? []).filter(
+    (type) => type in REGION_TYPE_ANCHORS,
+  );
   const results = await activePlacesProvider.fetchPlaces({
     center,
     radiusMeters: SUPPLEMENT_RADIUS_METERS,
@@ -83,5 +128,8 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
     exclude: curated.map((p) => ({ lat: p.lat, lng: p.lng })),
   });
 
-  return [...curated, ...results.map((r) => toBasicPlace(r, tags))];
+  return [
+    ...curated,
+    ...results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes)),
+  ];
 }
