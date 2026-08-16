@@ -75,6 +75,10 @@ type GeoapifyPlaceFeature = {
 type GeoapifyDetailsFeature = {
   properties: {
     name?: string;
+    // Obecne na properties, gdy miejsce ma adres — niezależnie od typu
+    // geometrii (patrz komentarz przy fetchPlaceDetails niżej).
+    lat?: number;
+    lon?: number;
     description?: string;
     website?: string;
     wiki_and_media?: {
@@ -83,7 +87,11 @@ type GeoapifyDetailsFeature = {
       wikimedia_commons?: string;
     };
   };
-  geometry?: { coordinates: [number, number] };
+  // Dla obszarów (jeziora, parki, budynki) geometria to Polygon/
+  // MultiPolygon — zagnieżdżona tablica pierścieni, nie prosta para
+  // [lon, lat]. Typujemy więc "coordinates" jako nieznane i parsujemy
+  // je ostrożnie, tylko gdy typ to faktycznie "Point".
+  geometry?: { type: string; coordinates: unknown };
 };
 
 async function fetchPlaces({
@@ -185,9 +193,23 @@ async function fetchPlaceDetails(externalId: string): Promise<ExternalPlaceResul
 
     const data = await res.json();
     const feature = data.features?.[0] as GeoapifyDetailsFeature | undefined;
-    if (!feature?.properties.name || !feature.geometry?.coordinates) return null;
+    if (!feature?.properties.name) return null;
 
-    const [lng, lat] = feature.geometry.coordinates;
+    // Preferujemy properties.lat/lon — Geoapify je podaje jako proste
+    // liczby niezależnie od typu geometrii. Do współrzędnych z geometrii
+    // sięgamy tylko jako zapasowo, i tylko dla punktów — dla jezior,
+    // parków czy budynków geometria to Polygon/MultiPolygon (zagnieżdżona
+    // tablica pierścieni), a nie pojedyncza para [lon, lat].
+    let lat = feature.properties.lat;
+    let lng = feature.properties.lon;
+
+    if ((lat === undefined || lng === undefined) && feature.geometry?.type === "Point") {
+      const point = feature.geometry.coordinates as [number, number];
+      [lng, lat] = point;
+    }
+
+    if (lat === undefined || lng === undefined) return null;
+
     const description =
       feature.properties.description?.trim() ||
       "Dodatkowe miejsce, znalezione poza naszą kuratorską bazą.";
