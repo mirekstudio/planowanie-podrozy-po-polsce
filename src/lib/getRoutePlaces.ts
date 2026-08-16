@@ -53,6 +53,46 @@ function dedupeByExternalId(results: ExternalPlaceResult[]): ExternalPlaceResult
   });
 }
 
+// Promienie wyszukiwania sąsiednich podregionów (patrz SubRegion.anchors)
+// nakładają się blisko wspólnej granicy — to samo realne miejsce z
+// Geoapify (ten sam externalId) bywa więc znalezione niezależnie przez
+// DWA różne podregiony, każdy ze swoją własną kotwicą. dedupeByExternalId
+// wyżej dedupikuje tylko WEWNĄTRZ jednego podregionu, więc bez tego kroku
+// pula końcowa miałaby dwa obiekty Place o identycznym slug, ale różnym
+// `region` — a to z kolei pozwalało enforceSubRegionBounds w
+// generateRoute.ts wybrać OBA jako "zamienniki" dla dwóch różnych
+// przystanków tego samego dnia (bo jego wewnętrzny `usedSlugs` blokuje
+// tylko JUŻ zużyty obiekt, nie każdy obiekt o tym samym slug). Przy
+// konflikcie wygrywa podregion, w którego TWARDYCH granicach (bounds)
+// faktycznie leżą współrzędne — nie ten, który znalazł je pierwszy.
+function dedupeAcrossSubRegions(
+  entries: { subRegionId: string; result: ExternalPlaceResult }[],
+  subRegions: SubRegion[],
+): { subRegionId: string; result: ExternalPlaceResult }[] {
+  const boundsById = new Map(subRegions.map((s) => [s.id, s.bounds]));
+  const byExternalId = new Map<string, { subRegionId: string; result: ExternalPlaceResult }>();
+
+  for (const entry of entries) {
+    const existing = byExternalId.get(entry.result.externalId);
+    if (!existing) {
+      byExternalId.set(entry.result.externalId, entry);
+      continue;
+    }
+
+    const point = { lat: entry.result.lat, lng: entry.result.lng };
+    const existingBounds = boundsById.get(existing.subRegionId);
+    const candidateBounds = boundsById.get(entry.subRegionId);
+    const existingFits = existingBounds ? isWithinBounds(point, existingBounds) : false;
+    const candidateFits = candidateBounds ? isWithinBounds(point, candidateBounds) : false;
+
+    if (candidateFits && !existingFits) {
+      byExternalId.set(entry.result.externalId, entry);
+    }
+  }
+
+  return [...byExternalId.values()];
+}
+
 function centroid(points: Coordinates[]): Coordinates | null {
   if (points.length === 0) return null;
   const sum = points.reduce(
@@ -242,10 +282,17 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
       }),
     );
 
+    const dedupedEntries = dedupeAcrossSubRegions(
+      resultsPerSubRegion.flatMap(({ subRegionId, results }) =>
+        results.map((result) => ({ subRegionId, result })),
+      ),
+      subRegions,
+    );
+
     return [
       ...curated,
-      ...resultsPerSubRegion.flatMap(({ subRegionId, results }) =>
-        results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes, subRegionId)),
+      ...dedupedEntries.map(({ subRegionId, result }) =>
+        toBasicPlace(result, tags, geoAnchoredRegionTypes, subRegionId),
       ),
     ];
   }
