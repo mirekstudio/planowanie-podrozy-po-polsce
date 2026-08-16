@@ -24,6 +24,18 @@ export function isWithinPoland(point: Coordinates): boolean {
   );
 }
 
+// Ogólna wersja isWithinPoland dla dowolnego prostokąta — używana m.in.
+// jako twardy "strażnik" dla podregionów wybrzeża (patrz SubRegion.bounds
+// i enforceSubRegionBounds w generateRoute.ts).
+export function isWithinBounds(point: Coordinates, bounds: Bounds): boolean {
+  return (
+    point.lat >= bounds.minLat &&
+    point.lat <= bounds.maxLat &&
+    point.lng >= bounds.minLng &&
+    point.lng <= bounds.maxLng
+  );
+}
+
 // Reprezentatywne punkty geograficzne dla tych wartości typ_regionu,
 // które wskazują na konkretny, ograniczony obszar Polski — używane jako
 // środek wyszukiwania zamiast (potencjalnie zagranicznego) punktu
@@ -79,40 +91,68 @@ export type SubRegion = {
 // różnić się tempem zwiedzania w tym samym miejscu. Góry i Jeziora nie
 // mają tu wpisu: Tatry i Mazury są znacznie bardziej zwarte geograficznie,
 // więc jeden punkt-kotwica wystarcza.
+// Granice i kotwice poniżej wyznaczone są na podstawie realnych
+// miejscowości leżących na trasie EuroVelo 10 / Velo Baltica wzdłuż
+// polskiego wybrzeża — nie są to już orientacyjne, "z ręki" narysowane
+// prostokąty. Każdy zakres to (współrzędne skrajnych miejscowości danego
+// odcinka) ± mały bufor (0.02-0.05°), żeby te miejscowości nie wypadały
+// tuż na granicy przez zwykłą niedokładność GPS. Współrzędne zweryfikowane
+// indywidualnie (Wikipedia), bo poprzednia wersja miała realny błąd: stary
+// maxLng Zachodniego wybrzeża (16.2) był węższy niż długość geograficzna
+// Jarosławca (16.54) — jednej z miejscowości na tej trasie — więc
+// enforceSubRegionBounds w generateRoute.ts realnie ją odrzucał.
 export const COASTAL_SUB_REGIONS: SubRegion[] = [
   {
     id: "zachodnie-wybrzeze",
     title: "Zachodnie wybrzeże",
-    summary: "Świnoujście – Kołobrzeg",
+    summary: "Świnoujście – Kołobrzeg – Ustka",
     anchors: [
       { lat: 53.9099, lng: 14.2477 }, // Świnoujście
       { lat: 54.1752, lng: 15.5762 }, // Kołobrzeg
+      { lat: 54.5403, lng: 16.5411 }, // Jarosławiec — bez tej kotwicy odcinek Darłowo-Ustka (~70 km) zostawał bez własnego punktu wyszukiwania
     ],
-    bounds: { minLat: 53.6, maxLat: 54.9, minLng: 14.1, maxLng: 16.2 },
+    // Południowo-zachodni róg: Świnoujście (53.9099, 14.2477) z buforem.
+    // Północno-wschodni róg: Ustka (54.5805, 16.8614) z buforem — Ustka to
+    // wspólny punkt zwrotny z podregionem środkowym (trasa "...→ Ustka" /
+    // "Ustka →..."), więc obie granice CELOWO zachodzą na siebie wokół
+    // 16.83-16.89, żeby Ustka mieściła się w obu wariantach.
+    bounds: { minLat: 53.8, maxLat: 54.65, minLng: 14.15, maxLng: 16.89 },
   },
   {
     id: "srodkowe-wybrzeze",
     title: "Środkowe wybrzeże",
-    summary: "Łeba – Władysławowo",
+    summary: "Ustka – Rowy – Łeba – Karwia – Jastrzębia Góra – Chłapowo",
     anchors: [
+      { lat: 54.5805, lng: 16.8614 }, // Ustka
       { lat: 54.7597, lng: 17.5536 }, // Łeba
-      { lat: 54.7909, lng: 18.4083 }, // Władysławowo
+      { lat: 54.8289, lng: 18.21 }, // Karwia — pokrywa wschodni odcinek (Sasino/Białogóra/Karwia/Jastrzębia Góra/Chłapowo)
     ],
-    // Zachodnia granica trochę przed Ustką/Rowami (16.2), wschodnia tuż za
-    // Władysławowem (18.45) — celowo PRZED Gdynią/Trójmiastem (~18.5+),
-    // żeby nie zazębiało się z wariantem wschodnim.
-    bounds: { minLat: 54.4, maxLat: 54.95, minLng: 16.2, maxLng: 18.45 },
+    // Zachodnia granica (16.83) zachodzi na Zachodnie wybrzeże wokół Ustki
+    // (patrz komentarz wyżej). Wschodnia (18.39) leży w połowie drogi
+    // między Chłapowem (18.3714) a Władysławowem (18.4086) — to dwie
+    // odrębne miejscowości, więc tu, w odróżnieniu od Ustki, granica NIE
+    // zachodzi na sąsiedni wariant, tylko dzieli trasę dokładnie tam,
+    // gdzie w opisie użytkownika kończy się środkowy odcinek, a zaczyna
+    // wschodni.
+    bounds: { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 },
   },
   {
     id: "wschodnie-wybrzeze",
     title: "Wschodnie wybrzeże",
-    summary: "Trójmiasto – Hel – Mierzeja Wiślana",
+    summary: "Władysławowo – Hel – Trójmiasto – Żuławy/Mierzeja Wiślana",
     anchors: [
+      { lat: 54.79, lng: 18.4086 }, // Władysławowo — nasada Półwyspu Helskiego, początek odcinka
+      { lat: 54.6053, lng: 18.8028 }, // Hel — czubek półwyspu
       { lat: 54.5189, lng: 18.5305 }, // Gdynia (Trójmiasto)
-      { lat: 54.6023, lng: 18.8113 }, // Hel
-      { lat: 54.3833, lng: 19.45 }, // Krynica Morska (Mierzeja Wiślana, w stronę Piasków)
+      { lat: 54.4317, lng: 19.6031 }, // Piaski/Nowa Karczma — koniec polskiej Mierzei Wiślanej przy granicy z Rosją
     ],
-    bounds: { minLat: 54.25, maxLat: 54.9, minLng: 18.45, maxLng: 19.8 },
+    // Zachodnia granica (18.39) to ten sam podział co maxLng Środkowego
+    // wybrzeża (patrz komentarz wyżej). Wschodnia (19.65) z buforem tuż za
+    // Piaskami/Nową Karczmą — ostatnią polską miejscowością na Mierzei
+    // Wiślanej, ok. 4 km od granicy z Rosją. Południowa granica (54.28)
+    // z buforem pod Stegną, najbardziej wysuniętą na południe z
+    // miejscowości Żuław na tej trasie.
+    bounds: { minLat: 54.28, maxLat: 54.83, minLng: 18.39, maxLng: 19.65 },
   },
 ];
 

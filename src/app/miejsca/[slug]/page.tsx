@@ -134,9 +134,15 @@ export default async function PlacePage({
           Commons
         </p>
 
-        <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-          {place.longDescription}
-        </p>
+        <div className="mt-6 flex flex-col gap-4 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
+          {/* longDescription może mieć kilka akapitów rozdzielonych pustą
+              linią (np. wstęp / kontekst / "co warto poczuć" / info
+              praktyczne) — bez tego renderowałyby się jako jedna,
+              nieprzerwana ściana tekstu. */}
+          {place.longDescription.split(/\n\s*\n/).map((paragraph, i) => (
+            <p key={i}>{paragraph}</p>
+          ))}
+        </div>
 
         <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-500">
           Współrzędne: {place.lat}, {place.lng}

@@ -1,6 +1,6 @@
 import type { Place } from "@/data/places";
 import { distanceKm } from "@/lib/geo";
-import { SPREAD_REGION_SUB_REGIONS, type Bounds } from "@/lib/poland";
+import { SPREAD_REGION_SUB_REGIONS, isWithinBounds, type Bounds } from "@/lib/poland";
 
 const VISIT_HOURS = 2.5;
 const DAILY_HOURS_MAX = 7;
@@ -251,14 +251,6 @@ function routeSignature(route: GeneratedRoute): string {
 // stałego, czytelnego opisu podregionu (np. "Łeba – Władysławowo") — jest
 // teraz zaufany, bo enforceSubRegionBounds (patrz niżej) GWARANTUJE, że
 // każdy przystanek faktycznie leży w granicach tego podregionu.
-function isWithinBounds(place: Coordinates, bounds: Bounds): boolean {
-  return (
-    place.lat >= bounds.minLat &&
-    place.lat <= bounds.maxLat &&
-    place.lng >= bounds.minLng &&
-    place.lng <= bounds.maxLng
-  );
-}
 
 // Twardy "strażnik" puszczany PO całej logice doboru miejsc (wyszukiwaniu,
 // kotwicach, klastrowaniu) — nie ufa niczemu z powyższego. Sprawdza KAŻDY

@@ -8,6 +8,7 @@ import {
   SPREAD_REGION_SUB_REGIONS,
   POLAND_CENTER,
   isWithinPoland,
+  isWithinBounds,
   type SubRegion,
 } from "@/lib/poland";
 
@@ -185,10 +186,6 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
   const curated = await getPlaces();
   const matching = filterCandidates(curated, options);
 
-  if (matching.length >= MIN_MATCHING_CURATED_PLACES) {
-    return curated;
-  }
-
   const excludePoints = curated.map((p) => ({ lat: p.lat, lng: p.lng }));
   const tags = options.interests;
   // Tylko te wybrane typy regionu, dla których faktycznie mamy
@@ -209,8 +206,21 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
   );
 
   if (subRegions.length > 0) {
+    // Próg musi być liczony OSOBNO dla każdego podregionu, a nie globalnie
+    // dla całej bazy kuratorskiej — inaczej podregion z bogatą kuratorską
+    // treścią (np. Środkowe wybrzeże) mógłby fałszywie "zaspokoić" wspólny
+    // próg i zablokować dociąganie Geoapify dla sąsiednich podregionów
+    // (Zachodnie/Wschodnie), które wciąż nie mają własnych miejsc
+    // kuratorskich w swoich granicach.
     const resultsPerSubRegion = await Promise.all(
       subRegions.map(async (sub) => {
+        const matchingInBounds = matching.filter((p) =>
+          isWithinBounds({ lat: p.lat, lng: p.lng }, sub.bounds),
+        );
+        if (matchingInBounds.length >= MIN_MATCHING_CURATED_PLACES) {
+          return { subRegionId: sub.id, results: [] as ExternalPlaceResult[] };
+        }
+
         // Kilka kotwic na podregion (patrz komentarz przy SubRegion) —
         // pytamy Geoapify o każdą z osobna i łączymy wyniki, bo jeden
         // punkt + wąski promień nie objąłby np. naraz i Trójmiasta, i
@@ -236,6 +246,10 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
         results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes, subRegionId)),
       ),
     ];
+  }
+
+  if (matching.length >= MIN_MATCHING_CURATED_PLACES) {
+    return curated;
   }
 
   const center = pickSearchCenter(
