@@ -1,5 +1,10 @@
 import type { Place } from "@/data/places";
 import { INTEREST_OPTIONS } from "@/lib/interests";
+import {
+  REGION_TYPE_OPTIONS,
+  SURROUNDINGS_OPTIONS,
+  NEARBY_ATTRACTION_SUGGESTIONS,
+} from "@/lib/placeFilters";
 
 function Field({
   label,
@@ -165,6 +170,67 @@ export default function PlaceForm({
           ))}
         </div>
       </div>
+      <div>
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Typ regionu
+        </span>
+        <div className="mt-2 flex flex-col gap-2">
+          {REGION_TYPE_OPTIONS.map((option) => (
+            <label
+              key={option}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900"
+            >
+              <input
+                type="checkbox"
+                name="regionType"
+                value={option}
+                defaultChecked={place?.regionType.includes(option)}
+                className="h-4 w-4"
+              />
+              <span className="text-black dark:text-zinc-50">{option}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Otoczenie
+        </span>
+        <div className="mt-2 flex flex-col gap-2">
+          {SURROUNDINGS_OPTIONS.map((option) => (
+            <label
+              key={option}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900"
+            >
+              <input
+                type="checkbox"
+                name="surroundings"
+                value={option}
+                defaultChecked={place?.surroundings.includes(option)}
+                className="h-4 w-4"
+              />
+              <span className="text-black dark:text-zinc-50">{option}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+          Bliskość atrakcji (opcjonalnie)
+        </span>
+        <input
+          name="nearbyAttraction"
+          list="nearby-attraction-suggestions"
+          defaultValue={place?.nearbyAttraction ?? ""}
+          placeholder="np. W centrum starego miasta"
+          className="rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+        />
+        <datalist id="nearby-attraction-suggestions">
+          {NEARBY_ATTRACTION_SUGGESTIONS.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      </label>
       <button
         type="submit"
         className="mt-2 self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"

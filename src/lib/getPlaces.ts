@@ -16,6 +16,9 @@ type PlaceRow = {
   credit_license: string;
   sort_order: number;
   tags: string[];
+  typ_regionu: string[] | null;
+  blizkosc_atrakcji: string | null;
+  otoczenie: string[] | null;
 };
 
 function mapRow(row: PlaceRow): Place {
@@ -37,6 +40,9 @@ function mapRow(row: PlaceRow): Place {
     sortOrder: row.sort_order,
     tags: row.tags ?? [],
     source: "curated",
+    regionType: row.typ_regionu ?? [],
+    surroundings: row.otoczenie ?? [],
+    nearbyAttraction: row.blizkosc_atrakcji ?? null,
   };
 }
 

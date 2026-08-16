@@ -14,6 +14,9 @@ export const dynamic = "force-dynamic";
 type SearchParams = {
   days?: string;
   interests?: string;
+  regionType?: string;
+  surroundings?: string;
+  nearbyAttraction?: string;
   transport?: string;
   travelGroup?: string;
   numAdults?: string;
@@ -55,6 +58,13 @@ export default async function PlanerWynikPage({
 
   const days = Math.max(1, Number(params.days) || 1);
   const interests = params.interests ? params.interests.split(",") : [];
+  const regionTypes = params.regionType ? params.regionType.split(",") : [];
+  const surroundingsFilter = params.surroundings
+    ? params.surroundings.split(",")
+    : [];
+  const nearbyAttractions = params.nearbyAttraction
+    ? params.nearbyAttraction.split(",")
+    : [];
   const transport = params.transport === "camper" ? "camper" : "car";
   const travelGroup = params.travelGroup === "family" ? "family" : "adults";
   const numAdults = Math.max(1, Number(params.numAdults) || 1);
@@ -69,13 +79,22 @@ export default async function PlanerWynikPage({
         }
       : null;
 
-  const places = await getRoutePlaces({ interests, startPoint });
+  const places = await getRoutePlaces({
+    interests,
+    startPoint,
+    regionTypes,
+    surroundings: surroundingsFilter,
+    nearbyAttractions,
+  });
   const usedSupplement = places.some((p) => p.source === "basic");
   const variants = generateRouteVariants(places, {
     days,
     interests,
     startPoint,
     childrenAges: travelGroup === "family" ? childrenAges : undefined,
+    regionTypes,
+    surroundings: surroundingsFilter,
+    nearbyAttractions,
   });
 
   const selectedVariant = params.variant
@@ -106,6 +125,30 @@ export default async function PlanerWynikPage({
           className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
         >
           {interest}
+        </span>
+      ))}
+      {regionTypes.map((regionType) => (
+        <span
+          key={regionType}
+          className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
+        >
+          🗺️ {regionType}
+        </span>
+      ))}
+      {surroundingsFilter.map((option) => (
+        <span
+          key={option}
+          className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
+        >
+          {option}
+        </span>
+      ))}
+      {nearbyAttractions.map((option) => (
+        <span
+          key={option}
+          className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]"
+        >
+          {option}
         </span>
       ))}
     </div>

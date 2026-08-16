@@ -26,6 +26,7 @@ export async function logout() {
 
 function readPlaceForm(formData: FormData) {
   const imagePosition = String(formData.get("imagePosition") ?? "");
+  const nearbyAttraction = String(formData.get("nearbyAttraction") ?? "").trim();
 
   return {
     slug: String(formData.get("slug") ?? "").trim(),
@@ -42,6 +43,9 @@ function readPlaceForm(formData: FormData) {
     credit_license: String(formData.get("creditLicense") ?? "").trim(),
     sort_order: Number(formData.get("sortOrder") ?? 0),
     tags: formData.getAll("tags").map(String),
+    typ_regionu: formData.getAll("regionType").map(String),
+    otoczenie: formData.getAll("surroundings").map(String),
+    blizkosc_atrakcji: nearbyAttraction === "" ? null : nearbyAttraction,
   };
 }
 

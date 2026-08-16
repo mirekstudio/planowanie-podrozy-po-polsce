@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { INTEREST_OPTIONS } from "@/lib/interests";
 import {
+  REGION_TYPE_OPTIONS,
+  SURROUNDINGS_OPTIONS,
+  NEARBY_ATTRACTION_SUGGESTIONS,
+} from "@/lib/placeFilters";
+import {
   geocodeForward,
   geocodeReverse,
   type GeocodedPlace,
@@ -23,6 +28,9 @@ export default function PlanerForm() {
   const [geolocating, setGeolocating] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [interests, setInterests] = useState<string[]>([]);
+  const [regionTypes, setRegionTypes] = useState<string[]>([]);
+  const [surroundings, setSurroundings] = useState<string[]>([]);
+  const [nearbyAttractions, setNearbyAttractions] = useState<string[]>([]);
   const [transport, setTransport] = useState<"car" | "camper">("car");
   const [travelGroup, setTravelGroup] = useState<"adults" | "family">(
     "adults",
@@ -123,6 +131,17 @@ export default function PlanerForm() {
     );
   }
 
+  function toggleValue(
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    value: string,
+  ) {
+    setter((current) =>
+      current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value],
+    );
+  }
+
   function handleNumChildrenChange(value: number) {
     const count = Math.max(0, value);
     setNumChildren(count);
@@ -151,6 +170,15 @@ export default function PlanerForm() {
     params.set("numAdults", String(numAdults));
     if (interests.length > 0) {
       params.set("interests", interests.join(","));
+    }
+    if (regionTypes.length > 0) {
+      params.set("regionType", regionTypes.join(","));
+    }
+    if (surroundings.length > 0) {
+      params.set("surroundings", surroundings.join(","));
+    }
+    if (nearbyAttractions.length > 0) {
+      params.set("nearbyAttraction", nearbyAttractions.join(","));
     }
     if (travelGroup === "family" && childrenAges.length > 0) {
       params.set("children", childrenAges.join(","));
@@ -279,6 +307,86 @@ export default function PlanerForm() {
           ))}
         </div>
       </section>
+
+      <section>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Region geograficzny
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie regiony.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          {REGION_TYPE_OPTIONS.map((option) => (
+            <label
+              key={option}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+            >
+              <input
+                type="checkbox"
+                checked={regionTypes.includes(option)}
+                onChange={() => toggleValue(setRegionTypes, option)}
+                className="h-4 w-4"
+              />
+              <span className="text-black dark:text-zinc-50">{option}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <details className="group rounded-lg border border-black/[.08] p-4 dark:border-white/[.145]">
+        <summary className="cursor-pointer text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Filtry zaawansowane
+        </summary>
+
+        <div className="mt-4 flex flex-col gap-6">
+          <div>
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Bliskość atrakcji
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Dotyczy głównie noclegów, ale też niektórych atrakcji.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {NEARBY_ATTRACTION_SUGGESTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={nearbyAttractions.includes(option)}
+                    onChange={() => toggleValue(setNearbyAttractions, option)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-black dark:text-zinc-50">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Otoczenie
+            </h3>
+            <div className="mt-3 flex flex-col gap-2">
+              {SURROUNDINGS_OPTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={surroundings.includes(option)}
+                    onChange={() => toggleValue(setSurroundings, option)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-black dark:text-zinc-50">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </details>
 
       <section>
         <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">

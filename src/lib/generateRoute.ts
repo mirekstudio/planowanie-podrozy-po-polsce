@@ -22,6 +22,11 @@ export type RouteOptions = {
   // wizyty (więcej przystanków), <1 = mniej godzin dziennie i dłuższe
   // wizyty (mniej przystanków). 1 = tempo standardowe.
   paceFactor?: number;
+  // Dodatkowe wymiary filtrowania — patrz src/lib/placeFilters.ts.
+  // Puste/nieustawione = nie filtruj po tym wymiarze.
+  regionTypes?: string[];
+  surroundings?: string[];
+  nearbyAttractions?: string[];
 };
 
 export type RouteDay = {
@@ -113,6 +118,34 @@ export function filterByInterests(places: Place[], interests: string[]): Place[]
     : places;
 }
 
+// Miejsce przechodzi dany wymiar, jeśli nic nie wybrano (brak filtra) albo
+// jeśli ma choć jedną z wybranych wartości w tym wymiarze.
+function matchesAny(placeValues: string[], selected: string[] | undefined): boolean {
+  return !selected || selected.length === 0 || placeValues.some((v) => selected.includes(v));
+}
+
+// Łączy filtr zainteresowań z nowymi wymiarami (typ regionu, otoczenie,
+// bliskość atrakcji) — wszystkie aktywne wymiary muszą być spełnione
+// jednocześnie (AND), a w ramach jednego wymiaru wystarczy jedna
+// pasująca wartość (OR). Miejsca "basic" z zewnętrznych dostawców nie
+// mają tych wymiarów otagowanych, więc przy aktywnym filtrze regionu/
+// otoczenia/bliskości atrakcji zwykle odpadają — to świadome ograniczenie,
+// nie błąd (dostawca zewnętrzny nie zna naszej taksonomii).
+export function filterCandidates(
+  places: Place[],
+  options: Pick<RouteOptions, "interests" | "regionTypes" | "surroundings" | "nearbyAttractions">,
+): Place[] {
+  return filterByInterests(places, options.interests).filter(
+    (place) =>
+      matchesAny(place.regionType, options.regionTypes) &&
+      matchesAny(place.surroundings, options.surroundings) &&
+      matchesAny(
+        place.nearbyAttraction ? [place.nearbyAttraction] : [],
+        options.nearbyAttractions,
+      ),
+  );
+}
+
 export function generateRoute(
   places: Place[],
   options: RouteOptions,
@@ -130,7 +163,7 @@ export function generateRoute(
   const dailyHoursLimit = baseDailyHoursLimit * paceFactor;
   const visitHours = VISIT_HOURS / paceFactor;
 
-  let candidates = filterByInterests(places, options.interests);
+  let candidates = filterCandidates(places, options);
 
   const usedFallback = candidates.length === 0;
   if (usedFallback) {

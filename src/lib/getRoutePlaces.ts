@@ -1,6 +1,6 @@
 import type { Place } from "@/data/places";
 import { getPlaces } from "@/lib/getPlaces";
-import { filterByInterests, type Coordinates } from "@/lib/generateRoute";
+import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
 import { activePlacesProvider, type ExternalPlaceResult } from "@/lib/placesProviders";
 
 // Poniżej tej liczby pasujących miejsc kuratorskich uznajemy, że nie da
@@ -35,20 +35,29 @@ function toBasicPlace(result: ExternalPlaceResult, tags: string[]): Place {
     tags,
     source: "basic",
     sourceUrl: result.sourceUrl,
+    // Dostawcy zewnętrzni nie znają naszej taksonomii regionu/otoczenia/
+    // bliskości atrakcji, więc te miejsca zostają bez tych tagów — patrz
+    // komentarz przy filterCandidates w generateRoute.ts.
+    regionType: [],
+    surroundings: [],
+    nearbyAttraction: null,
   };
 }
 
+export type GetRoutePlacesOptions = Pick<
+  RouteOptions,
+  "interests" | "startPoint" | "regionTypes" | "surroundings" | "nearbyAttractions"
+>;
+
 // Zwraca pulę miejsc do generowania trasy: najpierw baza kuratorska
-// (Supabase), a jeśli dla wybranych zainteresowań jest w niej za mało
-// pasujących miejsc, dokłada do niej miejsca "podstawowe" z aktywnego
-// dostawcy danych zewnętrznych, w promieniu wokół punktu startowego (lub
-// środka ciężkości pasujących miejsc kuratorskich, gdy nie podano startu).
-export async function getRoutePlaces(options: {
-  interests: string[];
-  startPoint?: Coordinates | null;
-}): Promise<Place[]> {
+// (Supabase), a jeśli dla wybranych filtrów (zainteresowania, typ
+// regionu, otoczenie, bliskość atrakcji) jest w niej za mało pasujących
+// miejsc, dokłada do niej miejsca "podstawowe" z aktywnego dostawcy
+// danych zewnętrznych, w promieniu wokół punktu startowego (lub środka
+// ciężkości pasujących miejsc kuratorskich, gdy nie podano startu).
+export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Place[]> {
   const curated = await getPlaces();
-  const matching = filterByInterests(curated, options.interests);
+  const matching = filterCandidates(curated, options);
 
   if (matching.length >= MIN_MATCHING_CURATED_PLACES) {
     return curated;
