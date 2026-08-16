@@ -231,6 +231,20 @@ export default function PlaceForm({
           ))}
         </datalist>
       </label>
+      <TextArea
+        label="Rekomendowane kempingi (jeden na linię, opcjonalnie)"
+        name="recommendedCampsites"
+        defaultValue={place?.recommendedCampsites.join("\n")}
+        rows={3}
+        placeholder={"Camping Relax (Świnoujście)\nCamping Tramp (Wolin)"}
+      />
+      <TextArea
+        label="Wskazówka kulinarna (opcjonalnie)"
+        name="culinaryTip"
+        defaultValue={place?.culinaryTip ?? ""}
+        rows={2}
+        placeholder="np. Ryby z kutra prosto z portu, najlepiej na wieczornym spacerze po nabrzeżu."
+      />
       <button
         type="submit"
         className="mt-2 self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"

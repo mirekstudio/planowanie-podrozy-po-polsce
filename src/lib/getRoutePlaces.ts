@@ -134,6 +134,8 @@ function toBasicPlace(
     regionType,
     surroundings: [],
     nearbyAttraction: null,
+    recommendedCampsites: [],
+    culinaryTip: null,
   };
 }
 

@@ -28,4 +28,11 @@ export type Place = {
   regionType: string[];
   surroundings: string[];
   nearbyAttraction: string | null;
+  // Nazwy sprawdzonych kempingów/pól namiotowych w okolicy — redakcyjna
+  // rekomendacja, nie ma odpowiednika wśród dostawców zewnętrznych, więc
+  // miejsca "basic" zawsze mają tu pustą tablicę.
+  recommendedCampsites: string[];
+  // Krótka podpowiedź kulinarna (regionalne specjały w okolicy) — jak
+  // wyżej, tylko dla miejsc kuratorskich.
+  culinaryTip: string | null;
 };

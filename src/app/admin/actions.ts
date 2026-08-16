@@ -27,6 +27,13 @@ export async function logout() {
 function readPlaceForm(formData: FormData) {
   const imagePosition = String(formData.get("imagePosition") ?? "");
   const nearbyAttraction = String(formData.get("nearbyAttraction") ?? "").trim();
+  const culinaryTip = String(formData.get("culinaryTip") ?? "").trim();
+  // Kempingi wpisywane po jednym na linię w textarea — puste linie
+  // odfiltrowane, żeby przypadkowe entery nie zapisywały się jako "".
+  const recommendedCampsites = String(formData.get("recommendedCampsites") ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
   return {
     slug: String(formData.get("slug") ?? "").trim(),
@@ -46,6 +53,8 @@ function readPlaceForm(formData: FormData) {
     typ_regionu: formData.getAll("regionType").map(String),
     otoczenie: formData.getAll("surroundings").map(String),
     blizkosc_atrakcji: nearbyAttraction === "" ? null : nearbyAttraction,
+    rekomendowane_kempingi: recommendedCampsites,
+    wskazowki_kulinarne: culinaryTip === "" ? null : culinaryTip,
   };
 }
 

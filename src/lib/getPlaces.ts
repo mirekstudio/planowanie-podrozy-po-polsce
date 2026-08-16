@@ -19,6 +19,8 @@ type PlaceRow = {
   typ_regionu: string[] | null;
   blizkosc_atrakcji: string | null;
   otoczenie: string[] | null;
+  rekomendowane_kempingi: string[] | null;
+  wskazowki_kulinarne: string | null;
 };
 
 function mapRow(row: PlaceRow): Place {
@@ -43,6 +45,8 @@ function mapRow(row: PlaceRow): Place {
     regionType: row.typ_regionu ?? [],
     surroundings: row.otoczenie ?? [],
     nearbyAttraction: row.blizkosc_atrakcji ?? null,
+    recommendedCampsites: row.rekomendowane_kempingi ?? [],
+    culinaryTip: row.wskazowki_kulinarne ?? null,
   };
 }
 

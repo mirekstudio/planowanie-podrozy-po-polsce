@@ -144,6 +144,30 @@ export default async function PlacePage({
           ))}
         </div>
 
+        {place.culinaryTip && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+              Co spróbować na miejscu
+            </h2>
+            <p className="mt-2 text-base leading-7 text-zinc-600 dark:text-zinc-400">
+              {place.culinaryTip}
+            </p>
+          </div>
+        )}
+
+        {place.recommendedCampsites.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold text-black dark:text-zinc-50">
+              Gdzie się zatrzymać
+            </h2>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-base text-zinc-600 dark:text-zinc-400">
+              {place.recommendedCampsites.map((campsite) => (
+                <li key={campsite}>{campsite}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-500">
           Współrzędne: {place.lat}, {place.lng}
         </p>
