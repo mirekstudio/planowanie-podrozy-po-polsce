@@ -14,6 +14,10 @@ import {
   type GeocodedPlace,
 } from "@/lib/geocoding";
 import LocationPermissionModal from "@/components/LocationPermissionModal";
+import {
+  ACCOMMODATION_TYPE_OPTIONS,
+  type AccommodationTypePreference,
+} from "@/lib/accommodation";
 
 type StartPointMessage = { type: "success" | "error"; text: string };
 
@@ -28,6 +32,7 @@ export type PlanerFormInitialValues = {
   numAdults?: number;
   childrenAges?: number[];
   startPoint?: GeocodedPlace | null;
+  accommodationType?: AccommodationTypePreference;
 };
 
 export default function PlanerForm({
@@ -73,6 +78,9 @@ export default function PlanerForm({
   const [childrenAges, setChildrenAges] = useState<number[]>(
     initialValues?.childrenAges ?? [5],
   );
+  const [accommodationType, setAccommodationType] = useState<
+    AccommodationTypePreference | ""
+  >(initialValues?.accommodationType ?? "");
 
   function handleUseLocation() {
     if (!("geolocation" in navigator)) {
@@ -222,6 +230,9 @@ export default function PlanerForm({
       params.set("startLat", String(startPoint.lat));
       params.set("startLng", String(startPoint.lng));
       params.set("startLabel", startPoint.label);
+    }
+    if (accommodationType) {
+      params.set("accommodationType", accommodationType);
     }
 
     router.push(`/planer/wynik?${params.toString()}`);
@@ -448,6 +459,35 @@ export default function PlanerForm({
                 name="transport"
                 checked={transport === option.value}
                 onChange={() => setTransport(option.value)}
+                className="h-4 w-4 accent-honey"
+              />
+              <span className="text-black dark:text-zinc-50">
+                {option.label}
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Typ noclegu
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Dla tras wielodniowych zaproponujemy nocleg na każdy dzień. Jeśli
+          nic nie zaznaczysz, dobierzemy go na podstawie środka transportu.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          {ACCOMMODATION_TYPE_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+            >
+              <input
+                type="radio"
+                name="accommodationType"
+                checked={accommodationType === option.value}
+                onChange={() => setAccommodationType(option.value)}
                 className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">

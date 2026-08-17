@@ -9,11 +9,15 @@ import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
 import StartNavigationButton from "@/components/StartNavigationButton";
 import SelectRouteButton from "@/components/SelectRouteButton";
 import BackLink from "@/components/BackLink";
+import AccommodationCard from "@/components/AccommodationCard";
 import {
+  parseAccommodationType,
   parseNumberList,
   plannerFormHref,
   type PlannerSearchParams,
 } from "@/lib/plannerSearchParams";
+import { getNoclegi } from "@/lib/getNoclegi";
+import { attachAccommodationOptions } from "@/lib/accommodation";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +57,7 @@ export default async function PlanerWynikPage({
   const travelGroup = params.travelGroup === "family" ? "family" : "adults";
   const numAdults = Math.max(1, Number(params.numAdults) || 1);
   const childrenAges = parseNumberList(params.children);
+  const accommodationType = parseAccommodationType(params.accommodationType);
 
   const startPoint =
     params.startLat && params.startLng
@@ -194,6 +199,16 @@ export default async function PlanerWynikPage({
 
   const route = selectedVariant.route;
 
+  // Nocleg proponujemy tylko dla tras wielodniowych (patrz zgłoszenie,
+  // punkt 2) — jednodniowa trasa kończy się w domu, nie w noclegu.
+  const daysWithAccommodation =
+    days >= 2
+      ? await attachAccommodationOptions(route.days, await getNoclegi(), {
+          transport,
+          accommodationType,
+        })
+      : route.days.map((d) => ({ ...d, accommodationOptions: [] }));
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
@@ -236,7 +251,7 @@ export default async function PlanerWynikPage({
         </div>
 
         <ol className="mt-8 flex flex-col gap-4">
-          {route.days.map(({ day, places: dayPlaces }) => (
+          {daysWithAccommodation.map(({ day, places: dayPlaces, accommodationOptions }) => (
             <li
               key={day}
               className="rounded-xl border border-black/[.08] bg-white p-4 dark:border-white/[.145] dark:bg-zinc-900"
@@ -260,11 +275,14 @@ export default async function PlanerWynikPage({
                   miejsca.
                 </p>
               ) : (
-                <div className="mt-3 flex flex-col gap-3">
-                  {dayPlaces.map((place) => (
-                    <ItineraryPlaceCard key={place.slug} place={place} />
-                  ))}
-                </div>
+                <>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {dayPlaces.map((place) => (
+                      <ItineraryPlaceCard key={place.slug} place={place} />
+                    ))}
+                  </div>
+                  {days >= 2 && <AccommodationCard options={accommodationOptions} />}
+                </>
               )}
             </li>
           ))}

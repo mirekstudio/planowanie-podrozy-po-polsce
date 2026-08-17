@@ -1,4 +1,5 @@
 import type { PlanerFormInitialValues } from "@/components/PlanerForm";
+import type { AccommodationTypePreference } from "@/lib/accommodation";
 
 export type PlannerSearchParams = {
   days?: string;
@@ -13,8 +14,21 @@ export type PlannerSearchParams = {
   startLat?: string;
   startLng?: string;
   startLabel?: string;
+  accommodationType?: string;
   variant?: string;
 };
+
+const VALID_ACCOMMODATION_TYPES: AccommodationTypePreference[] = [
+  "kemping",
+  "pole namiotowe",
+  "hotel_pensjonat",
+];
+
+export function parseAccommodationType(
+  value: string | undefined,
+): AccommodationTypePreference | undefined {
+  return VALID_ACCOMMODATION_TYPES.find((v) => v === value);
+}
 
 export function parseNumberList(value: string | undefined): number[] {
   if (!value) return [];
@@ -68,5 +82,6 @@ export function parsePlannerInitialValues(
             label: params.startLabel ?? "Punkt startowy",
           }
         : null,
+    accommodationType: parseAccommodationType(params.accommodationType),
   };
 }
