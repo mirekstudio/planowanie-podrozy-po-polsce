@@ -176,6 +176,7 @@ function toBasicPlace(
     nearbyAttraction: null,
     recommendedCampsites: [],
     culinaryTip: null,
+    featured: false,
   };
 }
 

@@ -148,6 +148,17 @@ export default function PlaceForm({
         defaultValue={place?.sortOrder ?? 0}
         required
       />
+      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900">
+        <input
+          type="checkbox"
+          name="featured"
+          defaultChecked={place?.featured}
+          className="h-4 w-4"
+        />
+        <span className="text-black dark:text-zinc-50">
+          Polecane (widoczne w sekcji &bdquo;Polecane&rdquo; w bocznym menu)
+        </span>
+      </label>
       <div>
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Zainteresowania (tagi używane przez planer trasy)

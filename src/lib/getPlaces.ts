@@ -21,6 +21,7 @@ type PlaceRow = {
   otoczenie: string[] | null;
   rekomendowane_kempingi: string[] | null;
   wskazowki_kulinarne: string | null;
+  featured: boolean | null;
 };
 
 function mapRow(row: PlaceRow): Place {
@@ -47,6 +48,7 @@ function mapRow(row: PlaceRow): Place {
     nearbyAttraction: row.blizkosc_atrakcji ?? null,
     recommendedCampsites: row.rekomendowane_kempingi ?? [],
     culinaryTip: row.wskazowki_kulinarne ?? null,
+    featured: row.featured ?? false,
   };
 }
 

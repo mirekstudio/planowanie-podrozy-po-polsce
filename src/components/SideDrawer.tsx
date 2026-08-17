@@ -211,6 +211,7 @@ export default function SideDrawer({
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [visitedCount, setVisitedCount] = useState(0);
   const [placesCount, setPlacesCount] = useState(0);
+  const [featuredCount, setFeaturedCount] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
@@ -257,6 +258,11 @@ export default function SideDrawer({
       .from("places")
       .select("*", { count: "exact", head: true })
       .then(({ count }) => setPlacesCount(count ?? 0));
+    supabase
+      .from("places")
+      .select("*", { count: "exact", head: true })
+      .eq("featured", true)
+      .then(({ count }) => setFeaturedCount(count ?? 0));
   }, [open]);
 
   function goToLoginOrPage(page: "/ulubione" | "/odwiedzone") {
@@ -395,6 +401,18 @@ export default function SideDrawer({
                 <rect x="14" y="3" width="7" height="7" rx="1" />
                 <rect x="3" y="14" width="7" height="7" rx="1" />
                 <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            }
+          />
+
+          <DrawerLink
+            href="/miejsca?polecane=1"
+            onClick={onClose}
+            label="Polecane"
+            count={featuredCount}
+            icon={
+              <svg {...iconProps}>
+                <path d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3-4.8-4.3 6.4-.6L12 3Z" strokeLinejoin="round" />
               </svg>
             }
           />

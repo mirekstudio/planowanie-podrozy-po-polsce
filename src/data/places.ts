@@ -35,4 +35,8 @@ export type Place = {
   // Krótka podpowiedź kulinarna (regionalne specjały w okolicy) — jak
   // wyżej, tylko dla miejsc kuratorskich.
   culinaryTip: string | null;
+  // Ręcznie oznaczane w panelu admina — steruje sekcją "Polecane" w
+  // bocznym menu (patrz /miejsca?polecane=1). Miejsca "basic" nigdy nie
+  // są polecane, bo nie przechodzą przez redakcyjną selekcję.
+  featured: boolean;
 };

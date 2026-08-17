@@ -7,26 +7,43 @@ export const dynamic = "force-dynamic";
 export default async function MiejscaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kategoria?: string }>;
+  searchParams: Promise<{ kategoria?: string; polecane?: string }>;
 }) {
-  const { kategoria } = await searchParams;
+  const { kategoria, polecane } = await searchParams;
+  // "polecane" ma pierwszeństwo przed kategorią — to osobny, ręcznie
+  // kuratorski wybór (pole featured), nie kolejny wymiar tego samego
+  // filtra tagów co "kategoria".
+  const isPolecane = polecane === "1";
   const allPlaces = await getPlaces();
-  const places = kategoria
-    ? allPlaces.filter((place) => place.tags.includes(kategoria))
-    : allPlaces;
+  const places = isPolecane
+    ? allPlaces.filter((place) => place.featured)
+    : kategoria
+      ? allPlaces.filter((place) => place.tags.includes(kategoria))
+      : allPlaces;
+
+  // Nagłówek zawsze zaczyna się od "Wszystkie miejsca" (albo, dla widoku
+  // Polecane, ma własną, jednoznaczną nazwę) — nigdy nie pokazuje nazwy
+  // pojedynczego miejsca, niezależnie od tego, co akurat jest na liście.
+  const heading = isPolecane
+    ? "Polecane"
+    : kategoria
+      ? `Wszystkie miejsca — ${kategoria}`
+      : "Wszystkie miejsca";
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
         <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          {kategoria ? `Miejsca — ${kategoria}` : "Miejsca"}
+          {heading}
         </h1>
         <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
-          {kategoria
-            ? "Miejsca dopasowane do wybranej kategorii."
-            : "Kilka przykładowych miejsc, które warto odwiedzić."}
+          {isPolecane
+            ? "Ręcznie wybrane miejsca, które szczególnie polecamy."
+            : kategoria
+              ? "Miejsca dopasowane do wybranej kategorii."
+              : "Kilka przykładowych miejsc, które warto odwiedzić."}
         </p>
-        {kategoria && (
+        {(isPolecane || kategoria) && (
           <Link
             href="/miejsca"
             className="mt-3 inline-block text-sm text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
@@ -37,7 +54,9 @@ export default async function MiejscaPage({
 
         {places.length === 0 ? (
           <p className="mt-10 text-zinc-500 dark:text-zinc-500">
-            Brak miejsc w tej kategorii.
+            {isPolecane
+              ? "Nie oznaczono jeszcze żadnych miejsc jako polecane."
+              : "Brak miejsc w tej kategorii."}
           </p>
         ) : (
         <ul className="mt-10 grid gap-4 sm:grid-cols-2">

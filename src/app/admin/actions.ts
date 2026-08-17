@@ -55,6 +55,7 @@ function readPlaceForm(formData: FormData) {
     blizkosc_atrakcji: nearbyAttraction === "" ? null : nearbyAttraction,
     rekomendowane_kempingi: recommendedCampsites,
     wskazowki_kulinarne: culinaryTip === "" ? null : culinaryTip,
+    featured: formData.get("featured") === "on",
   };
 }
 
