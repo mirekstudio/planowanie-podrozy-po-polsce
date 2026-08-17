@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { INTEREST_OPTIONS } from "@/lib/interests";
 import {
@@ -41,6 +41,12 @@ export default function PlanerForm({
   initialValues?: PlanerFormInitialValues;
 }) {
   const router = useRouter();
+  // Generowanie trasy (zapytania do Supabase, czasem też do Geoapify przy
+  // rzadszych kombinacjach filtrów) potrafi trwać 1-2+ sekund — bez tego
+  // isPending przycisk "Generuj trasę" nie dawał żadnej wizualnej reakcji
+  // przez cały ten czas, bo router.push() z komponentu klienckiego nie
+  // sygnalizuje stanu oczekiwania stronie źródłowej samo z siebie.
+  const [isPending, startTransition] = useTransition();
   const [days, setDays] = useState(initialValues?.days ?? 3);
   const [startPoint, setStartPoint] = useState<GeocodedPlace | null>(
     initialValues?.startPoint ?? null,
@@ -235,7 +241,9 @@ export default function PlanerForm({
       params.set("accommodationType", accommodationType);
     }
 
-    router.push(`/planer/wynik?${params.toString()}`);
+    startTransition(() => {
+      router.push(`/planer/wynik?${params.toString()}`);
+    });
   }
 
   return (
@@ -582,9 +590,35 @@ export default function PlanerForm({
 
       <button
         type="submit"
-        className="self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
+        disabled={isPending}
+        aria-busy={isPending}
+        className="inline-flex min-w-[11rem] items-center justify-center gap-2 self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-wine-solid-hover active:bg-wine-solid-hover disabled:cursor-not-allowed disabled:opacity-80"
       >
-        Generuj trasę
+        {isPending && (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-4 w-4 shrink-0 animate-spin"
+            aria-hidden="true"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="9"
+              stroke="currentColor"
+              strokeWidth="3"
+              className="opacity-25"
+            />
+            <path
+              d="M21 12a9 9 0 0 0-9-9"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              className="opacity-90"
+            />
+          </svg>
+        )}
+        {isPending ? "Generowanie trasy…" : "Generuj trasę"}
       </button>
     </form>
   );
