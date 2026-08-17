@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
+const MOBILE_QUERY = "(max-width: 767px)";
+const VIDEO_SOURCES = {
+  mobile: "/videos/intro-pionowe.mp4",
+  desktop: "/videos/intro-poziome.mp4",
+};
+
 export default function HeroVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
@@ -15,6 +21,28 @@ export default function HeroVideo() {
     // uznał autoplay za dozwolony na podstawie samych atrybutów HTML.
     video.muted = true;
     void video.play().catch(() => {});
+
+    // <source media="..."> wewnątrz <video> przeglądarka dobiera TYLKO
+    // RAZ, przy pierwszym wczytaniu elementu — nie reaguje na późniejszą
+    // zmianę szerokości okna (obrót telefonu, zmiana rozmiaru okna na
+    // desktopie). Bez tego nasłuchu wideo zostaje w "złej" orientacji
+    // (np. pionowe rozciągnięte object-fit:cover na szeroki ekran) aż do
+    // pełnego przeładowania strony — to jest przyczyna zgłoszonego złego
+    // kadrowania po zmianie szerokości ekranu bez odświeżenia.
+    const mql = window.matchMedia(MOBILE_QUERY);
+    function handleChange(event: MediaQueryListEvent) {
+      const currentVideo = videoRef.current;
+      if (!currentVideo) return;
+      const nextSrc = event.matches ? VIDEO_SOURCES.mobile : VIDEO_SOURCES.desktop;
+      if (!currentVideo.currentSrc.endsWith(nextSrc)) {
+        currentVideo.src = nextSrc;
+        currentVideo.load();
+        currentVideo.muted = true;
+        void currentVideo.play().catch(() => {});
+      }
+    }
+    mql.addEventListener("change", handleChange);
+    return () => mql.removeEventListener("change", handleChange);
   }, []);
 
   function toggleSound() {
@@ -42,11 +70,11 @@ export default function HeroVideo() {
         className="absolute inset-0 h-full w-full object-cover"
       >
         <source
-          src="/videos/intro-pionowe.mp4"
+          src={VIDEO_SOURCES.mobile}
           type="video/mp4"
-          media="(max-width: 767px)"
+          media={MOBILE_QUERY}
         />
-        <source src="/videos/intro-poziome.mp4" type="video/mp4" />
+        <source src={VIDEO_SOURCES.desktop} type="video/mp4" />
       </video>
 
       <button
