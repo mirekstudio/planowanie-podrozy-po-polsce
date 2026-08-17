@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Place } from "@/data/places";
 import type { GeocodedPlace } from "@/lib/geocoding";
 
@@ -8,6 +8,10 @@ type Coord = { lat: number; lng: number };
 type NavApp = "google" | "apple";
 
 const STORAGE_KEY = "nav-app-preference";
+
+// Musi być zsynchronizowane z klasą "w-56" na menu niżej.
+const MENU_WIDTH_PX = 224;
+const VIEWPORT_MARGIN_PX = 12;
 
 // Praktyczny limit punktów pośrednich obsługiwanych niezawodnie przez
 // link Google Maps (oficjalnie dopuszczalne jest więcej, ale powyżej
@@ -77,12 +81,42 @@ export default function StartNavigationButton({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [menuLeft, setMenuLeft] = useState<number | null>(null);
   const [preferred, setPreferred] = useState<NavApp | null>(() =>
     getStoredPreference(),
   );
   const [lastOpened, setLastOpened] = useState<NavApp | null>(null);
   const [truncatedNotice, setTruncatedNotice] = useState(false);
   const [popupBlocked, setPopupBlocked] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    // Menu domyślnie wyrównuje się do prawej krawędzi przycisku (patrz
+    // klasa "right-0" niżej) — ale ten przycisk bywa po LEWEJ stronie
+    // ekranu (np. na wąskich telefonach, gdzie sąsiedni przycisk "Wybierz
+    // tę trasę" powoduje złamanie wiersza we flex-wrap), więc samo
+    // "right-0" potrafiło wypychać stałej szerokości menu poza lewą
+    // krawędź ekranu. Liczymy więc jego pozycję w pikselach i przycinamy
+    // ją do widocznego obszaru zamiast ufać czystemu CSS.
+    function reposition() {
+      const container = containerRef.current;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      let left = containerRect.right - MENU_WIDTH_PX;
+      const minLeft = VIEWPORT_MARGIN_PX;
+      const maxLeft = window.innerWidth - MENU_WIDTH_PX - VIEWPORT_MARGIN_PX;
+      left = Math.min(Math.max(left, minLeft), maxLeft);
+      // Menu jest "position: absolute" wewnątrz kontenera "position:
+      // relative" — przeliczamy więc z pozycji względem viewportu na
+      // pozycję względem tego kontenera.
+      setMenuLeft(left - containerRect.left);
+    }
+
+    reposition();
+    window.addEventListener("resize", reposition);
+    return () => window.removeEventListener("resize", reposition);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -165,6 +199,7 @@ export default function StartNavigationButton({
       {open && (
         <div
           role="menu"
+          style={menuLeft !== null ? { left: menuLeft, right: "auto" } : undefined}
           className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-black/[.08] bg-white p-1.5 text-left shadow-xl dark:border-white/[.145] dark:bg-zinc-900"
         >
           <p className="px-2.5 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-600">
