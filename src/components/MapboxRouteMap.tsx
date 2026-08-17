@@ -236,7 +236,7 @@ export default function MapboxRouteMap({
 
     if (startPoint) {
       const el = document.createElement("div");
-      el.style.background = "#2563eb";
+      el.style.background = "var(--honey)";
       el.style.color = "#fff";
       el.style.width = "28px";
       el.style.height = "28px";
@@ -274,7 +274,7 @@ export default function MapboxRouteMap({
 
     stops.forEach((stop, index) => {
       const el = document.createElement("div");
-      el.style.background = "#000";
+      el.style.background = "var(--color-wine-solid)";
       el.style.color = "#fff";
       el.style.width = "28px";
       el.style.height = "28px";
@@ -346,7 +346,7 @@ export default function MapboxRouteMap({
               type: "line",
               source: ROUTE_SOURCE_ID,
               layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#dc2626", "line-width": 4 },
+              paint: { "line-color": "#6b1725", "line-width": 4 },
             });
 
             const routeBounds = new mapboxgl.LngLatBounds();
@@ -397,8 +397,8 @@ export default function MapboxRouteMap({
               aria-pressed={active}
               className={`rounded-full border px-3 py-3 text-sm font-medium transition-colors ${
                 active
-                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                  : "border-black/[.08] text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+                  ? "border-wine-solid bg-wine-solid text-white"
+                  : "border-black/[.08] text-black hover:border-wine/50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
               }`}
             >
               {category.emoji} {category.label}

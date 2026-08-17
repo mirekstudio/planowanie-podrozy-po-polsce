@@ -203,7 +203,7 @@ export default function PlanerForm() {
             type="button"
             onClick={() => setShowLocationModal(true)}
             disabled={geolocating}
-            className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-black/[.2] disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+            className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-wine/50 disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
           >
             {geolocating
               ? "Pobieranie lokalizacji…"
@@ -248,7 +248,7 @@ export default function PlanerForm() {
                 type="button"
                 onClick={handleGeocodeAddress}
                 disabled={geocoding || !manualAddress.trim()}
-                className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium disabled:opacity-50 dark:border-white/[.145]"
+                className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium hover:border-wine/50 disabled:opacity-50 dark:border-white/[.145] dark:hover:border-wine/50"
               >
                 {geocoding ? "Szukam…" : "Znajdź"}
               </button>
@@ -294,13 +294,13 @@ export default function PlanerForm() {
           {INTEREST_OPTIONS.map((interest) => (
             <label
               key={interest}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
                 checked={interests.includes(interest)}
                 onChange={() => toggleInterest(interest)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">{interest}</span>
             </label>
@@ -319,13 +319,18 @@ export default function PlanerForm() {
           {REGION_TYPE_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+              // Jedyna grupa filtrów, gdzie zamiast domyślnego bursztynu
+              // (patrz reszta formularza) użyty jest morski turkus — to
+              // typ regionu geograficznego (Morze/Góry/Jeziora/Miasta),
+              // najbliższy tematycznie kolorowi zarezerwowanemu dla
+              // natury/wybrzeża w tej palecie.
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-tide has-checked:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
                 checked={regionTypes.includes(option)}
                 onChange={() => toggleValue(setRegionTypes, option)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-tide"
               />
               <span className="text-black dark:text-zinc-50">{option}</span>
             </label>
@@ -350,13 +355,13 @@ export default function PlanerForm() {
               {NEARBY_ATTRACTION_SUGGESTIONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
                 >
                   <input
                     type="checkbox"
                     checked={nearbyAttractions.includes(option)}
                     onChange={() => toggleValue(setNearbyAttractions, option)}
-                    className="h-4 w-4"
+                    className="h-4 w-4 accent-honey"
                   />
                   <span className="text-black dark:text-zinc-50">{option}</span>
                 </label>
@@ -372,13 +377,13 @@ export default function PlanerForm() {
               {SURROUNDINGS_OPTIONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
                 >
                   <input
                     type="checkbox"
                     checked={surroundings.includes(option)}
                     onChange={() => toggleValue(setSurroundings, option)}
-                    className="h-4 w-4"
+                    className="h-4 w-4 accent-honey"
                   />
                   <span className="text-black dark:text-zinc-50">{option}</span>
                 </label>
@@ -401,14 +406,14 @@ export default function PlanerForm() {
           ).map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="radio"
                 name="transport"
                 checked={transport === option.value}
                 onChange={() => setTransport(option.value)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">
                 {option.label}
@@ -431,14 +436,14 @@ export default function PlanerForm() {
           ).map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="radio"
                 name="travelGroup"
                 checked={travelGroup === option.value}
                 onChange={() => setTravelGroup(option.value)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">
                 {option.label}
@@ -502,7 +507,7 @@ export default function PlanerForm() {
 
       <button
         type="submit"
-        className="self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
       >
         Generuj trasę
       </button>

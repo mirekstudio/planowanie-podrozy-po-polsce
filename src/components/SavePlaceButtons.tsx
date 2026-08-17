@@ -34,8 +34,8 @@ function ToggleButton({
       aria-pressed={active}
       className={`flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-60 ${
         active
-          ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-          : "border-black/[.08] text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+          ? "border-wine-solid bg-wine-solid text-white"
+          : "border-black/[.08] text-black hover:border-wine/50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
       }`}
     >
       {icon}

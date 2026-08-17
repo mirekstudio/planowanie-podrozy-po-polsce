@@ -161,7 +161,7 @@ export default async function PlanerWynikPage({
         <main className="mx-auto max-w-3xl px-6 py-16">
           <Link
             href="/planer"
-            className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
           >
             ← Zmień parametry
           </Link>
@@ -221,13 +221,13 @@ export default async function PlanerWynikPage({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <Link
             href={hrefForVariant(params)}
-            className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
           >
             ← Wróć do wariantów
           </Link>
           <Link
             href="/planer"
-            className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
           >
             Zmień parametry
           </Link>
@@ -273,7 +273,7 @@ export default async function PlanerWynikPage({
               className="rounded-xl border border-black/[.08] bg-white p-4 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black text-sm font-medium text-white dark:bg-white dark:text-black">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wine-solid text-sm font-medium text-white">
                   {day}
                 </div>
                 <span className="text-sm text-zinc-500">
@@ -355,8 +355,8 @@ function ItineraryPlaceCard({ place }: { place: Place }) {
         <span
           className={`mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
             isBasic
-              ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
-              : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              ? "bg-black/5 text-zinc-600 dark:bg-white/10 dark:text-zinc-400"
+              : "bg-honey/10 text-honey"
           }`}
         >
           {isBasic ? "Odkryj więcej →" : "★ Poleca przewodnik"}
@@ -366,7 +366,7 @@ function ItineraryPlaceCard({ place }: { place: Place }) {
   );
 
   const className =
-    "flex gap-4 rounded-lg border border-black/[.08] p-3 hover:border-black/[.2] dark:border-white/[.145] dark:hover:border-white/[.3]";
+    "flex gap-4 rounded-lg border border-black/[.08] p-3 hover:border-wine/50 dark:border-white/[.145] dark:hover:border-wine/50";
 
   // Miejsca "podstawowe" (Geoapify) też prowadzą do /miejsca/[slug] — ta
   // strona rozpoznaje ich slug (prefiks dostawcy) i dociąga dane na
@@ -397,7 +397,7 @@ function VariantCard({
   return (
     <Link
       href={href}
-      className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-black/[.2] dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-white/[.3]"
+      className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-wine/50 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50"
     >
       <div className="aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800">
         {thumbnail && (

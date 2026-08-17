@@ -17,7 +17,7 @@ export default function SelectRouteButton() {
     <button
       type="button"
       onClick={() => setSelected(true)}
-      className="self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+      className="self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
     >
       Wybierz tę trasę
     </button>

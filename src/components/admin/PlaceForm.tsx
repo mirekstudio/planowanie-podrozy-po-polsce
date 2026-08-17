@@ -148,12 +148,12 @@ export default function PlaceForm({
         defaultValue={place?.sortOrder ?? 0}
         required
       />
-      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900">
+      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900">
         <input
           type="checkbox"
           name="featured"
           defaultChecked={place?.featured}
-          className="h-4 w-4"
+          className="h-4 w-4 accent-honey"
         />
         <span className="text-black dark:text-zinc-50">
           Polecane (widoczne w sekcji &bdquo;Polecane&rdquo; w bocznym menu)
@@ -167,14 +167,14 @@ export default function PlaceForm({
           {INTEREST_OPTIONS.map((interest) => (
             <label
               key={interest}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
                 name="tags"
                 value={interest}
                 defaultChecked={place?.tags.includes(interest)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">{interest}</span>
             </label>
@@ -189,14 +189,14 @@ export default function PlaceForm({
           {REGION_TYPE_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-tide has-checked:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
                 name="regionType"
                 value={option}
                 defaultChecked={place?.regionType.includes(option)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-tide"
               />
               <span className="text-black dark:text-zinc-50">{option}</span>
             </label>
@@ -211,14 +211,14 @@ export default function PlaceForm({
           {SURROUNDINGS_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
                 name="surroundings"
                 value={option}
                 defaultChecked={place?.surroundings.includes(option)}
-                className="h-4 w-4"
+                className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">{option}</span>
             </label>
@@ -258,7 +258,7 @@ export default function PlaceForm({
       />
       <button
         type="submit"
-        className="mt-2 self-start rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        className="mt-2 self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
       >
         Zapisz
       </button>

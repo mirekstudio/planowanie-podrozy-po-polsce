@@ -114,10 +114,10 @@ function DrawerLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
+      className={`flex items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10 ${
         bold
-          ? "font-semibold text-black dark:text-zinc-50"
-          : "text-zinc-700 dark:text-zinc-300"
+          ? "font-semibold text-black hover:text-wine dark:text-zinc-50 dark:hover:text-wine"
+          : "text-zinc-700 hover:text-wine dark:text-zinc-300 dark:hover:text-wine"
       }`}
     >
       <span className="flex items-center gap-3">
@@ -173,9 +173,9 @@ function DrawerStat({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
+      className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10 ${
         signedIn
-          ? "text-zinc-700 dark:text-zinc-300"
+          ? "text-zinc-700 hover:text-wine dark:text-zinc-300 dark:hover:text-wine"
           : "text-zinc-400 dark:text-zinc-600"
       }`}
     >
@@ -301,7 +301,7 @@ export default function SideDrawer({
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between bg-black px-5 py-6 text-white">
+        <div className="flex items-center justify-between bg-wine-solid px-5 py-6 text-white">
           <Link
             href="/"
             onClick={onClose}
@@ -411,7 +411,7 @@ export default function SideDrawer({
             label="Polecane"
             count={featuredCount}
             icon={
-              <svg {...iconProps}>
+              <svg {...iconProps} className="h-5 w-5 shrink-0 text-honey">
                 <path d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3-4.8-4.3 6.4-.6L12 3Z" strokeLinejoin="round" />
               </svg>
             }
@@ -517,7 +517,7 @@ export default function SideDrawer({
                   type="button"
                   onClick={handleSignOut}
                   disabled={signingOut}
-                  className="shrink-0 rounded-full border border-black/[.08] px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-black/[.2] disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-white/[.3]"
+                  className="shrink-0 rounded-full border border-black/[.08] px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-wine/50 disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-wine/50"
                 >
                   {signingOut ? "..." : "Wyloguj"}
                 </button>

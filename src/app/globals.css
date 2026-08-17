@@ -3,11 +3,30 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Akcenty appki — patrz komentarz przy @theme niżej. Wartości na jasnym
+     tle są przyciemnione dla czytelności tekstu/ikon na białym. */
+  --wine: #7a1b2c;
+  --honey: #7a530f;
+  --tide: #0e5551;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Trzy akcenty palety (patrz zgłoszenie: "bordo/CTA", "bursztyn/
+     kuratorskie", "morski/natura") — każdy zmienia odcień między jasnym
+     i ciemnym motywem (patrz @media niżej) tak samo jak --background/
+     --foreground, więc klasy typu `text-wine` czy `border-honey` same
+     dobierają czytelny odcień bez potrzeby osobnych klas `dark:`. */
+  --color-wine: var(--wine);
+  --color-honey: var(--honey);
+  --color-tide: var(--tide);
+  /* Wypełnienie głównych przycisków (CTA) — celowo NIE zmienia się między
+     motywami (w odróżnieniu od --wine powyżej): to jeden, stały odcień
+     bordo, wystarczająco ciemny dla białego tekstu na obu tłach, więc nie
+     potrzebuje osobnej jasnej/ciemnej wersji tak jak akcent tekstowy. */
+  --color-wine-solid: #6b1725;
+  --color-wine-solid-hover: #591220;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,6 +35,12 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    /* Jaśniejsze/bardziej nasycone odcienie tych samych trzech akcentów —
+       ciemniejsze wartości z jasnego motywu zlewałyby się z niemal
+       czarnym tłem. */
+    --wine: #cf4d6c;
+    --honey: #d1911c;
+    --tide: #23a89c;
   }
 }
 

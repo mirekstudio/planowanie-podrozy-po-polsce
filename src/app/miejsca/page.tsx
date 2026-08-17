@@ -46,7 +46,7 @@ export default async function MiejscaPage({
         {(isPolecane || kategoria) && (
           <Link
             href="/miejsca"
-            className="mt-3 inline-block text-sm text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+            className="mt-3 inline-block text-sm text-zinc-500 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
           >
             ← Wyczyść filtr, pokaż wszystkie miejsca
           </Link>
@@ -64,7 +64,7 @@ export default async function MiejscaPage({
             <li key={place.slug}>
               <Link
                 href={`/miejsca/${place.slug}`}
-                className="block h-full overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors hover:border-black/[.2] dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-white/[.3]"
+                className="block h-full overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors hover:border-wine/50 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50"
               >
                 <Image
                   src={place.image}
@@ -76,7 +76,15 @@ export default async function MiejscaPage({
                   }`}
                 />
                 <div className="p-5">
-                  <h2 className="text-xl font-medium text-black dark:text-zinc-50">
+                  {/* Wszystkie miejsca na tej liście pochodzą z bazy
+                      kuratorskiej (patrz getPlaces.ts) — ta odznaka
+                      pokazuje, jak będzie wyglądać rozróżnienie
+                      kuratorskie/podstawowe po pełnym wdrożeniu palety
+                      (np. na /planer/wynik, gdzie oba typy występują razem). */}
+                  <span className="inline-flex w-fit items-center rounded-full bg-honey/10 px-2 py-0.5 text-xs font-medium text-honey">
+                    Kuratorskie
+                  </span>
+                  <h2 className="mt-2 text-xl font-medium text-black dark:text-zinc-50">
                     {place.title}
                   </h2>
                   <p className="mt-2 text-zinc-600 dark:text-zinc-400">

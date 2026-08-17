@@ -20,7 +20,7 @@ export default async function AdminPage() {
           <form action={logout}>
             <button
               type="submit"
-              className="text-sm text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+              className="text-sm text-zinc-500 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
             >
               Wyloguj
             </button>
@@ -29,7 +29,7 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/new"
-          className="mt-6 inline-block rounded-full bg-black px-5 py-3 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="mt-6 inline-block rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
         >
           + Dodaj nowe miejsce
         </Link>
@@ -51,7 +51,7 @@ export default async function AdminPage() {
               <div className="flex items-center gap-4">
                 <Link
                   href={`/admin/${place.slug}/edit`}
-                  className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+                  className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
                 >
                   Edytuj
                 </Link>

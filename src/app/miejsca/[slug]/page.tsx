@@ -32,12 +32,16 @@ async function BasicPlacePage({
       <main className="mx-auto max-w-3xl px-6 py-16">
         <Link
           href="/miejsca"
-          className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
         >
           ← Powrót do listy miejsc
         </Link>
 
-        <span className="mt-4 inline-flex w-fit items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+        {/* Neutralna, przyciszona odznaka — celowo bez koloru z palety
+            (bordo/bursztyn/turkus), żeby kontrastować z bursztynową
+            odznaką "Kuratorskie"/"★ Poleca przewodnik" i wizualnie
+            oznaczać miejsca "podstawowe" jako mniej wyróżnione. */}
+        <span className="mt-4 inline-flex w-fit items-center gap-1 rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-white/10 dark:text-zinc-400">
           Odkryj więcej — miejsce spoza naszej kuratorskiej bazy
         </span>
 
@@ -71,7 +75,7 @@ async function BasicPlacePage({
             href={mapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+            className="rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-wine/50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
           >
             Otwórz w Mapach Google
           </a>
@@ -80,7 +84,7 @@ async function BasicPlacePage({
               href={result.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-black/[.2] dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-white/[.3]"
+              className="rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-wine/50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
             >
               Zobacz źródło ↗
             </a>
@@ -133,7 +137,7 @@ export default async function PlacePage({
       <main className="mx-auto max-w-3xl px-6 py-16">
         <Link
           href="/miejsca"
-          className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
         >
           ← Powrót do listy miejsc
         </Link>

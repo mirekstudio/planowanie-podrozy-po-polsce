@@ -25,7 +25,7 @@ export default function Error({
         <button
           type="button"
           onClick={reset}
-          className="mt-6 rounded-full bg-black px-5 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          className="mt-6 rounded-full bg-wine-solid px-5 py-2 text-sm font-medium text-white hover:bg-wine-solid-hover"
         >
           Spróbuj ponownie
         </button>
