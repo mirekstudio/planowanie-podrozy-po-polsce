@@ -353,7 +353,7 @@ function ItineraryPlaceCard({ place }: { place: Place }) {
   );
 
   const className =
-    "flex gap-4 rounded-lg border border-black/[.08] p-3 hover:border-wine/50 dark:border-white/[.145] dark:hover:border-wine/50";
+    "flex gap-4 rounded-lg border border-black/[.08] p-3 transition-colors hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:hover:border-wine/50 dark:active:bg-wine/10";
 
   // Miejsca "podstawowe" (Geoapify) też prowadzą do /miejsca/[slug] — ta
   // strona rozpoznaje ich slug (prefiks dostawcy) i dociąga dane na
@@ -384,7 +384,7 @@ function VariantCard({
   return (
     <Link
       href={href}
-      className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-wine/50 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50"
+      className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
     >
       <div className="aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800">
         {thumbnail && (

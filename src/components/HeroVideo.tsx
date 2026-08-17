@@ -88,7 +88,7 @@ export default function HeroVideo() {
         type="button"
         onClick={toggleSound}
         aria-label={muted ? "Włącz dźwięk" : "Wyłącz dźwięk"}
-        className="absolute bottom-6 right-6 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+        className="absolute bottom-6 right-6 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70 active:bg-black/80"
       >
         {muted ? (
           <svg

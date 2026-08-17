@@ -44,14 +44,14 @@ export default function SavedPlacesList({
       {places.map((place) => (
         <li
           key={place.slug}
-          className="relative overflow-hidden rounded-xl border border-black/[.08] bg-white dark:border-white/[.145] dark:bg-zinc-900"
+          className="relative overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors has-[a:hover]:border-wine/50 has-[a:active]:border-wine dark:border-white/[.145] dark:bg-zinc-900 dark:has-[a:hover]:border-wine/50"
         >
           <button
             type="button"
             onClick={() => handleRemove(place.slug)}
             disabled={pendingSlug === place.slug}
             aria-label="Usuń z listy"
-            className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 disabled:opacity-60"
+            className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80 active:bg-black/90 disabled:opacity-60"
           >
             <svg
               viewBox="0 0 24 24"

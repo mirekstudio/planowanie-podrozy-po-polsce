@@ -135,7 +135,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
             type="button"
             onClick={() => handleOAuthSignIn(provider.id)}
             disabled={oauthLoading !== null}
-            className="flex items-center justify-center gap-3 rounded-full border border-black/[.08] bg-white px-5 py-3 text-sm font-medium text-black hover:border-wine/50 disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-wine/50"
+            className="flex items-center justify-center gap-3 rounded-full border border-black/[.08] bg-white px-5 py-3 text-sm font-medium text-black transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-60 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50 dark:hover:border-wine/50 dark:active:bg-wine/10"
           >
             {provider.icon}
             {oauthLoading === provider.id ? "Łączenie..." : provider.label}
@@ -188,7 +188,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover disabled:opacity-60"
+          className="rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-wine-solid-hover active:bg-wine-solid-hover disabled:opacity-60"
         >
           {submitting
             ? "Chwileczkę..."
@@ -205,7 +205,7 @@ export default function LoginForm({ redirectTo }: { redirectTo: string }) {
           setError(null);
           setInfo(null);
         }}
-        className="text-center text-sm text-zinc-500 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
+        className="text-center text-sm text-zinc-500 transition-colors hover:text-wine active:text-wine dark:text-zinc-400 dark:hover:text-wine dark:active:text-wine"
       >
         {mode === "login"
           ? "Nie masz konta? Zarejestruj się"

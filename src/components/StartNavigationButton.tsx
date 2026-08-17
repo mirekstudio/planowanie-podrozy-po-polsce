@@ -184,7 +184,7 @@ export default function StartNavigationButton({
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="inline-flex items-center gap-2 rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
+        className="inline-flex items-center gap-2 rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-wine-solid-hover active:bg-wine-solid-hover"
       >
         <svg
           viewBox="0 0 24 24"
@@ -213,7 +213,7 @@ export default function StartNavigationButton({
             type="button"
             role="menuitem"
             onClick={() => openWith("google")}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-3 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+            className="flex w-full items-center justify-between rounded-lg px-2.5 py-3 text-sm text-black transition-colors hover:bg-black/5 active:bg-black/10 dark:text-zinc-50 dark:hover:bg-white/10 dark:active:bg-white/15"
           >
             <span>Google Maps</span>
             {preferred === "google" && (
@@ -226,7 +226,7 @@ export default function StartNavigationButton({
             type="button"
             role="menuitem"
             onClick={() => openWith("apple")}
-            className="flex w-full items-center justify-between rounded-lg px-2.5 py-3 text-sm text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+            className="flex w-full items-center justify-between rounded-lg px-2.5 py-3 text-sm text-black transition-colors hover:bg-black/5 active:bg-black/10 dark:text-zinc-50 dark:hover:bg-white/10 dark:active:bg-white/15"
           >
             <span>Apple Maps</span>
             {preferred === "apple" && (

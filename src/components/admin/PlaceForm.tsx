@@ -148,7 +148,7 @@ export default function PlaceForm({
         defaultValue={place?.sortOrder ?? 0}
         required
       />
-      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900">
+      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900">
         <input
           type="checkbox"
           name="featured"
@@ -167,7 +167,7 @@ export default function PlaceForm({
           {INTEREST_OPTIONS.map((interest) => (
             <label
               key={interest}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
@@ -189,7 +189,7 @@ export default function PlaceForm({
           {REGION_TYPE_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-tide has-checked:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors hover:border-tide/40 has-checked:border-tide has-checked:bg-tide/10 active:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
@@ -211,7 +211,7 @@ export default function PlaceForm({
           {SURROUNDINGS_OPTIONS.map((option) => (
             <label
               key={option}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 text-sm transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
@@ -258,7 +258,7 @@ export default function PlaceForm({
       />
       <button
         type="submit"
-        className="mt-2 self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
+        className="mt-2 self-start rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-wine-solid-hover active:bg-wine-solid-hover"
       >
         Zapisz
       </button>

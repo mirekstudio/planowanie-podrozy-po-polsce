@@ -26,7 +26,7 @@ export default function BackButton({
           router.push(fallbackHref);
         }
       }}
-      className="inline-flex items-center gap-1.5 text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
+      className="inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-wine active:text-wine dark:text-zinc-400 dark:hover:text-wine dark:active:text-wine"
     >
       <svg
         viewBox="0 0 24 24"

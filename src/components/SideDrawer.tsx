@@ -114,10 +114,10 @@ function DrawerLink({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10 ${
+      className={`flex items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm transition-colors hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/10 dark:active:bg-white/15 ${
         bold
-          ? "font-semibold text-black hover:text-wine dark:text-zinc-50 dark:hover:text-wine"
-          : "text-zinc-700 hover:text-wine dark:text-zinc-300 dark:hover:text-wine"
+          ? "font-semibold text-black hover:text-wine active:text-wine dark:text-zinc-50 dark:hover:text-wine dark:active:text-wine"
+          : "text-zinc-700 hover:text-wine active:text-wine dark:text-zinc-300 dark:hover:text-wine dark:active:text-wine"
       }`}
     >
       <span className="flex items-center gap-3">
@@ -148,7 +148,7 @@ function FeaturedLink({
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-3 rounded-xl bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-black hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+      className="flex items-center gap-3 rounded-xl bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-black transition-colors hover:bg-zinc-200 active:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700 dark:active:bg-zinc-600"
     >
       {icon}
       <span>{label}</span>
@@ -173,9 +173,9 @@ function DrawerStat({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10 ${
+      className={`flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/10 dark:active:bg-white/15 ${
         signedIn
-          ? "text-zinc-700 hover:text-wine dark:text-zinc-300 dark:hover:text-wine"
+          ? "text-zinc-700 hover:text-wine active:text-wine dark:text-zinc-300 dark:hover:text-wine dark:active:text-wine"
           : "text-zinc-400 dark:text-zinc-600"
       }`}
     >
@@ -322,7 +322,7 @@ export default function SideDrawer({
             type="button"
             onClick={onClose}
             aria-label="Zamknij menu"
-            className="-mr-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
+            className="-mr-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
           >
             <svg
               viewBox="0 0 24 24"
@@ -517,7 +517,7 @@ export default function SideDrawer({
                   type="button"
                   onClick={handleSignOut}
                   disabled={signingOut}
-                  className="shrink-0 rounded-full border border-black/[.08] px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-wine/50 disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-wine/50"
+                  className="shrink-0 rounded-full border border-black/[.08] px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-60 dark:border-white/[.145] dark:text-zinc-300 dark:hover:border-wine/50 dark:active:bg-wine/10"
                 >
                   {signingOut ? "..." : "Wyloguj"}
                 </button>
@@ -526,7 +526,7 @@ export default function SideDrawer({
               <Link
                 href="/login"
                 onClick={onClose}
-                className="flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-medium text-black hover:bg-black/5 dark:text-zinc-50 dark:hover:bg-white/10"
+                className="flex items-center justify-center gap-2 rounded-lg px-3 py-3 text-sm font-medium text-black transition-colors hover:bg-black/5 active:bg-black/10 dark:text-zinc-50 dark:hover:bg-white/10 dark:active:bg-white/15"
               >
                 <svg {...iconProps}>
                   <circle cx="12" cy="8" r="4" />

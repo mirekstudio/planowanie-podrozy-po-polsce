@@ -257,7 +257,7 @@ export default function PlanerForm({
             type="button"
             onClick={() => setShowLocationModal(true)}
             disabled={geolocating}
-            className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black hover:border-wine/50 disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
+            className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50 dark:active:bg-wine/10"
           >
             {geolocating
               ? "Pobieranie lokalizacji…"
@@ -302,7 +302,7 @@ export default function PlanerForm({
                 type="button"
                 onClick={handleGeocodeAddress}
                 disabled={geocoding || !manualAddress.trim()}
-                className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium hover:border-wine/50 disabled:opacity-50 dark:border-white/[.145] dark:hover:border-wine/50"
+                className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-50 dark:border-white/[.145] dark:hover:border-wine/50 dark:active:bg-wine/10"
               >
                 {geocoding ? "Szukam…" : "Znajdź"}
               </button>
@@ -348,7 +348,7 @@ export default function PlanerForm({
           {INTEREST_OPTIONS.map((interest) => (
             <label
               key={interest}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
@@ -378,7 +378,7 @@ export default function PlanerForm({
               // typ regionu geograficznego (Morze/Góry/Jeziora/Miasta),
               // najbliższy tematycznie kolorowi zarezerwowanemu dla
               // natury/wybrzeża w tej palecie.
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-tide has-checked:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-tide/40 has-checked:border-tide has-checked:bg-tide/10 active:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="checkbox"
@@ -409,7 +409,7 @@ export default function PlanerForm({
               {NEARBY_ATTRACTION_SUGGESTIONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
                 >
                   <input
                     type="checkbox"
@@ -431,7 +431,7 @@ export default function PlanerForm({
               {SURROUNDINGS_OPTIONS.map((option) => (
                 <label
                   key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
                 >
                   <input
                     type="checkbox"
@@ -460,7 +460,7 @@ export default function PlanerForm({
           ).map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="radio"
@@ -489,7 +489,7 @@ export default function PlanerForm({
           {ACCOMMODATION_TYPE_OPTIONS.map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="radio"
@@ -519,7 +519,7 @@ export default function PlanerForm({
           ).map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-honey has-checked:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
             >
               <input
                 type="radio"

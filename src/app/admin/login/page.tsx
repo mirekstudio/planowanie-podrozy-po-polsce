@@ -34,7 +34,7 @@ export default async function LoginPage({
           />
           <button
             type="submit"
-            className="rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
+            className="rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-wine-solid-hover active:bg-wine-solid-hover"
           >
             Zaloguj
           </button>

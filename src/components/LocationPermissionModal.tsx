@@ -43,14 +43,14 @@ export default function LocationPermissionModal({
           <button
             type="button"
             onClick={onAllow}
-            className="rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white hover:bg-wine-solid-hover"
+            className="rounded-full bg-wine-solid px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-wine-solid-hover active:bg-wine-solid-hover"
           >
             Zezwól
           </button>
           <button
             type="button"
             onClick={onDismiss}
-            className="rounded-full border border-black/[.08] px-5 py-3 text-sm font-medium text-black hover:border-wine/50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
+            className="rounded-full border border-black/[.08] px-5 py-3 text-sm font-medium text-black transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50 dark:active:bg-wine/10"
           >
             Nie teraz
           </button>

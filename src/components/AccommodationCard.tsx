@@ -41,7 +41,7 @@ export default function AccommodationCard({
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        className="-m-1 flex w-full items-center justify-between gap-3 rounded-md p-1 text-left transition-colors hover:bg-honey/10 active:bg-honey/15"
       >
         <span className="text-sm text-black dark:text-zinc-50">
           {emojiFor(selected.typ)} Nocleg: <strong>{selected.nazwa}</strong> —{" "}
@@ -89,7 +89,7 @@ export default function AccommodationCard({
             href={`https://www.google.com/maps/search/?api=1&query=${selected.lat},${selected.lng}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
+            className="text-sm text-zinc-600 transition-colors hover:text-wine active:text-wine dark:text-zinc-400 dark:hover:text-wine dark:active:text-wine"
           >
             Otwórz w Mapach Google ↗
           </a>
@@ -106,7 +106,7 @@ export default function AccommodationCard({
                       key={option.id}
                       type="button"
                       onClick={() => setSelectedIndex(index)}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-black/[.08] px-3 py-2 text-left text-sm hover:border-wine/50 dark:border-white/[.145] dark:hover:border-wine/50"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-black/[.08] px-3 py-2 text-left text-sm transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:hover:border-wine/50 dark:active:bg-wine/10"
                     >
                       <span className="text-black dark:text-zinc-50">
                         {emojiFor(option.typ)} {option.nazwa}

@@ -15,7 +15,7 @@ export default function Nav() {
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Otwórz menu"
-            className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-600 hover:bg-black/5 dark:text-zinc-400 dark:hover:bg-white/10"
+            className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-black/5 active:bg-black/10 dark:text-zinc-400 dark:hover:bg-white/10 dark:active:bg-white/15"
           >
             <svg
               viewBox="0 0 24 24"
@@ -30,7 +30,7 @@ export default function Nav() {
           </button>
           <Link
             href="/"
-            className="text-sm font-semibold text-black dark:text-zinc-50"
+            className="text-sm font-semibold text-black transition-colors hover:text-wine active:text-wine dark:text-zinc-50 dark:hover:text-wine dark:active:text-wine"
           >
             Planowanie podróży po Polsce
           </Link>

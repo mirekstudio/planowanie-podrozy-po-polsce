@@ -397,8 +397,8 @@ export default function MapboxRouteMap({
               aria-pressed={active}
               className={`rounded-full border px-3 py-3 text-sm font-medium transition-colors ${
                 active
-                  ? "border-wine-solid bg-wine-solid text-white"
-                  : "border-black/[.08] text-black hover:border-wine/50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50"
+                  ? "border-wine-solid bg-wine-solid text-white active:bg-wine-solid-hover"
+                  : "border-black/[.08] text-black hover:border-wine/50 active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50 dark:active:bg-wine/10"
               }`}
             >
               {category.emoji} {category.label}

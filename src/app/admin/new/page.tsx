@@ -11,7 +11,7 @@ export default async function NewPlacePage() {
       <main className="mx-auto max-w-2xl px-6 py-16">
         <Link
           href="/admin"
-          className="text-sm text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-zinc-50"
+          className="text-sm text-zinc-600 transition-colors hover:text-wine active:text-wine dark:text-zinc-400 dark:hover:text-wine dark:active:text-wine"
         >
           ← Powrót do panelu
         </Link>

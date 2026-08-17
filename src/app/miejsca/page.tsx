@@ -46,7 +46,7 @@ export default async function MiejscaPage({
         {(isPolecane || kategoria) && (
           <Link
             href="/miejsca"
-            className="mt-3 inline-block text-sm text-zinc-500 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
+            className="mt-3 inline-block text-sm text-zinc-500 transition-colors hover:text-wine active:text-wine dark:text-zinc-400 dark:hover:text-wine dark:active:text-wine"
           >
             ← Wyczyść filtr, pokaż wszystkie miejsca
           </Link>
@@ -64,7 +64,7 @@ export default async function MiejscaPage({
             <li key={place.slug}>
               <Link
                 href={`/miejsca/${place.slug}`}
-                className="block h-full overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors hover:border-wine/50 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50"
+                className="block h-full overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
               >
                 <Image
                   src={place.image}

@@ -55,12 +55,12 @@ export default function TrasaForm({ places }: { places: Place[] }) {
         <ul className="mt-4 space-y-2">
           {places.map((place) => (
             <li key={place.slug}>
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 dark:border-white/[.145] dark:bg-zinc-900">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors has-checked:border-wine has-checked:bg-wine/5 hover:border-wine/40 active:bg-wine/10 dark:border-white/[.145] dark:bg-zinc-900 dark:has-checked:bg-wine/10">
                 <input
                   type="checkbox"
                   checked={selected.includes(place.slug)}
                   onChange={() => toggle(place.slug)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-wine"
                 />
                 <span className="text-black dark:text-zinc-50">
                   {place.title}
@@ -97,7 +97,7 @@ export default function TrasaForm({ places }: { places: Place[] }) {
                       onClick={() => move(index, -1)}
                       disabled={index === 0}
                       aria-label={`Przenieś ${place.title} wyżej`}
-                      className="flex h-11 w-11 items-center justify-center rounded border border-black/[.08] text-sm text-zinc-600 disabled:opacity-30 dark:border-white/[.145] dark:text-zinc-400"
+                      className="flex h-11 w-11 items-center justify-center rounded border border-black/[.08] text-sm text-zinc-600 transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-30 disabled:hover:border-black/[.08] disabled:active:bg-transparent dark:border-white/[.145] dark:text-zinc-400 dark:hover:border-wine/50 dark:active:bg-wine/10 dark:disabled:hover:border-white/[.145]"
                     >
                       ↑
                     </button>
@@ -106,7 +106,7 @@ export default function TrasaForm({ places }: { places: Place[] }) {
                       onClick={() => move(index, 1)}
                       disabled={index === route.length - 1}
                       aria-label={`Przenieś ${place.title} niżej`}
-                      className="flex h-11 w-11 items-center justify-center rounded border border-black/[.08] text-sm text-zinc-600 disabled:opacity-30 dark:border-white/[.145] dark:text-zinc-400"
+                      className="flex h-11 w-11 items-center justify-center rounded border border-black/[.08] text-sm text-zinc-600 transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-30 disabled:hover:border-black/[.08] disabled:active:bg-transparent dark:border-white/[.145] dark:text-zinc-400 dark:hover:border-wine/50 dark:active:bg-wine/10 dark:disabled:hover:border-white/[.145]"
                     >
                       ↓
                     </button>
