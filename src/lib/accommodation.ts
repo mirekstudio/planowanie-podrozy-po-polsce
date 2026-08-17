@@ -6,8 +6,8 @@ import { distanceKm } from "@/lib/geo";
 // noclegi (hotel/pensjonat), bo dla użytkownika to jedna, wspólna
 // kategoria ("nocleg pod dachem"), nie dwie osobne.
 export const ACCOMMODATION_TYPE_OPTIONS = [
-  { value: "kemping", label: "Duży kemping" },
-  { value: "pole namiotowe", label: "Małe pole namiotowe" },
+  { value: "kemping", label: "Kemping" },
+  { value: "pole namiotowe", label: "Pole namiotowe" },
   { value: "hotel_pensjonat", label: "Hotel / pensjonat" },
 ] as const;
 export type AccommodationTypePreference =

@@ -27,8 +27,8 @@ export type PlanerFormInitialValues = {
   regionTypes?: string[];
   surroundings?: string[];
   nearbyAttractions?: string[];
-  transport?: "car" | "camper";
-  travelGroup?: "adults" | "family";
+  transport?: "car" | "camper" | "motorcycle";
+  travelGroup?: "adults" | "family" | "single";
   numAdults?: number;
   childrenAges?: number[];
   startPoint?: GeocodedPlace | null;
@@ -71,10 +71,10 @@ export default function PlanerForm({
   const [nearbyAttractions, setNearbyAttractions] = useState<string[]>(
     initialValues?.nearbyAttractions ?? [],
   );
-  const [transport, setTransport] = useState<"car" | "camper">(
+  const [transport, setTransport] = useState<"car" | "camper" | "motorcycle">(
     initialValues?.transport ?? "car",
   );
-  const [travelGroup, setTravelGroup] = useState<"adults" | "family">(
+  const [travelGroup, setTravelGroup] = useState<"adults" | "family" | "single">(
     initialValues?.travelGroup ?? "adults",
   );
   const [numAdults, setNumAdults] = useState(initialValues?.numAdults ?? 2);
@@ -454,7 +454,8 @@ export default function PlanerForm({
         <div className="mt-3 flex flex-col gap-2">
           {(
             [
-              { value: "car", label: "Samochód" },
+              { value: "car", label: "Samochód osobowy" },
+              { value: "motorcycle", label: "Motocykl" },
               { value: "camper", label: "Camper" },
             ] as const
           ).map((option) => (
@@ -513,6 +514,7 @@ export default function PlanerForm({
         <div className="mt-3 flex flex-col gap-2">
           {(
             [
+              { value: "single", label: "Singiel" },
               { value: "adults", label: "Tylko dorośli" },
               { value: "family", label: "Rodzina z dziećmi" },
             ] as const
@@ -525,7 +527,14 @@ export default function PlanerForm({
                 type="radio"
                 name="travelGroup"
                 checked={travelGroup === option.value}
-                onChange={() => setTravelGroup(option.value)}
+                onChange={() => {
+                  setTravelGroup(option.value);
+                  // "Singiel" oznacza dokładnie jedną osobę — pole "Liczba
+                  // osób dorosłych" jest wtedy ukryte (patrz niżej), więc
+                  // wartość trzeba ustawić tutaj, żeby nie zostawała
+                  // przypadkowo z poprzedniego wyboru (np. 2).
+                  if (option.value === "single") setNumAdults(1);
+                }}
                 className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">
@@ -574,19 +583,21 @@ export default function PlanerForm({
         )}
       </section>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium uppercase tracking-wide text-zinc-500">
-          Liczba osób dorosłych
-        </span>
-        <input
-          type="number"
-          min={1}
-          max={20}
-          value={numAdults}
-          onChange={(e) => setNumAdults(Number(e.target.value))}
-          className="mt-1 max-w-[8rem] rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
-        />
-      </label>
+      {travelGroup !== "single" && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium uppercase tracking-wide text-zinc-500">
+            Liczba osób dorosłych
+          </span>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={numAdults}
+            onChange={(e) => setNumAdults(Number(e.target.value))}
+            className="mt-1 max-w-[8rem] rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+          />
+        </label>
+      )}
 
       <button
         type="submit"

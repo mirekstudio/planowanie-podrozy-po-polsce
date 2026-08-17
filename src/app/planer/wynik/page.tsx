@@ -53,8 +53,23 @@ export default async function PlanerWynikPage({
   const nearbyAttractions = params.nearbyAttraction
     ? params.nearbyAttraction.split(",")
     : [];
-  const transport = params.transport === "camper" ? "camper" : "car";
-  const travelGroup = params.travelGroup === "family" ? "family" : "adults";
+  // Motocykl zachowuje się jak samochód pod kątem doboru noclegu (patrz
+  // niżej) — tylko camper wpływa na priorytetyzację kempingów z
+  // przyłączami w src/lib/accommodation.ts. transportLabel to wartość do
+  // wyświetlenia (chip), transport to uproszczona wersja binarna.
+  const transportOption =
+    params.transport === "camper"
+      ? "camper"
+      : params.transport === "motorcycle"
+        ? "motorcycle"
+        : "car";
+  const transport = transportOption === "camper" ? "camper" : "car";
+  const travelGroup =
+    params.travelGroup === "family"
+      ? "family"
+      : params.travelGroup === "single"
+        ? "single"
+        : "adults";
   const numAdults = Math.max(1, Number(params.numAdults) || 1);
   const childrenAges = parseNumberList(params.children);
   const accommodationType = parseAccommodationType(params.accommodationType);
@@ -97,12 +112,18 @@ export default async function PlanerWynikPage({
         {days} {days === 1 ? "dzień" : "dni"}
       </span>
       <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-        {transport === "camper" ? "Camper" : "Samochód"}
+        {transportOption === "camper"
+          ? "Camper"
+          : transportOption === "motorcycle"
+            ? "Motocykl"
+            : "Samochód osobowy"}
       </span>
       <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
         {travelGroup === "family"
           ? `Rodzina: ${numAdults} dorosłych, ${childrenAges.length} dzieci`
-          : `${numAdults} dorosłych`}
+          : travelGroup === "single"
+            ? "Solo"
+            : `${numAdults} dorosłych`}
       </span>
       {startPoint && (
         <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">

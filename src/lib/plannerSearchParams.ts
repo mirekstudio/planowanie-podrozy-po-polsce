@@ -70,8 +70,18 @@ export function parsePlannerInitialValues(
     nearbyAttractions: params.nearbyAttraction
       ? params.nearbyAttraction.split(",")
       : [],
-    transport: params.transport === "camper" ? "camper" : "car",
-    travelGroup: params.travelGroup === "family" ? "family" : "adults",
+    transport:
+      params.transport === "camper"
+        ? "camper"
+        : params.transport === "motorcycle"
+          ? "motorcycle"
+          : "car",
+    travelGroup:
+      params.travelGroup === "family"
+        ? "family"
+        : params.travelGroup === "single"
+          ? "single"
+          : "adults",
     numAdults: Math.max(1, Number(params.numAdults) || 1),
     childrenAges: childrenAges.length > 0 ? childrenAges : undefined,
     startPoint:

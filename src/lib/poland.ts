@@ -41,10 +41,28 @@ export function isWithinBounds(point: Coordinates, bounds: Bounds): boolean {
 // środek wyszukiwania zamiast (potencjalnie zagranicznego) punktu
 // startowego. "Miasta" nie ma tu wpisu — miasta są rozsiane po całym
 // kraju, więc nie ma dla nich jednego sensownego punktu odniesienia.
+//
+// Lasy/Rzeka mają ten sam problem co Miasta (lasy i rzeki są wszędzie w
+// Polsce, nie ma jednego "właściwego" miejsca) — ale w odróżnieniu od
+// Miasta MUSZĄ mieć tu wpis: bez własnej bazy kuratorskiej (na razie),
+// getRoutePlaces.ts oznacza wyniki z Geoapify typem regionu tylko wtedy,
+// gdy ma dla niego kotwicę (patrz geoAnchoredRegionTypes) — bez niej
+// wyniki zostałyby później odrzucone przez ten sam filtr typu regionu,
+// który miały spełniać, i appka pokazywałaby zero miejsc. Wybrano po
+// jednym reprezentatywnym miejscu (ten sam kompromis co Zakopane dla
+// Gór czy Giżycko dla Jezior) — realnie ogranicza to wyszukiwanie do
+// okolic tego miejsca, nie całej Polski.
 export const REGION_TYPE_ANCHORS: Partial<Record<string, Coordinates>> = {
   Morze: { lat: 54.5805, lng: 16.8614 }, // Ustka — środek polskiego wybrzeża
   Góry: { lat: 49.2992, lng: 19.9496 }, // Zakopane — brama Tatr
   Jeziora: { lat: 54.0384, lng: 21.7573 }, // Giżycko — serce Mazur
+  // Puszcza Kampinoska — rozległy, dobrze znany kompleks leśny wygodnie w
+  // głębi kraju (celowo NIE Białowieża: leży dosłownie na granicy z
+  // Białorusią, więc promień wyszukiwania w praktyce łapał głównie
+  // wyniki zza granicy, odrzucane przez filtr country_code w
+  // geoapify.ts — zostawiało to za mało polskich trafień).
+  Lasy: { lat: 52.33, lng: 20.55 },
+  Rzeka: { lat: 53.0138, lng: 18.5981 }, // Toruń — nad Wisłą, największą polską rzeką
 };
 
 // Ostateczny fallback, gdy nie ma żadnego innego punktu odniesienia

@@ -1,4 +1,11 @@
-export const REGION_TYPE_OPTIONS = ["Morze", "Góry", "Jeziora", "Miasta"] as const;
+export const REGION_TYPE_OPTIONS = [
+  "Morze",
+  "Góry",
+  "Jeziora",
+  "Miasta",
+  "Lasy",
+  "Rzeka",
+] as const;
 export type RegionType = (typeof REGION_TYPE_OPTIONS)[number];
 
 export const SURROUNDINGS_OPTIONS = [
