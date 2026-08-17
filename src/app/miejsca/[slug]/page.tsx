@@ -1,11 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPlaceBySlug } from "@/lib/getPlaces";
 import { activePlacesProvider } from "@/lib/placesProviders";
 import type { ExternalPlaceResult } from "@/lib/placesProviders";
 import { getPlaceSaveStatus } from "@/lib/userPlaces";
 import SavePlaceButtons from "@/components/SavePlaceButtons";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +30,7 @@ async function BasicPlacePage({
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <Link
-          href="/miejsca"
-          className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
-        >
-          ← Powrót do listy miejsc
-        </Link>
+        <BackButton fallbackHref="/miejsca" label="Powrót do listy miejsc" />
 
         {/* Neutralna, przyciszona odznaka — celowo bez koloru z palety
             (bordo/bursztyn/turkus), żeby kontrastować z bursztynową
@@ -135,12 +130,7 @@ export default async function PlacePage({
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <Link
-          href="/miejsca"
-          className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
-        >
-          ← Powrót do listy miejsc
-        </Link>
+        <BackButton fallbackHref="/miejsca" label="Powrót do listy miejsc" />
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
           {place.title}

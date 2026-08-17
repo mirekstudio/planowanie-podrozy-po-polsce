@@ -17,27 +17,62 @@ import LocationPermissionModal from "@/components/LocationPermissionModal";
 
 type StartPointMessage = { type: "success" | "error"; text: string };
 
-export default function PlanerForm() {
+export type PlanerFormInitialValues = {
+  days?: number;
+  interests?: string[];
+  regionTypes?: string[];
+  surroundings?: string[];
+  nearbyAttractions?: string[];
+  transport?: "car" | "camper";
+  travelGroup?: "adults" | "family";
+  numAdults?: number;
+  childrenAges?: number[];
+  startPoint?: GeocodedPlace | null;
+};
+
+export default function PlanerForm({
+  initialValues,
+}: {
+  initialValues?: PlanerFormInitialValues;
+}) {
   const router = useRouter();
-  const [days, setDays] = useState(3);
-  const [startPoint, setStartPoint] = useState<GeocodedPlace | null>(null);
+  const [days, setDays] = useState(initialValues?.days ?? 3);
+  const [startPoint, setStartPoint] = useState<GeocodedPlace | null>(
+    initialValues?.startPoint ?? null,
+  );
   const [startPointMessage, setStartPointMessage] =
     useState<StartPointMessage | null>(null);
-  const [manualAddress, setManualAddress] = useState("");
+  const [manualAddress, setManualAddress] = useState(
+    initialValues?.startPoint?.label ?? "",
+  );
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [geolocating, setGeolocating] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
-  const [interests, setInterests] = useState<string[]>([]);
-  const [regionTypes, setRegionTypes] = useState<string[]>([]);
-  const [surroundings, setSurroundings] = useState<string[]>([]);
-  const [nearbyAttractions, setNearbyAttractions] = useState<string[]>([]);
-  const [transport, setTransport] = useState<"car" | "camper">("car");
-  const [travelGroup, setTravelGroup] = useState<"adults" | "family">(
-    "adults",
+  const [interests, setInterests] = useState<string[]>(
+    initialValues?.interests ?? [],
   );
-  const [numAdults, setNumAdults] = useState(2);
-  const [numChildren, setNumChildren] = useState(1);
-  const [childrenAges, setChildrenAges] = useState<number[]>([5]);
+  const [regionTypes, setRegionTypes] = useState<string[]>(
+    initialValues?.regionTypes ?? [],
+  );
+  const [surroundings, setSurroundings] = useState<string[]>(
+    initialValues?.surroundings ?? [],
+  );
+  const [nearbyAttractions, setNearbyAttractions] = useState<string[]>(
+    initialValues?.nearbyAttractions ?? [],
+  );
+  const [transport, setTransport] = useState<"car" | "camper">(
+    initialValues?.transport ?? "car",
+  );
+  const [travelGroup, setTravelGroup] = useState<"adults" | "family">(
+    initialValues?.travelGroup ?? "adults",
+  );
+  const [numAdults, setNumAdults] = useState(initialValues?.numAdults ?? 2);
+  const [numChildren, setNumChildren] = useState(
+    initialValues?.childrenAges?.length ?? 1,
+  );
+  const [childrenAges, setChildrenAges] = useState<number[]>(
+    initialValues?.childrenAges ?? [5],
+  );
 
   function handleUseLocation() {
     if (!("geolocation" in navigator)) {

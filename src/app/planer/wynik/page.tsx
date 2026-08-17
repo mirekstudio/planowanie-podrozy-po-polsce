@@ -8,32 +8,16 @@ import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
 import StartNavigationButton from "@/components/StartNavigationButton";
 import SelectRouteButton from "@/components/SelectRouteButton";
+import BackLink from "@/components/BackLink";
+import {
+  parseNumberList,
+  plannerFormHref,
+  type PlannerSearchParams,
+} from "@/lib/plannerSearchParams";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = {
-  days?: string;
-  interests?: string;
-  regionType?: string;
-  surroundings?: string;
-  nearbyAttraction?: string;
-  transport?: string;
-  travelGroup?: string;
-  numAdults?: string;
-  children?: string;
-  startLat?: string;
-  startLng?: string;
-  startLabel?: string;
-  variant?: string;
-};
-
-function parseNumberList(value: string | undefined): number[] {
-  if (!value) return [];
-  return value
-    .split(",")
-    .map((v) => Number(v))
-    .filter((n) => !Number.isNaN(n));
-}
+type SearchParams = PlannerSearchParams;
 
 function hrefForVariant(params: SearchParams, variantId?: string): string {
   const search = new URLSearchParams();
@@ -159,12 +143,7 @@ export default async function PlanerWynikPage({
     return (
       <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
         <main className="mx-auto max-w-3xl px-6 py-16">
-          <Link
-            href="/planer"
-            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
-          >
-            ← Zmień parametry
-          </Link>
+          <BackLink href={plannerFormHref(params)} label="Zmień parametry" />
 
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
             Wybierz wariant trasy
@@ -219,18 +198,8 @@ export default async function PlanerWynikPage({
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Link
-            href={hrefForVariant(params)}
-            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
-          >
-            ← Wróć do wariantów
-          </Link>
-          <Link
-            href="/planer"
-            className="text-sm text-zinc-600 hover:text-wine dark:text-zinc-400 dark:hover:text-wine"
-          >
-            Zmień parametry
-          </Link>
+          <BackLink href={hrefForVariant(params)} label="Wróć do wariantów" />
+          <BackLink href={plannerFormHref(params)} label="Zmień parametry" />
         </div>
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">

@@ -1,6 +1,17 @@
 import PlanerForm from "@/components/PlanerForm";
+import {
+  parsePlannerInitialValues,
+  type PlannerSearchParams,
+} from "@/lib/plannerSearchParams";
 
-export default function PlanerPage() {
+export default async function PlanerPage({
+  searchParams,
+}: {
+  searchParams: Promise<PlannerSearchParams>;
+}) {
+  const params = await searchParams;
+  const initialValues = parsePlannerInitialValues(params);
+
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
@@ -11,7 +22,7 @@ export default function PlanerPage() {
           Odpowiedz na kilka pytań, żebyśmy mogli dopasować trasę do Ciebie.
         </p>
 
-        <PlanerForm />
+        <PlanerForm initialValues={initialValues} />
       </main>
     </div>
   );
