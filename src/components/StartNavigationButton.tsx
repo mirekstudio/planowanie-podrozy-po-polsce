@@ -174,7 +174,11 @@ export default function StartNavigationButton({
   }
 
   return (
-    <div ref={containerRef} className="relative max-w-xs text-right">
+    // ml-auto: w rodzicu (flex justify-between obok "Wybierz tę trasę")
+    // wypycha ten przycisk do prawej krawędzi wiersza — również wtedy,
+    // gdy na wąskim ekranie flex-wrap złamie go na osobny wiersz (bez
+    // tego lądował po lewej, patrz zgłoszenie).
+    <div ref={containerRef} className="relative ml-auto max-w-xs text-right">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}

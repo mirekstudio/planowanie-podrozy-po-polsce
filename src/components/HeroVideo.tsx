@@ -60,6 +60,13 @@ export default function HeroVideo() {
 
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-black">
+      {/* Na telefonie wideo ma tekst wypalony w obrazie ("OTO POLSKA
+          WŁAŚNIE") — object-fit:cover przycinał go po bokach, gdy
+          proporcje widocznego obszaru (inne niż czyste 9:16 przez UI
+          przeglądarki) nie zgadzały się z proporcjami samego wideo.
+          "contain" pokazuje całe wideo (z czarnymi pasami u góry/dołu w
+          razie potrzeby) — próg md pokrywa się z tym samym 767px, przy
+          którym przełącza się plik pionowy/poziomy (patrz MOBILE_QUERY). */}
       <video
         ref={videoRef}
         autoPlay
@@ -67,7 +74,7 @@ export default function HeroVideo() {
         loop
         playsInline
         preload="auto"
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-contain md:object-cover"
       >
         <source
           src={VIDEO_SOURCES.mobile}
