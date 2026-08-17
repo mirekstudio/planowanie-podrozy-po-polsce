@@ -101,25 +101,34 @@ function DrawerLink({
   label,
   onClick,
   bold,
+  count,
 }: {
   href: string;
   icon?: React.ReactNode;
   label: string;
   onClick: () => void;
   bold?: boolean;
+  count?: number;
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
+      className={`flex items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/10 ${
         bold
           ? "font-semibold text-black dark:text-zinc-50"
           : "text-zinc-700 dark:text-zinc-300"
       }`}
     >
-      {icon}
-      <span>{label}</span>
+      <span className="flex items-center gap-3">
+        {icon}
+        <span>{label}</span>
+      </span>
+      {count !== undefined && (
+        <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
+          {count}
+        </span>
+      )}
     </Link>
   );
 }
@@ -201,6 +210,7 @@ export default function SideDrawer({
   const { user, loading } = useAuth();
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [visitedCount, setVisitedCount] = useState(0);
+  const [placesCount, setPlacesCount] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
@@ -236,6 +246,18 @@ export default function SideDrawer({
       .select("*", { count: "exact", head: true })
       .then(({ count }) => setVisitedCount(count ?? 0));
   }, [open, user]);
+
+  useEffect(() => {
+    if (!open) return;
+    // W przeciwieństwie do ulubionych/odwiedzonych, liczba miejsc w bazie
+    // jest publiczna (polityka RLS "Allow public read access" na tabeli
+    // places) — pobieramy ją niezależnie od tego, czy ktoś jest zalogowany.
+    const supabase = createSupabaseBrowserClient();
+    supabase
+      .from("places")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => setPlacesCount(count ?? 0));
+  }, [open]);
 
   function goToLoginOrPage(page: "/ulubione" | "/odwiedzone") {
     onClose();
@@ -366,6 +388,15 @@ export default function SideDrawer({
             onClick={onClose}
             bold
             label="Wszystkie miejsca"
+            count={placesCount}
+            icon={
+              <svg {...iconProps}>
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            }
           />
 
           <DrawerStat
