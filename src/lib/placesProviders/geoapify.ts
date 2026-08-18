@@ -104,8 +104,57 @@ type GeoapifyPlaceFeature = {
     lat: number;
     lon: number;
     country_code?: string;
+    // Geoapify zwraca to zawsze przy wyszukiwaniu po "categories" (pełna
+    // lista WSZYSTKICH kategorii, do których dany obiekt pasuje — patrz
+    // hasDisqualifyingCategory niżej). Opcjonalne w typie na wypadek, gdyby
+    // pole kiedyś nie przyszło — wtedy filtr kategorii po prostu przepuszcza
+    // wynik dalej (jedyną linią obrony zostaje wtedy filtr nazwy).
+    categories?: string[];
   };
 };
+
+// Kategorie Geoapify, które — nawet gdy dany obiekt PRZY OKAZJI pasuje też
+// do szukanej kategorii (np. "heritage"/"tourism.sights") — w praktyce
+// oznaczają biznes, usługę albo jednostkę administracyjną, a nie atrakcję
+// turystyczną. Realny przypadek, który ujawnił ten problem: wyszukiwanie
+// zainteresowania "Historia" (kategorie: tourism.sights, heritage, ...) na
+// Środkowym Wybrzeżu zwróciło jako "przystanek" trasy "Dr Med. Edward
+// Bieszka" — prywatny gabinet lekarski, najpewniej w zabytkowej kamienicy
+// otagowanej w OSM też jako "heritage". Podobnie "populated_place" potrafi
+// zwrócić całą miejscowość/dzielnicę (np. "Wrzeszcz") jako "miejsce" zamiast
+// konkretnej atrakcji w niej.
+const DISQUALIFYING_CATEGORY_PREFIXES = [
+  "healthcare",
+  "office",
+  "commercial",
+  "populated_place",
+  "education",
+  "service",
+];
+
+function hasDisqualifyingCategory(categories: string[] | undefined): boolean {
+  if (!categories) return false;
+  return categories.some((category) =>
+    DISQUALIFYING_CATEGORY_PREFIXES.some(
+      (prefix) => category === prefix || category.startsWith(`${prefix}.`),
+    ),
+  );
+}
+
+// Druga, niezależna linia obrony — kategorie Geoapify/OSM bywają
+// niekompletne albo błędnie przypisane, więc same nie wystarczają (patrz
+// komentarz wyżej). Rozpoznaje nazwy, które same w sobie ewidentnie
+// wskazują na firmę/instytucję, a nie miejsce do zwiedzania, po typowych
+// polskich tytułach zawodowych i formach prawnych w nazwie.
+const NON_TOURIST_NAME_PATTERN =
+  /^(dr\.?|prof\.?|mgr\.?|lek\.?med\.?|ks\.?)\s|\b(sp\.\s?z\s?o\.?\s?o\.?|s\.a\.|kancelaria|gabinet|przychodni[ae]|urząd)\b/i;
+
+export function looksLikeNonTouristPlace(
+  name: string,
+  categories?: string[],
+): boolean {
+  return hasDisqualifyingCategory(categories) || NON_TOURIST_NAME_PATTERN.test(name.trim());
+}
 
 type GeoapifyDetailsFeature = {
   properties: {
@@ -168,6 +217,15 @@ async function fetchPlaces({
       // skrawek sąsiedniego kraju. country_code z samych danych Geoapify
       // to prosty, darmowy dodatkowy filtr precyzyjniejszy niż prostokąt.
       if (feature.properties.country_code && feature.properties.country_code !== "pl") {
+        return false;
+      }
+      // Odrzuca biznesy/usługi/jednostki administracyjne, które formalnie
+      // pasują do szukanej kategorii, ale nie są atrakcją turystyczną —
+      // patrz komentarz przy looksLikeNonTouristPlace. To właśnie ten filtr
+      // usuwa z wyników np. gabinety lekarskie w zabytkowych kamienicach.
+      if (
+        looksLikeNonTouristPlace(feature.properties.name, feature.properties.categories)
+      ) {
         return false;
       }
       const point = { lat: feature.properties.lat, lng: feature.properties.lon };

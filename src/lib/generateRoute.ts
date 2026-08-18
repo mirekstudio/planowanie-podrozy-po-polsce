@@ -256,19 +256,32 @@ function routeSignature(route: GeneratedRoute): string {
 // kotwicach, klastrowaniu) — nie ufa niczemu z powyższego. Sprawdza KAŻDY
 // wybrany przystanek względem bounding boxa podregionu i, jeśli któryś
 // wypada poza granicami, zastępuje go najbliższym nieużytym jeszcze
-// miejscem, które FAKTYCZNIE w tych granicach leży (przeszukując całą
-// dostępną pulę `allPlaces`, nie tylko tę, z której zbudowano trasę — bo
-// to właśnie ta pula mogła zawierać błędnie zakwalifikowany punkt). Gdy
-// brak zamiennika, przystanek jest po prostu usuwany, nigdy nie
-// akceptujemy punktu spoza granic.
+// miejscem, które FAKTYCZNIE w tych granicach leży. Gdy brak zamiennika,
+// przystanek jest po prostu usuwany, nigdy nie akceptujemy punktu spoza
+// granic.
+//
+// Pula zamienników to `withinSubRegion(allPlaces, subRegionId, anchors)` —
+// czyli DOKŁADNIE ta sama reguła przynależności, której używa reszta
+// pipeline'u (tag `region` dla miejsc "basic", promień od kotwic dla
+// kuratorskich) — NIE cała, nieprzefiltrowana `allPlaces`. Wcześniejsza
+// wersja szukała zamienników po całej puli, sprawdzając tylko bounding box
+// — to pozwalało "pożyczyć" na zamiennik miejsce "basic", które faktycznie
+// zostało znalezione (i otagowane) dla INNEGO podregionu, jeśli tylko jego
+// surowe współrzędne akurat mieściły się też w granicach tego bieżącego
+// (możliwe głównie w wąskich strefach zachodzenia się sąsiednich
+// podregionów, np. wokół Ustki czy Władysławowa/Chłapowa — patrz komentarz
+// przy COASTAL_SUB_REGIONS). Ostateczny `isWithinBounds` niżej zostaje jako
+// druga, niezależna linia obrony.
 function enforceSubRegionBounds(
   route: GeneratedRoute,
   bounds: Bounds,
+  subRegionId: string,
+  anchors: Coordinates[],
   allPlaces: Place[],
   startPoint: Coordinates | null,
 ): GeneratedRoute {
   const usedSlugs = new Set(route.stops.map((p) => p.slug));
-  const replacements = allPlaces.filter(
+  const replacements = withinSubRegion(allPlaces, subRegionId, anchors).filter(
     (p) => isWithinBounds(p, bounds) && !usedSlugs.has(p.slug),
   );
 
@@ -494,7 +507,14 @@ export function generateRouteVariants(
     // Nie ufamy, że wyszukiwanie/kotwice/klastrowanie powyżej same
     // zagwarantowały poprawny obszar; sprawdzamy to tutaj jawnie, po fakcie.
     if (spec.bounds) {
-      route = enforceSubRegionBounds(route, spec.bounds, places, options.startPoint ?? null);
+      route = enforceSubRegionBounds(
+        route,
+        spec.bounds,
+        spec.id,
+        spec.geoAnchors ?? [],
+        places,
+        options.startPoint ?? null,
+      );
     }
 
     if (route.stops.length === 0) continue;
