@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Przełącza znaczenie klas `dark:` z domyślnego "@media (prefers-color-
+   scheme: dark)" na obecność klasy .dark na <html> (patrz layout.tsx —
+   blokujący skrypt ustawia ją tam PRZED pierwszym renderem, na
+   podstawie zapisanego wyboru użytkownika albo, w jego braku,
+   preferencji systemowej). Dzięki temu ręczny przełącznik motywu może
+   nadpisać ustawienie systemowe, a setki istniejących klas `dark:` w
+   całej appce działają dalej bez żadnych zmian w komponentach. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -31,17 +40,18 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    /* Jaśniejsze/bardziej nasycone odcienie tych samych trzech akcentów —
-       ciemniejsze wartości z jasnego motywu zlewałyby się z niemal
-       czarnym tłem. */
-    --wine: #cf4d6c;
-    --honey: #d1911c;
-    --tide: #23a89c;
-  }
+/* Odpowiednik dawnego "@media (prefers-color-scheme: dark)" — teraz
+   sterowany klasą .dark zamiast bezpośrednio przez system (patrz
+   komentarz przy @custom-variant wyżej). */
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  /* Jaśniejsze/bardziej nasycone odcienie tych samych trzech akcentów —
+     ciemniejsze wartości z jasnego motywu zlewałyby się z niemal
+     czarnym tłem. */
+  --wine: #cf4d6c;
+  --honey: #d1911c;
+  --tide: #23a89c;
 }
 
 body {
