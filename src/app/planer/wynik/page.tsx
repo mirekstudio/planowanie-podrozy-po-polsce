@@ -16,6 +16,7 @@ import {
   plannerFormHref,
   type PlannerSearchParams,
 } from "@/lib/plannerSearchParams";
+import { filterActiveRegionTypes } from "@/lib/placeFilters";
 import { getNoclegi } from "@/lib/getNoclegi";
 import { attachAccommodationOptions } from "@/lib/accommodation";
 
@@ -46,7 +47,13 @@ export default async function PlanerWynikPage({
 
   const days = Math.max(1, Number(params.days) || 1);
   const interests = params.interests ? params.interests.split(",") : [];
-  const regionTypes = params.regionType ? params.regionType.split(",") : [];
+  // filterActiveRegionTypes odrzuca np. "Góry"/"Jeziora" nawet gdy ktoś
+  // wklei taki link ręcznie — patrz komentarz przy
+  // ACTIVE_REGION_TYPE_OPTIONS w placeFilters.ts. Wyszarzenie checkboxów w
+  // PlanerForm to tylko UI, ta linia to niezależna, właściwa blokada.
+  const regionTypes = params.regionType
+    ? filterActiveRegionTypes(params.regionType.split(","))
+    : [];
   const surroundingsFilter = params.surroundings
     ? params.surroundings.split(",")
     : [];

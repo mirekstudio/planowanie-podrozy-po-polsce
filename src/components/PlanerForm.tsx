@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { INTEREST_OPTIONS } from "@/lib/interests";
 import {
   REGION_TYPE_OPTIONS,
+  ACTIVE_REGION_TYPE_OPTIONS,
   SURROUNDINGS_OPTIONS,
   NEARBY_ATTRACTION_SUGGESTIONS,
 } from "@/lib/placeFilters";
@@ -367,28 +368,49 @@ export default function PlanerForm({
           Region geograficzny
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie regiony.
+          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie dostępne regiony.
         </p>
         <div className="mt-3 flex flex-col gap-2">
-          {REGION_TYPE_OPTIONS.map((option) => (
-            <label
-              key={option}
-              // Jedyna grupa filtrów, gdzie zamiast domyślnego bursztynu
-              // (patrz reszta formularza) użyty jest morski turkus — to
-              // typ regionu geograficznego (Morze/Góry/Jeziora/Miasta),
-              // najbliższy tematycznie kolorowi zarezerwowanemu dla
-              // natury/wybrzeża w tej palecie.
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-tide/40 has-checked:border-tide has-checked:bg-tide/10 active:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
-            >
-              <input
-                type="checkbox"
-                checked={regionTypes.includes(option)}
-                onChange={() => toggleValue(setRegionTypes, option)}
-                className="h-4 w-4 accent-tide"
-              />
-              <span className="text-black dark:text-zinc-50">{option}</span>
-            </label>
-          ))}
+          {REGION_TYPE_OPTIONS.map((option) => {
+            // Poza "Morze" te opcje generowałyby trasę wyłącznie z
+            // automatycznych danych Geoapify, bez żadnej redakcji — patrz
+            // komentarz przy ACTIVE_REGION_TYPE_OPTIONS w placeFilters.ts.
+            // Zostają widoczne (żeby było widać, co appka docelowo obejmie),
+            // ale niedostępne do wyboru, dopóki appka nie ma tam kuratorskiej
+            // treści.
+            const isActive = (ACTIVE_REGION_TYPE_OPTIONS as readonly string[]).includes(
+              option,
+            );
+            return (
+              <label
+                key={option}
+                // Jedyna grupa filtrów, gdzie zamiast domyślnego bursztynu
+                // (patrz reszta formularza) użyty jest morski turkus — to
+                // typ regionu geograficznego (Morze/Góry/Jeziora/Miasta),
+                // najbliższy tematycznie kolorowi zarezerwowanemu dla
+                // natury/wybrzeża w tej palecie.
+                className={
+                  isActive
+                    ? "flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-tide/40 has-checked:border-tide has-checked:bg-tide/10 active:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
+                    : "flex cursor-not-allowed items-center gap-3 rounded-lg border border-black/[.08] bg-zinc-100 p-3 opacity-60 dark:border-white/[.145] dark:bg-zinc-800"
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={regionTypes.includes(option)}
+                  disabled={!isActive}
+                  onChange={() => isActive && toggleValue(setRegionTypes, option)}
+                  className="h-4 w-4 accent-tide disabled:cursor-not-allowed"
+                />
+                <span className="text-black dark:text-zinc-50">
+                  {option}
+                  {!isActive && (
+                    <span className="ml-1 text-xs text-zinc-500">(wkrótce)</span>
+                  )}
+                </span>
+              </label>
+            );
+          })}
         </div>
       </section>
 

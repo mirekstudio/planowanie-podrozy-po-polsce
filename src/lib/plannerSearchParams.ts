@@ -1,5 +1,6 @@
 import type { PlanerFormInitialValues } from "@/components/PlanerForm";
 import type { AccommodationTypePreference } from "@/lib/accommodation";
+import { filterActiveRegionTypes } from "@/lib/placeFilters";
 
 export type PlannerSearchParams = {
   days?: string;
@@ -65,7 +66,9 @@ export function parsePlannerInitialValues(
   return {
     days: Math.max(1, Number(params.days) || 1),
     interests: params.interests ? params.interests.split(",") : [],
-    regionTypes: params.regionType ? params.regionType.split(",") : [],
+    regionTypes: params.regionType
+      ? filterActiveRegionTypes(params.regionType.split(","))
+      : [],
     surroundings: params.surroundings ? params.surroundings.split(",") : [],
     nearbyAttractions: params.nearbyAttraction
       ? params.nearbyAttraction.split(",")
