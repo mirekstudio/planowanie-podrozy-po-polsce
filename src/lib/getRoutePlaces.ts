@@ -3,6 +3,7 @@ import { getPlaces } from "@/lib/getPlaces";
 import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
 import { activePlacesProvider, type ExternalPlaceResult } from "@/lib/placesProviders";
+import { dedupeByExternalId } from "@/lib/placesProviders/dedupe";
 import {
   REGION_TYPE_ANCHORS,
   SPREAD_REGION_SUB_REGIONS,
@@ -39,18 +40,6 @@ function radiusMetersForDays(days: number, tightCoastal: boolean): number {
 
 function limitForDays(days: number): number {
   return Math.min(16, 4 + Math.ceil(days * 1.5));
-}
-
-// Podregion może mieć kilka kotwic (patrz SubRegion w poland.ts) — ten
-// sam realny obiekt (ten sam Geoapify place_id) może się znaleźć w
-// wynikach więcej niż jednej z nich, gdy leżą blisko siebie.
-function dedupeByExternalId(results: ExternalPlaceResult[]): ExternalPlaceResult[] {
-  const seen = new Set<string>();
-  return results.filter((r) => {
-    if (seen.has(r.externalId)) return false;
-    seen.add(r.externalId);
-    return true;
-  });
 }
 
 // Promienie wyszukiwania sąsiednich podregionów (patrz SubRegion.anchors)

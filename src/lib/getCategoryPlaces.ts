@@ -4,6 +4,7 @@ import {
   type ExternalPlaceResult,
   type PlacesProvider,
 } from "@/lib/placesProviders";
+import { dedupeByExternalId } from "@/lib/placesProviders/dedupe";
 import { isWithinBounds, SUPPORTED_BROWSE_REGIONS } from "@/lib/poland";
 
 // Poniżej tej liczby kuratorskich miejsc w danej kategorii widok "Wszystkie
@@ -13,21 +14,20 @@ import { isWithinBounds, SUPPORTED_BROWSE_REGIONS } from "@/lib/poland";
 // trasy, tu użytkownik widzi od razu całą siatkę kart naraz.
 export const MIN_CATEGORY_RESULTS = 6;
 
-const CATEGORY_SEARCH_RADIUS_METERS = 55_000;
+// 55 km (pierwotna wartość) zostawiało "dziury" między kotwicami Wielkopolski
+// — najdalszy róg WIELKOPOLSKA_BOUNDS (okolice południowo-zachodnie) leży aż
+// ~79 km od najbliższej z 3 kotwic (Poznań/Gniezno/Kalisz-Zawodzie), więc dla
+// rzadszych kategorii (np. "Zamki i Pałace", "Parki Narodowe") żadna z 13
+// kotwic w ogóle nie znajdowała wyniku, mimo że w obszarze Wielkopolski/
+// wybrzeża takie miejsca realnie istnieją (zweryfikowane bezpośrednim
+// zapytaniem do Geoapify). 85 km z zapasem pokrywa cały prostokąt
+// WIELKOPOLSKA_BOUNDS bez dziur. To bezpieczne zwiększenie — promień to
+// tylko "bias" (miękka preferencja), o właściwym obszarze i tak decyduje
+// niezależny, twardy filtr isWithinBounds niżej, więc szerszy promień nie
+// przepuszcza wyników spoza Wielkopolski/wybrzeża, tylko zwiększa szansę na
+// znalezienie czegokolwiek w ich obrębie.
+const CATEGORY_SEARCH_RADIUS_METERS = 85_000;
 const CATEGORY_SEARCH_LIMIT = 12;
-
-// Podregion może mieć kilka kotwic (patrz SUPPORTED_BROWSE_REGIONS) — to
-// samo realne miejsce z Geoapify bywa więc znalezione niezależnie przez
-// więcej niż jedną z nich, gdy leżą blisko siebie (ten sam problem i to samo
-// rozwiązanie co dedupeByExternalId w getRoutePlaces.ts).
-function dedupeByExternalId(results: ExternalPlaceResult[]): ExternalPlaceResult[] {
-  const seen = new Set<string>();
-  return results.filter((r) => {
-    if (seen.has(r.externalId)) return false;
-    seen.add(r.externalId);
-    return true;
-  });
-}
 
 function toBasicCategoryPlace(result: ExternalPlaceResult, tag: string): Place {
   return {

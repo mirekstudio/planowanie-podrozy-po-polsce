@@ -23,6 +23,14 @@ const iconProps = {
   className: "h-5 w-5 shrink-0",
 };
 
+// `tag` steruje filtrowaniem na /miejsca?kategoria=... (patrz
+// getCategoryPlaces.ts) — musi być jednym z tagów faktycznie używanych w
+// bazie kuratorskiej (Historia/Natura/Architektura/Aktywność fizyczna/
+// Relaks) LUB kluczem w INTEREST_TO_GEOAPIFY_CATEGORIES
+// (placesProviders/geoapify.ts), inaczej getCategoryPlaces nie ma czego
+// szukać ani w bazie, ani u zewnętrznego dostawcy. `null` (żaden dziś nie
+// występuje) prowadziłby z powrotem do nieprzefiltrowanej listy — dokładnie
+// tak zachowywały się te cztery kategorie poniżej, zanim dostały tagi.
 const CATEGORIES: Category[] = [
   {
     label: "Historia",
@@ -44,7 +52,7 @@ const CATEGORIES: Category[] = [
   },
   {
     label: "Zamki i Pałace",
-    tag: null,
+    tag: "Zamki i Pałace",
     icon: (
       <svg {...iconProps}>
         <rect x="4" y="11" width="16" height="10" />
@@ -54,7 +62,7 @@ const CATEGORIES: Category[] = [
   },
   {
     label: "Parki Narodowe",
-    tag: null,
+    tag: "Parki Narodowe",
     icon: (
       <svg {...iconProps}>
         <path d="M3 20 9 8l4 6 2-3 6 9" />
@@ -64,7 +72,7 @@ const CATEGORIES: Category[] = [
   },
   {
     label: "Jeziora",
-    tag: null,
+    tag: "Jeziora",
     icon: (
       <svg {...iconProps}>
         <path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0" />
@@ -83,7 +91,7 @@ const CATEGORIES: Category[] = [
   },
   {
     label: "Architektura sakralna",
-    tag: null,
+    tag: "Architektura sakralna",
     icon: (
       <svg {...iconProps}>
         <path d="M6 21v-9M18 21v-9M6 12 12 7l6 5M6 21h12M12 7V3M10.5 4.5h3" />
