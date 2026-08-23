@@ -177,3 +177,49 @@ export const COASTAL_SUB_REGIONS: SubRegion[] = [
 export const SPREAD_REGION_SUB_REGIONS: Partial<Record<string, SubRegion[]>> = {
   Morze: COASTAL_SUB_REGIONS,
 };
+
+// Twarda granica drugiego (obok wybrzeża) obszaru, który appka dziś
+// realnie obsługuje kuratorską treścią — patrz komentarz przy
+// ACTIVE_REGION_TYPE_OPTIONS w placeFilters.ts. Wyznaczona z RZECZYWISTYCH
+// współrzędnych już istniejących miejsc kuratorskich w bazie (zapytanie do
+// Supabase pogrupowane po `region`, 23.08): najdalej na południe
+// Kalisz-Zawodzie (51.75°N), na północ Wenecja i Żnin (52.81°N), na wschód
+// Strzelno (18.17°E) — ± bufor 0.05°, ten sam wzorzec co przy
+// COASTAL_SUB_REGIONS.
+export const WIELKOPOLSKA_BOUNDS: Bounds = {
+  minLat: 51.7,
+  maxLat: 52.86,
+  minLng: 16.9,
+  maxLng: 18.22,
+};
+
+// W odróżnieniu od wybrzeża (COASTAL_SUB_REGIONS) baza kuratorska tu nie
+// jest dzielona na warianty trasy — to jeden, płaski obszar. Wciąż
+// potrzebuje więcej niż jednej kotwicy wyszukiwania: kuratorskie miejsca
+// rozciągają się na ~110 km (Kalisz-Zawodzie – Wenecja i Żnin), więc jeden
+// punkt + umiarkowany promień nie objąłby ich wszystkich naraz. Kotwice to
+// realne, już istniejące w bazie miejsca kuratorskie (Poznań, Gniezno,
+// Kalisz-Zawodzie), nie punkty "z ręki".
+export const WIELKOPOLSKA_REGION: SubRegion = {
+  id: "wielkopolska",
+  title: "Wielkopolska",
+  summary: "Poznań – Gniezno – Kalisz",
+  anchors: [
+    { lat: 52.4064, lng: 16.9252 }, // Poznań
+    { lat: 52.5347, lng: 17.5827 }, // Gniezno
+    { lat: 51.746561, lng: 18.102261 }, // Kalisz-Zawodzie
+  ],
+  bounds: WIELKOPOLSKA_BOUNDS,
+};
+
+// Regiony appki dziś aktywnie wspierane kuratorską treścią — używane, gdy
+// trzeba ograniczyć wyszukiwanie u zewnętrznego dostawcy (Geoapify) do
+// obszaru, który appka faktycznie dziś obsługuje, niezależnie od wybranej
+// kategorii (patrz getCategoryPlaces.ts). W odróżnieniu od planera tras
+// (gdzie region wybiera sam użytkownik przez typ_regionu) przeglądanie
+// kategorii w bocznym menu nie ma takiego przełącznika — więc tu zawsze
+// szukamy w całym tym zestawie.
+export const SUPPORTED_BROWSE_REGIONS: SubRegion[] = [
+  ...COASTAL_SUB_REGIONS,
+  WIELKOPOLSKA_REGION,
+];
