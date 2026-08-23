@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirect?: string }>;
+  searchParams: Promise<{ redirect?: string; error?: string }>;
 }) {
-  const { redirect: redirectParam } = await searchParams;
+  const { redirect: redirectParam, error: errorParam } = await searchParams;
   // Tylko ścieżki względne zaczynające się od "/" — bez tego ktoś mógłby
   // podać ?redirect=https://zla-strona.pl i przekierować zalogowanego
   // użytkownika poza appkę (open redirect).
@@ -36,7 +36,7 @@ export default async function LoginPage({
         </p>
 
         <div className="mt-8">
-          <LoginForm redirectTo={redirectTo} />
+          <LoginForm redirectTo={redirectTo} initialError={errorParam ?? null} />
         </div>
       </main>
     </div>

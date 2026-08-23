@@ -53,14 +53,27 @@ function translateAuthError(message: string): string {
   return map[message] ?? message;
 }
 
-export default function LoginForm({ redirectTo }: { redirectTo: string }) {
+export default function LoginForm({
+  redirectTo,
+  initialError = null,
+}: {
+  redirectTo: string;
+  // Błąd doniesiony przez /auth/callback (OAuth nieudany, link
+  // potwierdzający wygasł, email niepotwierdzony...) — przychodzi przez URL,
+  // bo to przekierowanie z route handlera, nie stan tego komponentu.
+  // Przepuszczony przez translateAuthError, więc wygląda identycznie jak
+  // błąd logowania email/hasłem, zamiast cichego powrotu na /login.
+  initialError?: string | null;
+}) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    initialError ? translateAuthError(initialError) : null,
+  );
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);

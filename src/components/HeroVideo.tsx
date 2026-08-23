@@ -73,7 +73,14 @@ export default function HeroVideo() {
         muted={muted}
         loop
         playsInline
-        preload="auto"
+        // "auto" każe przeglądarce od razu zacząć ściągać CAŁY plik
+        // (~11-12 MB) przy wejściu na stronę główną — "metadata" ogranicza
+        // wstępne pobieranie do samych wymiarów/czasu trwania, a resztę
+        // ściąga dopiero gdy odtwarzanie faktycznie ruszy (autoPlay wciąż
+        // działa, tylko bez tego dodatkowego, nieskracalnego pobierania z
+        // wyprzedzeniem). Realnie skraca to czas do pierwszej użytecznej
+        // treści na wolniejszych łączach, zwłaszcza mobilnych.
+        preload="metadata"
         className="absolute inset-0 h-full w-full object-contain md:object-cover"
       >
         <source

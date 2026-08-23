@@ -18,9 +18,16 @@ export async function GET(request: NextRequest) {
     if (!error) {
       return NextResponse.redirect(`${origin}${redirectTo}`);
     }
+    // Przekazujemy prawdziwą treść błędu (np. "Email not confirmed"), a nie
+    // tylko flagę — /login przepuszcza ją przez translateAuthError, więc
+    // użytkownik widzi ten sam czytelny, przetłumaczony komunikat co przy
+    // logowaniu email/hasłem, zamiast cichego powrotu do ekranu logowania.
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(error.message)}&redirect=${encodeURIComponent(redirectTo)}`,
+    );
   }
 
   return NextResponse.redirect(
-    `${origin}/login?error=1&redirect=${encodeURIComponent(redirectTo)}`,
+    `${origin}/login?error=${encodeURIComponent("Nie udało się dokończyć logowania. Spróbuj ponownie.")}&redirect=${encodeURIComponent(redirectTo)}`,
   );
 }
