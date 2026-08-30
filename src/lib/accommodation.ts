@@ -1,6 +1,12 @@
 import type { Nocleg, NoclegTyp, PoziomKomfortu } from "@/data/noclegi";
 import type { Coordinates, RouteDay } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
+import { isWithinSupportedRegions } from "@/lib/poland";
+import {
+  fetchProtectedPlaces,
+  type FetchProtectedPlacesParams,
+  type ExternalPlaceResult,
+} from "@/lib/placesProviders";
 
 // Wybór w formularzu planera — "hotel_pensjonat" łączy dwa typy z tabeli
 // noclegi (hotel/pensjonat), bo dla użytkownika to jedna, wspólna
@@ -116,9 +122,6 @@ export function pickCuratedAccommodation(
     .map(({ nocleg }) => toOption(nocleg, point));
 }
 
-const GEOAPIFY_API_KEY = process.env.GEOAPIFY_API_KEY ?? "";
-const PLACES_URL = "https://api.geoapify.com/v2/places";
-
 function resolveFallbackCategories(
   accommodationType: AccommodationTypePreference | undefined,
   transport: "car" | "camper",
@@ -144,65 +147,67 @@ function guessTypeFromCategories(categories: string[] | undefined): NoclegTyp | 
   return "nocleg";
 }
 
-type GeoapifyPlaceFeature = {
-  properties: {
-    place_id: string;
-    name?: string;
-    lat: number;
-    lon: number;
-    categories?: string[];
-  };
-};
+// Typ funkcji dociągającej z zewnętrznego dostawcy — domyślnie prawdziwe
+// fetchProtectedPlaces (geoapify.ts), ale wstrzykiwalny w testach (patrz
+// accommodation.test.ts), tym samym wzorcem co provider w
+// resolveRoutePlaces/resolveCategoryPlaces.
+type FetchPlaces = (params: FetchProtectedPlacesParams) => Promise<ExternalPlaceResult[]>;
 
 // Dociąga jedną propozycję noclegu z Geoapify, gdy w promieniu nie ma
 // żadnej pasującej pozycji w naszej bazie (patrz punkt 3 zgłoszenia).
 // Zwraca "podstawową" (source: "basic") propozycję, zgodnie z tą samą
 // konwencją co miejsca z src/lib/getRoutePlaces.ts.
+//
+// Reużywa fetchProtectedPlaces zamiast własnego, osobnego zapytania do
+// Geoapify — wcześniej ten fallback miał tu własny fetch z filter=circle
+// (bez twardego ograniczenia do granic Polski), bez sprawdzenia
+// country_code i bez looksLikeNonTouristPlace, więc dokładnie ten sam typ
+// błędu, który naprawiono dla tras 18.08 (np. gabinet lekarski zamiast
+// atrakcji), mógł wrócić tu jako proponowany nocleg.
 async function fetchAccommodationFallback(
   point: Coordinates,
   options: AccommodationMatchOptions,
+  fetchPlaces: FetchPlaces,
 ): Promise<AccommodationOption | null> {
-  if (!GEOAPIFY_API_KEY) return null;
-
   const categories = resolveFallbackCategories(options.accommodationType, options.transport);
-  const radiusMeters = MAX_DISTANCE_KM * 1000;
 
-  try {
-    const url =
-      `${PLACES_URL}?categories=${encodeURIComponent(categories.join(","))}` +
-      `&filter=circle:${point.lng},${point.lat},${radiusMeters}` +
-      `&bias=proximity:${point.lng},${point.lat}` +
-      `&limit=5&lang=pl&apiKey=${GEOAPIFY_API_KEY}`;
+  const results = await fetchPlaces({
+    categories,
+    center: point,
+    radiusMeters: MAX_DISTANCE_KM * 1000,
+    limit: 5,
+    exclude: [],
+  });
 
-    const res = await fetch(url);
-    if (!res.ok) return null;
+  // Twardy strażnik — patrz isWithinSupportedRegions w poland.ts. Punkt,
+  // dla którego szukamy noclegu, to zawsze przystanek już wygenerowanej
+  // trasy (więc sam z zasady leży w jednym z dwóch wspieranych regionów),
+  // ale sam wynik — nawet w promieniu MAX_DISTANCE_KM od niego — może już
+  // wypaść poza granicę, blisko jej krawędzi. fetchProtectedPlaces chroni
+  // przed nieturystycznymi/zagranicznymi wynikami, ale nie zna pojęcia
+  // "region wspierany przez tę appkę" — to sprawdzamy dopiero tutaj.
+  const withinSupportedRegions = results.filter((r) =>
+    isWithinSupportedRegions({ lat: r.lat, lng: r.lng }),
+  );
 
-    const data = await res.json();
-    const features = (data.features ?? []) as GeoapifyPlaceFeature[];
-    // Geoapify sortuje wyniki wg "bias" — pierwszy nazwany wynik jest
-    // najbliższym pasującym obiektem.
-    const best = features.find((f) => f.properties.name);
-    if (!best) return null;
+  // fetchProtectedPlaces zwraca wyniki w kolejności preferowanej przez
+  // "bias" Geoapify (najbliższe najpierw) — pierwszy pasujący jest więc
+  // najbliższym dopasowaniem.
+  const best = withinSupportedRegions[0];
+  if (!best) return null;
 
-    const resultPoint = { lat: best.properties.lat, lng: best.properties.lon };
-
-    return {
-      id: `geoapify-${best.properties.place_id}`,
-      nazwa: best.properties.name!,
-      typ: guessTypeFromCategories(best.properties.categories),
-      lat: resultPoint.lat,
-      lng: resultPoint.lng,
-      distanceKm: distanceKm(point, resultPoint),
-      udogodnienia: null,
-      poziomKomfortu: null,
-      source: "basic",
-      sourceUrl: null,
-    };
-  } catch {
-    // Sieć/Geoapify niedostępne — po prostu nie proponujemy noclegu dla
-    // tego dnia, tak jak przy braku dopasowania w promieniu.
-    return null;
-  }
+  return {
+    id: `geoapify-${best.externalId}`,
+    nazwa: best.title,
+    typ: guessTypeFromCategories(best.categories),
+    lat: best.lat,
+    lng: best.lng,
+    distanceKm: distanceKm(point, best),
+    udogodnienia: null,
+    poziomKomfortu: null,
+    source: "basic",
+    sourceUrl: best.sourceUrl,
+  };
 }
 
 // Zwraca propozycje noclegu dla jednego punktu (ostatniego przystanku
@@ -212,11 +217,12 @@ export async function getAccommodationOptions(
   point: Coordinates,
   noclegi: Nocleg[],
   options: AccommodationMatchOptions,
+  fetchPlaces: FetchPlaces = fetchProtectedPlaces,
 ): Promise<AccommodationOption[]> {
   const curated = pickCuratedAccommodation(point, noclegi, options, 3);
   if (curated.length > 0) return curated;
 
-  const fallback = await fetchAccommodationFallback(point, options);
+  const fallback = await fetchAccommodationFallback(point, options, fetchPlaces);
   return fallback ? [fallback] : [];
 }
 
@@ -231,6 +237,7 @@ export async function attachAccommodationOptions(
   days: RouteDay[],
   noclegi: Nocleg[],
   options: AccommodationMatchOptions,
+  fetchPlaces: FetchPlaces = fetchProtectedPlaces,
 ): Promise<RouteDayWithAccommodation[]> {
   return Promise.all(
     days.map(async (day) => {
@@ -241,6 +248,7 @@ export async function attachAccommodationOptions(
         { lat: lastStop.lat, lng: lastStop.lng },
         noclegi,
         options,
+        fetchPlaces,
       );
       return { ...day, accommodationOptions };
     }),

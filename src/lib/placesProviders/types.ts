@@ -12,6 +12,12 @@ export type ExternalPlaceResult = {
   image: string | null;
   imageAlt: string;
   sourceUrl: string | null;
+  // Surowe kategorie dostawcy (np. Geoapify: "accommodation.hotel",
+  // "camping.camp_site") — opcjonalne, bo nie każdy dostawca je zwraca.
+  // Używane tam, gdzie konsument wyniku musi zgadnąć typ miejsca po fakcie
+  // (patrz guessTypeFromCategories w accommodation.ts), skoro ExternalPlaceResult
+  // celowo nie zna żadnej konkretnej taksonomii dostawcy.
+  categories?: string[];
 };
 
 export type PlacesProviderParams = {

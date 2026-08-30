@@ -1,8 +1,11 @@
 import type { Place } from "@/data/places";
-import { getPlaces } from "@/lib/getPlaces";
 import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
-import { activePlacesProvider, type ExternalPlaceResult } from "@/lib/placesProviders";
+import {
+  activePlacesProvider,
+  type ExternalPlaceResult,
+  type PlacesProvider,
+} from "@/lib/placesProviders";
 import { dedupeByExternalId } from "@/lib/placesProviders/dedupe";
 import {
   REGION_TYPE_ANCHORS,
@@ -10,6 +13,7 @@ import {
   POLAND_CENTER,
   isWithinPoland,
   isWithinBounds,
+  isWithinSupportedRegions,
   type SubRegion,
 } from "@/lib/poland";
 
@@ -170,6 +174,7 @@ function toBasicPlace(
 }
 
 async function fetchSupplementFrom(
+  provider: Pick<PlacesProvider, "fetchPlaces">,
   center: Coordinates,
   interests: string[],
   regionTypes: string[] | undefined,
@@ -179,7 +184,7 @@ async function fetchSupplementFrom(
   const tightCoastal = (regionTypes ?? []).includes("Morze") && interests.includes("Relaks");
   const radiusMeters = radiusMetersForDays(days, tightCoastal);
 
-  const results = await activePlacesProvider.fetchPlaces({
+  const results = await provider.fetchPlaces({
     center,
     radiusMeters,
     interests,
@@ -207,15 +212,15 @@ export type GetRoutePlacesOptions = Pick<
   "days" | "interests" | "startPoint" | "regionTypes" | "surroundings" | "nearbyAttractions"
 >;
 
-// Zwraca pulę miejsc do generowania trasy: najpierw baza kuratorska
-// (Supabase), a jeśli dla wybranych filtrów (zainteresowania, typ
-// regionu, otoczenie, bliskość atrakcji) jest w niej za mało pasujących
-// miejsc, dokłada do niej miejsca "podstawowe" z aktywnego dostawcy
-// danych zewnętrznych — zawsze z terytorium Polski (patrz pickSearchCenter
-// i twardy filtr granic w placesProviders/geoapify.ts), niezależnie od
-// tego, gdzie faktycznie znajduje się punkt startowy użytkownika.
-export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Place[]> {
-  const curated = await getPlaces();
+// Rdzeń logiki, oddzielony od realnego zapytania do Supabase — testowalny
+// bez sieci przez wstrzyknięcie gotowej listy `curated` i dostawcy
+// `provider` (patrz getRoutePlaces.test.ts), ten sam wzorzec co
+// resolveCategoryPlaces w getCategoryPlaces.ts.
+export async function resolveRoutePlaces(
+  curated: Place[],
+  options: GetRoutePlacesOptions,
+  provider: Pick<PlacesProvider, "fetchPlaces">,
+): Promise<Place[]> {
   const matching = filterCandidates(curated, options);
 
   const excludePoints = curated.map((p) => ({ lat: p.lat, lng: p.lng }));
@@ -260,6 +265,7 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
         const resultsPerAnchor = await Promise.all(
           sub.anchors.map((anchor) =>
             fetchSupplementFrom(
+              provider,
               anchor,
               options.interests,
               options.regionTypes,
@@ -299,6 +305,7 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
   );
 
   const results = await fetchSupplementFrom(
+    provider,
     center,
     options.interests,
     options.regionTypes,
@@ -306,8 +313,35 @@ export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Pl
     excludePoints,
   );
 
+  // Twardy strażnik na końcu — patrz komentarz przy isWithinSupportedRegions
+  // w poland.ts. "Morze" ma własną, dedykowaną walidację granic dla każdego
+  // podregionu (gałąź wyżej + enforceSubRegionBounds w generateRoute.ts);
+  // ta gałąź (bez wybranego typu regionu, albo z regionem bez własnej
+  // "rozciągniętej" walidacji — w praktyce niemal zawsze Wielkopolska) nie
+  // miała ŻADNEJ takiej granicy — fetchSupplementFrom tylko odcina po
+  // odległości od `center`, co przy promieniu do 90 km z łatwością sięga
+  // poza dwa regiony, które appka dziś realnie obsługuje.
+  const withinSupportedRegions = results.filter((r) =>
+    isWithinSupportedRegions({ lat: r.lat, lng: r.lng }),
+  );
+
   return [
     ...curated,
-    ...results.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes, null)),
+    ...withinSupportedRegions.map((r) => toBasicPlace(r, tags, geoAnchoredRegionTypes, null)),
   ];
+}
+
+// Wersja "na produkcję" — pobiera bazę kuratorską z Supabase.
+//
+// Import ./getPlaces jest tu celowo dynamiczny, a nie na górze pliku:
+// getPlaces.ts tworzy klienta Supabase jako efekt uboczny na poziomie
+// modułu (patrz supabaseClient.ts), co bez zmiennych środowiskowych rzuca
+// błąd już przy samym imporcie — statyczny import na górze uniemożliwiałby
+// testowanie resolveRoutePlaces (rdzenia logiki, bez sieci) bez
+// konfigurowania Supabase w środowisku testowym. Ten sam wzorzec co
+// getCategoryPlaces.ts.
+export async function getRoutePlaces(options: GetRoutePlacesOptions): Promise<Place[]> {
+  const { getPlaces } = await import("@/lib/getPlaces");
+  const curated = await getPlaces();
+  return resolveRoutePlaces(curated, options, activePlacesProvider);
 }

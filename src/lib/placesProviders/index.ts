@@ -8,3 +8,9 @@ import type { PlacesProvider } from "./types";
 export const activePlacesProvider: PlacesProvider = geoapifyProvider;
 
 export type { ExternalPlaceResult, PlacesProvider, PlacesProviderParams } from "./types";
+
+// Chroniona, współdzielona funkcja niskiego poziomu — jedyne miejsce w
+// appce, które powinno rozmawiać z Geoapify /v2/places (patrz komentarz
+// przy definicji w geoapify.ts). Reużywana przez getRoutePlaces.ts,
+// getCategoryPlaces.ts (pośrednio, przez fetchPlaces) i accommodation.ts.
+export { fetchProtectedPlaces, type FetchProtectedPlacesParams } from "./geoapify";

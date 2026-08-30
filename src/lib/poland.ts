@@ -223,3 +223,24 @@ export const SUPPORTED_BROWSE_REGIONS: SubRegion[] = [
   ...COASTAL_SUB_REGIONS,
   WIELKOPOLSKA_REGION,
 ];
+
+// Twardy "strażnik" — appka dziś realnie obsługuje tylko dwa obszary
+// (Wielkopolska + wybrzeże, patrz ACTIVE_REGION_TYPE_OPTIONS w
+// placeFilters.ts). Reużywa SUPPORTED_BROWSE_REGIONS (ten sam zestaw co w
+// getCategoryPlaces.ts), więc nowy region wspierany w przeglądaniu
+// kategorii automatycznie zostaje uznany też tutaj — bez dwóch osobnych
+// list do synchronizowania ręcznie.
+//
+// Używane wszędzie tam, gdzie appka dociąga uzupełnienie z Geoapify POZA
+// kontekstem, który sam już ma własną, dedykowaną twardą granicę (np.
+// konkretny podregion wybrzeża w generateRoute.ts ma enforceSubRegionBounds)
+// — czyli w ogólnej gałęzi fallbacku planera dla tras spoza wybrzeża
+// (getRoutePlaces.ts, w praktyce każda trasa po Wielkopolsce) i przy
+// propozycjach noclegu (accommodation.ts). Bez tego strażnika appka mogła
+// dociągnąć z Geoapify wynik leżący technicznie w promieniu wyszukiwania,
+// ale geograficznie już poza dwoma regionami, które appka dziś realnie
+// obsługuje — dokładnie ten sam typ błędu, który naprawiono dla regionu
+// "Morze" 18.08.
+export function isWithinSupportedRegions(point: Coordinates): boolean {
+  return SUPPORTED_BROWSE_REGIONS.some((region) => isWithinBounds(point, region.bounds));
+}

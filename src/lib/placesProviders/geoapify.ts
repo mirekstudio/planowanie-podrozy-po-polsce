@@ -1,3 +1,4 @@
+import type { Coordinates } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
 import { POLAND_BOUNDS } from "@/lib/poland";
 import type {
@@ -78,14 +79,14 @@ const COASTAL_RELAX_CATEGORIES = [
   "tourism.sights.lighthouse",
 ];
 
-function resolveCategories(interests: string[], regionTypes: string[] | undefined): string {
+function resolveCategories(interests: string[], regionTypes: string[] | undefined): string[] {
   // Dla Morze+Relaks kategorie ZASTĘPUJEMY, nie dokładamy — bazowy zestaw
   // dla Relaks zawiera "natural.water", które pasuje do KAŻDEGO zbiornika
   // wodnego (też śródlądowego jeziora czy stawu). W testach to właśnie ta
   // szeroka kategoria zalewała wyniki miejscami typu "Jezioro X" 50-80 km
   // w głębi lądu zamiast plaż i promenad nad samym morzem.
   if ((regionTypes ?? []).includes("Morze") && interests.includes("Relaks")) {
-    return COASTAL_RELAX_CATEGORIES.join(",");
+    return COASTAL_RELAX_CATEGORIES;
   }
 
   const categories = interests.flatMap(
@@ -93,7 +94,7 @@ function resolveCategories(interests: string[], regionTypes: string[] | undefine
   );
 
   const unique = Array.from(new Set(categories));
-  return (unique.length > 0 ? unique : DEFAULT_CATEGORIES).join(",");
+  return unique.length > 0 ? unique : DEFAULT_CATEGORIES;
 }
 
 type GeoapifyPlaceFeature = {
@@ -178,17 +179,36 @@ type GeoapifyDetailsFeature = {
   geometry?: { type: string; coordinates: unknown };
 };
 
-async function fetchPlaces({
+export type FetchProtectedPlacesParams = {
+  // Surowe kategorie Geoapify, już rozstrzygnięte przez wywołującego (patrz
+  // resolveCategories tutaj, resolveFallbackCategories w accommodation.ts)
+  // — ta funkcja nie zna różnicy między "zainteresowaniem" a "typem
+  // noclegu", tylko rozmawia z API i chroni wynik.
+  categories: string[];
+  center: Coordinates;
+  radiusMeters: number;
+  limit: number;
+  exclude: Coordinates[];
+};
+
+// Jedyne miejsce w appce, które powinno wysyłać zapytanie do Geoapify
+// /v2/places — każdy fragment kodu potrzebujący uzupełnienia z zewnętrznego
+// źródła (generator tras w getRoutePlaces.ts, przeglądanie kategorii w
+// getCategoryPlaces.ts, propozycje noclegu w accommodation.ts) ma
+// przechodzić przez to jedno miejsce, żeby żaden z nich nie mógł
+// przypadkiem pominąć którejś z trzech niezależnych warstw ochrony poniżej.
+// Wcześniej accommodation.ts miało własny, osobny fetch bez ŻADNEJ z nich
+// (m.in. filter=circle zamiast filter=rect — dokładnie ten sam błąd, który
+// filter=rect naprawił tu wcześniej dla zagranicznych punktów startowych) —
+// dokładnie ten typ rozjazdu, któremu ta funkcja ma zapobiec na przyszłość.
+export async function fetchProtectedPlaces({
+  categories,
   center,
   radiusMeters,
-  interests,
   limit,
   exclude,
-  regionTypes,
-}: PlacesProviderParams): Promise<ExternalPlaceResult[]> {
+}: FetchProtectedPlacesParams): Promise<ExternalPlaceResult[]> {
   if (!GEOAPIFY_API_KEY) return [];
-
-  const categories = resolveCategories(interests, regionTypes);
 
   try {
     // "filter" jest twardym ograniczeniem (wyklucza wyniki spoza obszaru),
@@ -199,7 +219,7 @@ async function fetchPlaces({
     // filter=circle wokół center, co przy zagranicznym punkcie startowym
     // dosłownie szukało miejsc za granicą zamiast w Polsce.
     const searchUrl =
-      `${PLACES_URL}?categories=${encodeURIComponent(categories)}` +
+      `${PLACES_URL}?categories=${encodeURIComponent(categories.join(","))}` +
       `&filter=rect:${POLAND_BOUNDS.minLng},${POLAND_BOUNDS.minLat},${POLAND_BOUNDS.maxLng},${POLAND_BOUNDS.maxLat}` +
       `&bias=circle:${center.lng},${center.lat},${radiusMeters}` +
       `&limit=${Math.min(limit * 3, 40)}&lang=pl&apiKey=${GEOAPIFY_API_KEY}`;
@@ -269,6 +289,7 @@ async function fetchPlaces({
         imageAlt: feature.properties.name!,
         sourceUrl:
           detailProps?.wiki_and_media?.wikipedia ?? detailProps?.website ?? null,
+        categories: feature.properties.categories,
       };
     });
   } catch {
@@ -276,6 +297,18 @@ async function fetchPlaces({
     // podstawowych, trasa zostaje zbudowana z samej bazy kuratorskiej.
     return [];
   }
+}
+
+async function fetchPlaces({
+  center,
+  radiusMeters,
+  interests,
+  limit,
+  exclude,
+  regionTypes,
+}: PlacesProviderParams): Promise<ExternalPlaceResult[]> {
+  const categories = resolveCategories(interests, regionTypes);
+  return fetchProtectedPlaces({ categories, center, radiusMeters, limit, exclude });
 }
 
 // Dociąga na żywo szczegóły jednego miejsca po jego Geoapify place_id.
