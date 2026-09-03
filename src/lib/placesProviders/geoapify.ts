@@ -42,7 +42,16 @@ const INTEREST_TO_GEOAPIFY_CATEGORIES: Record<string, string[]> = {
     "tourism.sights.manor",
     "tourism.sights.fort",
   ],
-  "Parki Narodowe": ["national_park", "natural.protected_area"],
+  // Celowo SAMO "national_park", bez "natural.protected_area" (poprzednia
+  // wersja) — ta druga kategoria w praktyce oznacza DOWOLNY obszar chroniony
+  // (rezerwaty, użytki ekologiczne, parki krajobrazowe, a nawet pojedyncze
+  // bagna/torfowiska otagowane w OSM), nie same parki narodowe. Zweryfikowane
+  // bezpośrednim zapytaniem (23.08): "national_park" samo w sobie zwraca 24
+  // trafienia i WSZYSTKIE to prawdziwe polskie parki narodowe (Wielkopolski,
+  // Drawieński, Woliński, Słowiński...), podczas gdy "natural.protected_area"
+  // samo w sobie zwraca 24 trafienia typu "BAGNO", "Torfowisko Koło Wieży",
+  // "Śródleśne bagno" — ani jednego prawdziwego parku narodowego.
+  "Parki Narodowe": ["national_park"],
   Jeziora: ["natural.water", "natural.water.bay"],
   "Aktywność fizyczna": ["sport", "leisure.park", "entertainment.activity_park"],
   "Architektura sakralna": [

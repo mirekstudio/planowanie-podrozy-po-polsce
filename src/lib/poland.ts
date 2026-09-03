@@ -186,10 +186,18 @@ export const SPREAD_REGION_SUB_REGIONS: Partial<Record<string, SubRegion[]>> = {
 // Kalisz-Zawodzie (51.75°N), na północ Wenecja i Żnin (52.81°N), na wschód
 // Strzelno (18.17°E) — ± bufor 0.05°, ten sam wzorzec co przy
 // COASTAL_SUB_REGIONS.
+//
+// minLng poprawione 23.08 z pierwotnych 16.9 na 16.75: Wielkopolski Park
+// Narodowy (dodany do bazy kuratorskiej tego samego dnia) leży na 16.7973°E
+// — ok. 7 km NA ZACHÓD od pierwotnej granicy, mimo że to jeden z
+// najbardziej oczywistych przykładów "Wielkopolski" (nosi nazwę regionu).
+// Pierwotna granica była wyznaczona z ograniczonej próbki punktów, która po
+// prostu nie sięgała tak daleko na zachód — to nie jest rozszerzenie
+// zakresu appki, tylko poprawka błędu w tej granicy.
 export const WIELKOPOLSKA_BOUNDS: Bounds = {
   minLat: 51.7,
   maxLat: 52.86,
-  minLng: 16.9,
+  minLng: 16.75,
   maxLng: 18.22,
 };
 

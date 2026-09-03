@@ -29,6 +29,14 @@ export const MIN_CATEGORY_RESULTS = 6;
 const CATEGORY_SEARCH_RADIUS_METERS = 85_000;
 const CATEGORY_SEARCH_LIMIT = 12;
 
+// Twardy sufit na łączną liczbę wyników z Geoapify pokazywanych naraz w tym
+// widoku. CATEGORY_SEARCH_LIMIT ogranicza tylko POJEDYNCZE zapytanie (na
+// jedną z 13 kotwic) — po zsumowaniu i zdedupikowaniu wyników z wszystkich
+// kotwic dla szerszej kategorii potrafiło to i tak dać kilkadziesiąt kart
+// naraz (np. 42 dla "Parki Narodowe" przed zawężeniem kategorii, zgłoszenie
+// 23.08) — nieczytelna siatka, gorsza niż kilka trafnych propozycji.
+const MAX_BASIC_SUPPLEMENT = 10;
+
 function toBasicCategoryPlace(result: ExternalPlaceResult, tag: string): Place {
   return {
     slug: `${activePlacesProvider.id}-${result.externalId}`,
@@ -101,7 +109,7 @@ export async function resolveCategoryPlaces(
     ),
   );
 
-  const deduped = dedupeByExternalId(perAnchor.flat());
+  const deduped = dedupeByExternalId(perAnchor.flat()).slice(0, MAX_BASIC_SUPPLEMENT);
 
   return [...matching, ...deduped.map((r) => toBasicCategoryPlace(r, tag))];
 }
