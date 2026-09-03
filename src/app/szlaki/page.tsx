@@ -1,5 +1,6 @@
 import { getTrasy } from "@/lib/getTrasy";
 import type { Trasa } from "@/data/trasy";
+import BackButton from "@/components/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,8 @@ export default async function SzlakiPage() {
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
+        <BackButton fallbackHref="/" label="Wstecz" />
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
           Popularne szlaki samochodowe w Polsce
         </h1>
         <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
