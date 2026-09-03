@@ -20,14 +20,26 @@ export type ExternalPlaceResult = {
   categories?: string[];
 };
 
+// Miejsce kuratorskie, którego provider powinien unikać w wynikach — samych
+// współrzędnych (patrz MIN_DISTANCE_FROM_CURATED_KM w geoapify.ts) nie
+// wystarczy, gdy to samo realne miejsce jest duże (np. cały park narodowy):
+// punkt reprezentacyjny w danych dostawcy (np. węzeł OSM gdzieś w środku
+// parku) bywa oddalony od naszego kuratorskiego punktu (np. siedziba/wejście)
+// o więcej niż promień wykluczenia, mimo że to dokładnie ten sam obiekt.
+// `title` daje drugi, niezależny sygnał dedupikacji (po nazwie, nie tylko po
+// odległości) — patrz zgłoszenie 23.08 (Słowiński/Wielkopolski Park
+// Narodowy pokazywały się podwójnie: raz kuratorsko, raz jako "Odkryj
+// więcej" z Geoapify).
+export type ExcludedPlace = Coordinates & { title: string };
+
 export type PlacesProviderParams = {
   center: Coordinates;
   radiusMeters: number;
   interests: string[];
   limit: number;
-  // Punkty (np. miejsca kuratorskie), których sąsiedztwa provider
-  // powinien unikać, żeby nie dublować tego, co już mamy w bazie.
-  exclude: Coordinates[];
+  // Miejsca (np. kuratorskie), których provider powinien unikać, żeby nie
+  // dublować tego, co już mamy w bazie — patrz ExcludedPlace.
+  exclude: ExcludedPlace[];
   // Opcjonalnie — typ_regionu, dla którego szukamy (np. "Morze"). Dostawca
   // może to wykorzystać, żeby dobrać trafniejsze kategorie (patrz np.
   // rozszerzenie kategorii dla kombinacji Morze+Relaks w geoapify.ts).

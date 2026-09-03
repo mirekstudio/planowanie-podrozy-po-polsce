@@ -3,6 +3,7 @@ import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/gen
 import { distanceKm } from "@/lib/geo";
 import {
   activePlacesProvider,
+  type ExcludedPlace,
   type ExternalPlaceResult,
   type PlacesProvider,
 } from "@/lib/placesProviders";
@@ -179,7 +180,7 @@ async function fetchSupplementFrom(
   interests: string[],
   regionTypes: string[] | undefined,
   days: number,
-  exclude: Coordinates[],
+  exclude: ExcludedPlace[],
 ): Promise<ExternalPlaceResult[]> {
   const tightCoastal = (regionTypes ?? []).includes("Morze") && interests.includes("Relaks");
   const radiusMeters = radiusMetersForDays(days, tightCoastal);
@@ -223,7 +224,7 @@ export async function resolveRoutePlaces(
 ): Promise<Place[]> {
   const matching = filterCandidates(curated, options);
 
-  const excludePoints = curated.map((p) => ({ lat: p.lat, lng: p.lng }));
+  const excludePoints = curated.map((p) => ({ lat: p.lat, lng: p.lng, title: p.title }));
   const tags = options.interests;
   // Tylko te wybrane typy regionu, dla których faktycznie mamy
   // geograficzną kotwicę (patrz REGION_TYPE_ANCHORS) — to nimi otagujemy

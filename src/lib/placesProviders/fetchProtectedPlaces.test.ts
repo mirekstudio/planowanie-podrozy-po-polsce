@@ -94,6 +94,75 @@ test("odrzuca nieturystyczny wynik (gabinet lekarski) tym samym filtrem co gener
   }
 });
 
+test("odrzuca wynik o tej samej nazwie co miejsce kuratorskie, nawet gdy leży daleko od jego współrzędnych (duplikat parku narodowego, zgłoszenie 23.08)", async () => {
+  const { fetchProtectedPlaces } = await import("./geoapify");
+  const restore = mockFetchOnce([
+    {
+      properties: {
+        // Punkt reprezentacyjny Geoapify dla całego obszaru parku, ok. 15 km
+        // od naszego kuratorskiego punktu (siedziba w Jeziorach) — za daleko
+        // na sam filtr odległości (MIN_DISTANCE_FROM_CURATED_KM = 1 km), ale
+        // to dokładnie ten sam, realny park.
+        place_id: "wpn-geoapify",
+        name: "Wielkopolski Park Narodowy",
+        lat: 52.35,
+        lon: 16.85,
+        country_code: "pl",
+        categories: ["national_park"],
+      },
+    },
+  ]);
+  try {
+    const results = await fetchProtectedPlaces({
+      categories: ["national_park"],
+      center: { lat: 52.4064, lng: 16.9252 },
+      radiusMeters: 85_000,
+      limit: 10,
+      exclude: [
+        { lat: 52.268861, lng: 16.79725, title: "Wielkopolski Park Narodowy" },
+      ],
+    });
+    assert.equal(
+      results.length,
+      0,
+      "wynik o tej samej nazwie co miejsce kuratorskie powinien zostać odrzucony mimo dużej odległości",
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("NIE odrzuca wyniku o innej nazwie, nawet gdy leży blisko listy wykluczeń po samej nazwie (kontrola negatywna)", async () => {
+  const { fetchProtectedPlaces } = await import("./geoapify");
+  const restore = mockFetchOnce([
+    {
+      properties: {
+        place_id: "wpn-real-2",
+        name: "Drawieński Park Narodowy",
+        lat: 53.0,
+        lon: 15.8,
+        country_code: "pl",
+        categories: ["national_park"],
+      },
+    },
+  ]);
+  try {
+    const results = await fetchProtectedPlaces({
+      categories: ["national_park"],
+      center: { lat: 52.4064, lng: 16.9252 },
+      radiusMeters: 85_000,
+      limit: 10,
+      exclude: [
+        { lat: 52.268861, lng: 16.79725, title: "Wielkopolski Park Narodowy" },
+      ],
+    });
+    assert.equal(results.length, 1, "inny, naprawdę odrębny park nie powinien zostać odrzucony");
+    assert.equal(results[0].title, "Drawieński Park Narodowy");
+  } finally {
+    restore();
+  }
+});
+
 test("przepuszcza prawdziwą atrakcję i zwraca jej surowe kategorie (potrzebne dla accommodation.ts)", async () => {
   const { fetchProtectedPlaces } = await import("./geoapify");
   const restore = mockFetchOnce([

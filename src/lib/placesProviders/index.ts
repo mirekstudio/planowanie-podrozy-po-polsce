@@ -7,7 +7,12 @@ import type { PlacesProvider } from "./types";
 // reszta appki (getRoutePlaces, UI) nie wymaga żadnych zmian.
 export const activePlacesProvider: PlacesProvider = geoapifyProvider;
 
-export type { ExternalPlaceResult, PlacesProvider, PlacesProviderParams } from "./types";
+export type {
+  ExcludedPlace,
+  ExternalPlaceResult,
+  PlacesProvider,
+  PlacesProviderParams,
+} from "./types";
 
 // Chroniona, współdzielona funkcja niskiego poziomu — jedyne miejsce w
 // appce, które powinno rozmawiać z Geoapify /v2/places (patrz komentarz

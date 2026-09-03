@@ -2,6 +2,7 @@ import type { Coordinates } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
 import { POLAND_BOUNDS } from "@/lib/poland";
 import type {
+  ExcludedPlace,
   ExternalPlaceResult,
   PlacesProvider,
   PlacesProviderParams,
@@ -16,6 +17,19 @@ const PLACE_DETAILS_URL = "https://api.geoapify.com/v2/place-details";
 
 const MIN_DISTANCE_FROM_CURATED_KM = 1;
 const MAX_DETAIL_LOOKUPS = 24;
+
+// Do porównania nazw przy dedupikacji (patrz ExcludedPlace w types.ts) —
+// same wielkie/małe litery i niejednolite cudzysłowy potrafią różnić
+// identyczne realne miejsce między naszą bazą a Geoapify/OSM (zaobserwowane
+// 23.08: Geoapify miało naraz "Park Narodowy Ujście Warty" i 'Park Narodowy
+// „Ujście Warty”' jako dwa osobne wpisy dla tego samego parku).
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[„”"'']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 // Mapowanie naszych kategorii zainteresowań (z formularza planera i z
 // kategorii przeglądania w bocznym menu) na kategorie turystyczne
@@ -197,7 +211,7 @@ export type FetchProtectedPlacesParams = {
   center: Coordinates;
   radiusMeters: number;
   limit: number;
-  exclude: Coordinates[];
+  exclude: ExcludedPlace[];
 };
 
 // Jedyne miejsce w appce, które powinno wysyłać zapytanie do Geoapify
@@ -258,8 +272,18 @@ export async function fetchProtectedPlaces({
         return false;
       }
       const point = { lat: feature.properties.lat, lng: feature.properties.lon };
+      const normalizedName = normalizeName(feature.properties.name);
+      // Dwa niezależne sygnały "to już mamy": blisko kuratorskiego punktu,
+      // ALBO ta sama nazwa co kuratorskie miejsce — potrzebne oba, bo dla
+      // dużych, rozległych obiektów (np. cały park narodowy) punkt
+      // reprezentacyjny w danych Geoapify bywa oddalony od naszego
+      // kuratorskiego punktu (np. siedziba/wejście) o więcej niż
+      // MIN_DISTANCE_FROM_CURATED_KM, mimo że to dokładnie to samo miejsce
+      // (patrz ExcludedPlace w types.ts, zgłoszenie 23.08).
       return !exclude.some(
-        (curated) => distanceKm(curated, point) < MIN_DISTANCE_FROM_CURATED_KM,
+        (curated) =>
+          distanceKm(curated, point) < MIN_DISTANCE_FROM_CURATED_KM ||
+          normalizeName(curated.title) === normalizedName,
       );
     });
 

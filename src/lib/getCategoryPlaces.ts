@@ -81,7 +81,7 @@ export async function resolveCategoryPlaces(
     return matching;
   }
 
-  const exclude = curated.map((p) => ({ lat: p.lat, lng: p.lng }));
+  const exclude = curated.map((p) => ({ lat: p.lat, lng: p.lng, title: p.title }));
 
   const perAnchor = await Promise.all(
     SUPPORTED_BROWSE_REGIONS.flatMap((region) =>
