@@ -409,81 +409,6 @@ export default function PlanerForm({
         <>
           <section>
             <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-              Punkt startowy
-            </h2>
-            <div className="mt-3 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => setShowLocationModal(true)}
-                disabled={geolocating}
-                className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50 dark:active:bg-wine/10"
-              >
-                {geolocating
-                  ? "Pobieranie lokalizacji…"
-                  : "Użyj mojej aktualnej lokalizacji"}
-              </button>
-
-              {showLocationModal && (
-                <LocationPermissionModal
-                  onAllow={() => {
-                    setShowLocationModal(false);
-                    handleUseLocation();
-                  }}
-                  onDismiss={() => setShowLocationModal(false)}
-                />
-              )}
-
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
-                <span className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
-                lub
-                <span className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
-              </div>
-
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                  Wpisz miejsce startu
-                </span>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={manualAddress}
-                    onChange={(e) => setManualAddress(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleGeocodeAddress();
-                      }
-                    }}
-                    placeholder="np. Poznań, ul. Główna 1"
-                    className="flex-1 rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleGeocodeAddress}
-                    disabled={geocoding || !manualAddress.trim()}
-                    className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-50 dark:border-white/[.145] dark:hover:border-wine/50 dark:active:bg-wine/10"
-                  >
-                    {geocoding ? "Szukam…" : "Znajdź"}
-                  </button>
-                </div>
-              </label>
-
-              {startPointMessage && (
-                <p
-                  className={
-                    startPointMessage.type === "success"
-                      ? "text-sm text-green-700 dark:text-green-400"
-                      : "text-sm text-red-600 dark:text-red-400"
-                  }
-                >
-                  {startPointMessage.text}
-                </p>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
               Środek transportu
             </h2>
             <div className="mt-3 flex flex-col gap-2">
@@ -604,6 +529,81 @@ export default function PlanerForm({
               />
             </label>
           )}
+
+          <section>
+            <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+              Punkt startowy
+            </h2>
+            <div className="mt-3 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setShowLocationModal(true)}
+                disabled={geolocating}
+                className="self-start rounded-full border border-black/[.08] px-4 py-3 text-sm font-medium text-black transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-50 dark:border-white/[.145] dark:text-zinc-50 dark:hover:border-wine/50 dark:active:bg-wine/10"
+              >
+                {geolocating
+                  ? "Pobieranie lokalizacji…"
+                  : "Użyj mojej aktualnej lokalizacji"}
+              </button>
+
+              {showLocationModal && (
+                <LocationPermissionModal
+                  onAllow={() => {
+                    setShowLocationModal(false);
+                    handleUseLocation();
+                  }}
+                  onDismiss={() => setShowLocationModal(false)}
+                />
+              )}
+
+              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                <span className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
+                lub
+                <span className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
+              </div>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                  Wpisz miejsce startu
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualAddress}
+                    onChange={(e) => setManualAddress(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleGeocodeAddress();
+                      }
+                    }}
+                    placeholder="np. Poznań, ul. Główna 1"
+                    className="flex-1 rounded-lg border border-black/[.08] bg-white px-3 py-3 text-black dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGeocodeAddress}
+                    disabled={geocoding || !manualAddress.trim()}
+                    className="shrink-0 rounded-lg border border-black/[.08] px-4 py-3 text-sm font-medium transition-colors hover:border-wine/50 active:border-wine active:bg-wine/5 disabled:opacity-50 dark:border-white/[.145] dark:hover:border-wine/50 dark:active:bg-wine/10"
+                  >
+                    {geocoding ? "Szukam…" : "Znajdź"}
+                  </button>
+                </div>
+              </label>
+
+              {startPointMessage && (
+                <p
+                  className={
+                    startPointMessage.type === "success"
+                      ? "text-sm text-green-700 dark:text-green-400"
+                      : "text-sm text-red-600 dark:text-red-400"
+                  }
+                >
+                  {startPointMessage.text}
+                </p>
+              )}
+            </div>
+          </section>
 
           <details className="group rounded-lg border border-black/[.08] p-4 dark:border-white/[.145]">
             <summary className="cursor-pointer text-sm font-medium uppercase tracking-wide text-zinc-500">
