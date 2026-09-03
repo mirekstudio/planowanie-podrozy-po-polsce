@@ -251,6 +251,96 @@ export default function PlanerForm({
     <form onSubmit={handleSubmit} className="mt-10 flex max-w-xl flex-col gap-8">
       <section>
         <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Region geograficzny
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie dostępne regiony.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          {REGION_TYPE_OPTIONS.map((option) => {
+            // Poza "Morze" te opcje generowałyby trasę wyłącznie z
+            // automatycznych danych Geoapify, bez żadnej redakcji — patrz
+            // komentarz przy ACTIVE_REGION_TYPE_OPTIONS w placeFilters.ts.
+            // Zostają widoczne (żeby było widać, co appka docelowo obejmie),
+            // ale niedostępne do wyboru, dopóki appka nie ma tam kuratorskiej
+            // treści.
+            const isActive = (ACTIVE_REGION_TYPE_OPTIONS as readonly string[]).includes(
+              option,
+            );
+            return (
+              <label
+                key={option}
+                // Jedyna grupa filtrów, gdzie zamiast domyślnego bursztynu
+                // (patrz reszta formularza) użyty jest morski turkus — to
+                // typ regionu geograficznego (Morze/Góry/Jeziora/Miasta),
+                // najbliższy tematycznie kolorowi zarezerwowanemu dla
+                // natury/wybrzeża w tej palecie.
+                className={
+                  isActive
+                    ? "flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-tide/40 has-checked:border-tide has-checked:bg-tide/10 active:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
+                    : "flex cursor-not-allowed items-center gap-3 rounded-lg border border-black/[.08] bg-zinc-100 p-3 opacity-60 dark:border-white/[.145] dark:bg-zinc-800"
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={regionTypes.includes(option)}
+                  disabled={!isActive}
+                  onChange={() => isActive && toggleValue(setRegionTypes, option)}
+                  className="h-4 w-4 accent-tide disabled:cursor-not-allowed"
+                />
+                <span className="text-black dark:text-zinc-50">
+                  {option}
+                  {!isActive && (
+                    <span className="ml-1 text-xs text-zinc-500">(wkrótce)</span>
+                  )}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Zainteresowania
+        </h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie miejsca.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          {INTEREST_OPTIONS.map((interest) => (
+            <label
+              key={interest}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+            >
+              <input
+                type="checkbox"
+                checked={interests.includes(interest)}
+                onChange={() => toggleInterest(interest)}
+                className="h-4 w-4 accent-honey"
+              />
+              <span className="text-black dark:text-zinc-50">{interest}</span>
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <label className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Liczba dni: {days}
+        </label>
+        <input
+          type="range"
+          min={1}
+          max={14}
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="mt-3 w-full"
+        />
+      </section>
+
+      <section>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
           Punkt startowy
         </h2>
         <div className="mt-3 flex flex-col gap-3">
@@ -325,151 +415,6 @@ export default function PlanerForm({
       </section>
 
       <section>
-        <label className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Liczba dni: {days}
-        </label>
-        <input
-          type="range"
-          min={1}
-          max={14}
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-          className="mt-3 w-full"
-        />
-      </section>
-
-      <section>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Zainteresowania
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie miejsca.
-        </p>
-        <div className="mt-3 flex flex-col gap-2">
-          {INTEREST_OPTIONS.map((interest) => (
-            <label
-              key={interest}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
-            >
-              <input
-                type="checkbox"
-                checked={interests.includes(interest)}
-                onChange={() => toggleInterest(interest)}
-                className="h-4 w-4 accent-honey"
-              />
-              <span className="text-black dark:text-zinc-50">{interest}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Region geograficzny
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Jeśli nic nie zaznaczysz, weźmiemy pod uwagę wszystkie dostępne regiony.
-        </p>
-        <div className="mt-3 flex flex-col gap-2">
-          {REGION_TYPE_OPTIONS.map((option) => {
-            // Poza "Morze" te opcje generowałyby trasę wyłącznie z
-            // automatycznych danych Geoapify, bez żadnej redakcji — patrz
-            // komentarz przy ACTIVE_REGION_TYPE_OPTIONS w placeFilters.ts.
-            // Zostają widoczne (żeby było widać, co appka docelowo obejmie),
-            // ale niedostępne do wyboru, dopóki appka nie ma tam kuratorskiej
-            // treści.
-            const isActive = (ACTIVE_REGION_TYPE_OPTIONS as readonly string[]).includes(
-              option,
-            );
-            return (
-              <label
-                key={option}
-                // Jedyna grupa filtrów, gdzie zamiast domyślnego bursztynu
-                // (patrz reszta formularza) użyty jest morski turkus — to
-                // typ regionu geograficznego (Morze/Góry/Jeziora/Miasta),
-                // najbliższy tematycznie kolorowi zarezerwowanemu dla
-                // natury/wybrzeża w tej palecie.
-                className={
-                  isActive
-                    ? "flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-tide/40 has-checked:border-tide has-checked:bg-tide/10 active:bg-tide/10 dark:border-white/[.145] dark:bg-zinc-900"
-                    : "flex cursor-not-allowed items-center gap-3 rounded-lg border border-black/[.08] bg-zinc-100 p-3 opacity-60 dark:border-white/[.145] dark:bg-zinc-800"
-                }
-              >
-                <input
-                  type="checkbox"
-                  checked={regionTypes.includes(option)}
-                  disabled={!isActive}
-                  onChange={() => isActive && toggleValue(setRegionTypes, option)}
-                  className="h-4 w-4 accent-tide disabled:cursor-not-allowed"
-                />
-                <span className="text-black dark:text-zinc-50">
-                  {option}
-                  {!isActive && (
-                    <span className="ml-1 text-xs text-zinc-500">(wkrótce)</span>
-                  )}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </section>
-
-      <details className="group rounded-lg border border-black/[.08] p-4 dark:border-white/[.145]">
-        <summary className="cursor-pointer text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Filtry zaawansowane
-        </summary>
-
-        <div className="mt-4 flex flex-col gap-6">
-          <div>
-            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Bliskość atrakcji
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Dotyczy głównie noclegów, ale też niektórych atrakcji.
-            </p>
-            <div className="mt-3 flex flex-col gap-2">
-              {NEARBY_ATTRACTION_SUGGESTIONS.map((option) => (
-                <label
-                  key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
-                >
-                  <input
-                    type="checkbox"
-                    checked={nearbyAttractions.includes(option)}
-                    onChange={() => toggleValue(setNearbyAttractions, option)}
-                    className="h-4 w-4 accent-honey"
-                  />
-                  <span className="text-black dark:text-zinc-50">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Otoczenie
-            </h3>
-            <div className="mt-3 flex flex-col gap-2">
-              {SURROUNDINGS_OPTIONS.map((option) => (
-                <label
-                  key={option}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
-                >
-                  <input
-                    type="checkbox"
-                    checked={surroundings.includes(option)}
-                    onChange={() => toggleValue(setSurroundings, option)}
-                    className="h-4 w-4 accent-honey"
-                  />
-                  <span className="text-black dark:text-zinc-50">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </details>
-
-      <section>
         <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
           Środek transportu
         </h2>
@@ -490,35 +435,6 @@ export default function PlanerForm({
                 name="transport"
                 checked={transport === option.value}
                 onChange={() => setTransport(option.value)}
-                className="h-4 w-4 accent-honey"
-              />
-              <span className="text-black dark:text-zinc-50">
-                {option.label}
-              </span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Typ noclegu
-        </h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Dla tras wielodniowych zaproponujemy nocleg na każdy dzień. Jeśli
-          nic nie zaznaczysz, dobierzemy go na podstawie środka transportu.
-        </p>
-        <div className="mt-3 flex flex-col gap-2">
-          {ACCOMMODATION_TYPE_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
-            >
-              <input
-                type="radio"
-                name="accommodationType"
-                checked={accommodationType === option.value}
-                onChange={() => setAccommodationType(option.value)}
                 className="h-4 w-4 accent-honey"
               />
               <span className="text-black dark:text-zinc-50">
@@ -620,6 +536,90 @@ export default function PlanerForm({
           />
         </label>
       )}
+
+      <details className="group rounded-lg border border-black/[.08] p-4 dark:border-white/[.145]">
+        <summary className="cursor-pointer text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Filtry zaawansowane
+        </summary>
+
+        <div className="mt-4 flex flex-col gap-6">
+          <div>
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Typ noclegu
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Dla tras wielodniowych zaproponujemy nocleg na każdy dzień. Jeśli
+              nic nie zaznaczysz, dobierzemy go na podstawie środka transportu.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {ACCOMMODATION_TYPE_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+                >
+                  <input
+                    type="radio"
+                    name="accommodationType"
+                    checked={accommodationType === option.value}
+                    onChange={() => setAccommodationType(option.value)}
+                    className="h-4 w-4 accent-honey"
+                  />
+                  <span className="text-black dark:text-zinc-50">
+                    {option.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Bliskość atrakcji
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              Dotyczy głównie noclegów, ale też niektórych atrakcji.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {NEARBY_ATTRACTION_SUGGESTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={nearbyAttractions.includes(option)}
+                    onChange={() => toggleValue(setNearbyAttractions, option)}
+                    className="h-4 w-4 accent-honey"
+                  />
+                  <span className="text-black dark:text-zinc-50">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Otoczenie
+            </h3>
+            <div className="mt-3 flex flex-col gap-2">
+              {SURROUNDINGS_OPTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={surroundings.includes(option)}
+                    onChange={() => toggleValue(setSurroundings, option)}
+                    className="h-4 w-4 accent-honey"
+                  />
+                  <span className="text-black dark:text-zinc-50">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </details>
 
       <button
         type="submit"
