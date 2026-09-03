@@ -180,6 +180,24 @@ export function looksLikeNonTouristPlace(
   return hasDisqualifyingCategory(categories) || NON_TOURIST_NAME_PATTERN.test(name.trim());
 }
 
+// Filtr swoisty dla kategorii "Jeziora" (patrz podłączenie w fetchPlaces
+// niżej) — sprawdzone bezpośrednio w dokumentacji Geoapify (03.09): w
+// odróżnieniu od "Parki Narodowe" (gdzie ratowało zawężenie do
+// "national_park"), kategoria "natural.water" NIE MA żadnej węższej
+// podkategorii dla "jezioro" — jej rodzeństwo to bay/geyser/hot_spring/
+// reef/river_system/sea/spring/whitewater, nic bliższego. W praktyce
+// obejmuje więc też zatopione kopalnie i przemysłowe baseny składowe,
+// otagowane w OSM identycznie jak prawdziwe jeziora (zweryfikowane
+// bezpośrednim zapytaniem: "Dawna kopalnia kredy" i "Basen składowy" mają
+// dokładnie te same kategorie co realne jeziora). Szum dużo rzadszy niż
+// przy Parkach Narodowych, ale realny — stąd druga, niezależna linia
+// obrony po nazwie, ten sam wzorzec co looksLikeNonTouristPlace.
+const NON_LAKE_WATER_NAME_PATTERN = /kopalni|\bbasen/i;
+
+export function looksLikeNonLakeWaterFeature(name: string): boolean {
+  return NON_LAKE_WATER_NAME_PATTERN.test(name.trim());
+}
+
 type GeoapifyDetailsFeature = {
   properties: {
     name?: string;
@@ -341,7 +359,18 @@ async function fetchPlaces({
   regionTypes,
 }: PlacesProviderParams): Promise<ExternalPlaceResult[]> {
   const categories = resolveCategories(interests, regionTypes);
-  return fetchProtectedPlaces({ categories, center, radiusMeters, limit, exclude });
+  const results = await fetchProtectedPlaces({ categories, center, radiusMeters, limit, exclude });
+
+  // Filtr swoisty dla "Jeziora" — patrz komentarz przy
+  // looksLikeNonLakeWaterFeature. Stosowany tu, a nie w fetchProtectedPlaces,
+  // bo to filtr znający semantykę NASZYCH zainteresowań/kategorii bocznego
+  // menu — fetchProtectedPlaces celowo o nich nic nie wie (przyjmuje surowe
+  // kategorie Geoapify od dowolnego wywołującego, patrz jej komentarz).
+  if (interests.includes("Jeziora")) {
+    return results.filter((r) => !looksLikeNonLakeWaterFeature(r.title));
+  }
+
+  return results;
 }
 
 // Dociąga na żywo szczegóły jednego miejsca po jego Geoapify place_id.

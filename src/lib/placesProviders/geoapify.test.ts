@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { looksLikeNonTouristPlace } from "./geoapify";
+import { looksLikeNonTouristPlace, looksLikeNonLakeWaterFeature } from "./geoapify";
 
 // Przypadki, które faktycznie pojawiły się jako "przystanki" w
 // wygenerowanych trasach na produkcji (Środkowe/Wschodnie wybrzeże,
@@ -68,4 +68,24 @@ test("NIE odrzuca nazw, które tylko przypadkiem zawierają fragment wzorca", ()
   // zawierająca w środku ciąg podobny do skrótu tytułu, ale nie na
   // początku i nie jako osobne słowo, nie powinna być odrzucana.
   assert.equal(looksLikeNonTouristPlace("Ośrodek Wypoczynkowy Drewniana Chata", []), false);
+});
+
+// Dowód dla filtra swoistego dla "Jeziora" (zgłoszenie 03.09) — Geoapify
+// nie ma węższej kategorii niż "natural.water" dla jezior (sprawdzone w
+// dokumentacji), więc te dwa przykłady mają dokładnie te same kategorie co
+// prawdziwe jeziora ["natural","natural.water"] — jedyny sygnał, po którym
+// da się je odróżnić, to nazwa.
+test("looksLikeNonLakeWaterFeature odrzuca zatopioną kopalnię i przemysłowy basen składowy", () => {
+  assert.equal(looksLikeNonLakeWaterFeature("Dawna kopalnia kredy"), true);
+  assert.equal(looksLikeNonLakeWaterFeature("Basen składowy"), true);
+  assert.equal(looksLikeNonLakeWaterFeature("Basen"), true);
+});
+
+test("looksLikeNonLakeWaterFeature NIE odrzuca prawdziwych jezior, w tym bez słowa „Jezioro” w nazwie", () => {
+  assert.equal(looksLikeNonLakeWaterFeature("Jezioro Chobienickie"), false);
+  assert.equal(looksLikeNonLakeWaterFeature("Czarny Staw"), false);
+  // Nazwy krótkich jezior bez prefiksu "Jezioro" (częste w OSM) — nie mogą
+  // być odrzucane tylko dlatego, że są niestandardowe.
+  assert.equal(looksLikeNonLakeWaterFeature("Wilcze"), false);
+  assert.equal(looksLikeNonLakeWaterFeature("Trzy Tonie"), false);
 });
