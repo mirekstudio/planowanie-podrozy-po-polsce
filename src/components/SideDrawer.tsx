@@ -219,6 +219,7 @@ export default function SideDrawer({
   const { user, loading } = useAuth();
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [visitedCount, setVisitedCount] = useState(0);
+  const [savedRoutesCount, setSavedRoutesCount] = useState(0);
   const [placesCount, setPlacesCount] = useState(0);
   const [featuredCount, setFeaturedCount] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
@@ -255,6 +256,10 @@ export default function SideDrawer({
       .from("visited")
       .select("*", { count: "exact", head: true })
       .then(({ count }) => setVisitedCount(count ?? 0));
+    supabase
+      .from("saved_routes")
+      .select("*", { count: "exact", head: true })
+      .then(({ count }) => setSavedRoutesCount(count ?? 0));
   }, [open, user]);
 
   useEffect(() => {
@@ -384,19 +389,6 @@ export default function SideDrawer({
                 </svg>
               }
             />
-            <FeaturedLink
-              href="/trasa"
-              onClick={onClose}
-              label="Planowanie trasy"
-              icon={
-                <svg {...iconProps}>
-                  <path d="M8 6h13M8 12h13M8 18h13" />
-                  <circle cx="4" cy="6" r="1" fill="currentColor" />
-                  <circle cx="4" cy="12" r="1" fill="currentColor" />
-                  <circle cx="4" cy="18" r="1" fill="currentColor" />
-                </svg>
-              }
-            />
           </div>
 
           <hr className="my-2 border-black/[.08] dark:border-white/[.145]" />
@@ -452,6 +444,29 @@ export default function SideDrawer({
               </svg>
             }
           />
+
+          {/* W przeciwieństwie do Ulubione/Odwiedzone (zawsze widoczne, z
+              podpowiedzią "Wymaga konta" dla niezalogowanych) — Moje trasy
+              świadomie pokazujemy tylko po zalogowaniu. To nie jest ogólna
+              funkcja appki dostępna każdemu bez kontekstu, tylko osobiste
+              archiwum tras konkretnego konta; dla niezalogowanego i tak
+              byłoby zawsze puste. */}
+          {user && (
+            <DrawerLink
+              href="/moje-trasy"
+              onClick={onClose}
+              label="Moje trasy"
+              count={savedRoutesCount}
+              icon={
+                <svg {...iconProps}>
+                  <path d="M8 6h13M8 12h13M8 18h13" />
+                  <circle cx="4" cy="6" r="1" fill="currentColor" />
+                  <circle cx="4" cy="12" r="1" fill="currentColor" />
+                  <circle cx="4" cy="18" r="1" fill="currentColor" />
+                </svg>
+              }
+            />
+          )}
 
           <hr className="my-2 border-black/[.08] dark:border-white/[.145]" />
 

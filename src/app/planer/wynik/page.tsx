@@ -8,6 +8,7 @@ import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
 import StartNavigationButton from "@/components/StartNavigationButton";
 import SelectRouteButton from "@/components/SelectRouteButton";
+import SaveRouteButton from "@/components/SaveRouteButton";
 import BackLink from "@/components/BackLink";
 import AccommodationCard from "@/components/AccommodationCard";
 import {
@@ -225,6 +226,19 @@ export default async function PlanerWynikPage({
     );
   }
 
+  // Etykieta do wyświetlenia na liście "Moje trasy" — sam URL parametrów nie
+  // mówi userowi nic na pierwszy rzut oka, tytuł wariantu + dni + start już
+  // tak. Zapisujemy dokładnie te parametry (włącznie z "variant"), którymi
+  // wygenerowano tę stronę — otwarcie zapisanej trasy to nawigacja pod ten
+  // sam URL, bez przechodzenia przez formularz Planera od nowa.
+  const savedRouteLabel = `${selectedVariant.title} — ${days} ${
+    days === 1 ? "dzień" : "dni"
+  }${startPoint ? `, start: ${startPoint.label}` : ""}`;
+  const savedRouteParams: Record<string, string> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value) savedRouteParams[key] = value;
+  }
+
   const route = selectedVariant.route;
 
   // Nocleg proponujemy tylko dla tras wielodniowych (patrz zgłoszenie,
@@ -276,6 +290,10 @@ export default async function PlanerWynikPage({
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <SelectRouteButton />
           <StartNavigationButton stops={route.stops} startPoint={startPoint} />
+        </div>
+
+        <div className="mt-3">
+          <SaveRouteButton label={savedRouteLabel} params={savedRouteParams} />
         </div>
 
         <ol className="mt-8 flex flex-col gap-4">
