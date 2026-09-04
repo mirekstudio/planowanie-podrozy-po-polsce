@@ -1,8 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Place } from "@/data/places";
-import { generateRouteVariants } from "./generateRoute";
-import { COASTAL_SUB_REGIONS, isWithinBounds, type Bounds } from "./poland";
+import { generateRoute, generateRouteVariants } from "./generateRoute";
+import {
+  COASTAL_SUB_REGIONS,
+  WIELKOPOLSKA_REGION,
+  isWithinBounds,
+  type Bounds,
+} from "./poland";
 
 // Testy "z dowodami" (współrzędne, nie tylko podgląd na mapie) dla
 // strażnika granic podregionów wybrzeża — patrz enforceSubRegionBounds w
@@ -164,6 +169,86 @@ test("błędnie otagowane/błędne współrzędne nigdy nie trafiają do żadneg
   assert.ok(
     !allStopSlugs.includes(WILDLY_WRONG_BASIC.slug),
     "miejsce z całkowicie błędnymi współrzędnymi (Berlin) nigdy nie powinno pojawić się w wygenerowanej trasie",
+  );
+});
+
+// Testy "z dowodami" dla uproszczenia architektury (usunięcie punktu
+// startowego z generowania trasy, zgłoszenie: "wybór punktu startowego
+// przenosimy na etap 'Start — nawiguj'"): generowanie trasy nie przyjmuje
+// już w ogóle punktu startowego użytkownika (patrz RouteOptions w
+// generateRoute.ts), więc algorytm sortowania musi sam wybrać sensowny
+// geograficzny punkt "wjazdu" w region — sprawdzamy, że faktycznie to
+// robi (dystans do stałej kotwicy), a nie że po prostu bierze pierwsze z
+// brzegu miejsce po sortOrder (stare zachowanie sprzed tej zmiany).
+test("bez wybranego typu regionu trasa zaczyna się od miejsca najbliższego Poznaniu (brama Wielkopolski), nie od miejsca z najniższym sortOrder", () => {
+  const daleko = makePlace({
+    slug: "daleko-od-poznania",
+    title: "Daleko od Poznania",
+    lat: 49.3,
+    lng: 19.95,
+    tags: ["Historia"],
+    regionType: [],
+    sortOrder: 1, // celowo "najlepszy" sortOrder — wygrałby w starej logice
+  });
+  const blisko = makePlace({
+    slug: "blisko-poznania",
+    title: "Blisko Poznania",
+    lat: WIELKOPOLSKA_REGION.anchors[0].lat + 0.05,
+    lng: WIELKOPOLSKA_REGION.anchors[0].lng + 0.05,
+    tags: ["Historia"],
+    regionType: [],
+    sortOrder: 99, // celowo "najgorszy" sortOrder — przegrałby w starej logice
+  });
+
+  const route = generateRoute([daleko, blisko], { days: 3, interests: [] });
+
+  assert.equal(
+    route.stops[0]?.slug,
+    "blisko-poznania",
+    `Pierwszy przystanek powinien być geograficznie najbliżej Poznania, ` +
+      `a wyszedł "${route.stops[0]?.title}" (sortOrder=${route.stops[0]?.sortOrder}).`,
+  );
+});
+
+test("w klastrze wybrzeża pierwszy przystanek jest najbliżej WŁASNEJ kotwicy tego klastra (Jarosławiec), a nie miejsca z najniższym sortOrder", () => {
+  const jaroslawiecAnchor = COASTAL_SUB_REGIONS.find(
+    (s) => s.id === "zachodnie-wybrzeze",
+  )!.anchors[2]; // Jarosławiec — trzecia kotwica zachodniego wybrzeża
+
+  const koloJaroslawca = makePlace({
+    slug: "kolo-jaroslawca",
+    title: "Tuż przy Jarosławcu",
+    lat: jaroslawiecAnchor.lat,
+    lng: jaroslawiecAnchor.lng,
+    source: "basic",
+    region: "zachodnie-wybrzeze",
+    regionType: ["Morze"],
+    sortOrder: 99, // celowo "najgorszy" sortOrder
+  });
+  const koloUstki = makePlace({
+    slug: "kolo-ustki",
+    title: "Tuż przy Ustce",
+    lat: 54.5805,
+    lng: 16.8614,
+    source: "basic",
+    region: "zachodnie-wybrzeze",
+    regionType: ["Morze"],
+    sortOrder: 1, // celowo "najlepszy" sortOrder — wygrałby w starej logice
+  });
+
+  const variants = generateRouteVariants([koloJaroslawca, koloUstki], {
+    days: 3, // 3 dni na 3 kotwice zachodniego wybrzeża = po 1 dniu na klaster
+    interests: [],
+    regionTypes: ["Morze"],
+  });
+
+  const zachodniWariant = variants.find((v) => v.id === "zachodnie-wybrzeze");
+  assert.ok(zachodniWariant, "powinien powstać wariant zachodniego wybrzeża");
+  assert.equal(
+    zachodniWariant!.route.stops[0]?.slug,
+    "kolo-jaroslawca",
+    `Pierwszy przystanek klastra Jarosławiec powinien być najbliżej JEGO ` +
+      `własnej kotwicy, a wyszedł "${zachodniWariant!.route.stops[0]?.title}".`,
   );
 });
 

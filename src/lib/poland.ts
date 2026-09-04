@@ -1,4 +1,5 @@
 import type { Coordinates } from "@/lib/generateRoute";
+import { centroid } from "@/lib/geo";
 
 // Przybliżony prostokąt otaczający terytorium Polski — twardy filtr
 // geograficzny dla zapytań do Geoapify, żeby wyniki nigdy nie wykraczały
@@ -68,6 +69,20 @@ export const REGION_TYPE_ANCHORS: Partial<Record<string, Coordinates>> = {
 // Ostateczny fallback, gdy nie ma żadnego innego punktu odniesienia
 // (np. pusta baza kuratorska i brak punktu startowego).
 export const POLAND_CENTER: Coordinates = { lat: 52.0, lng: 19.0 };
+
+// Środek ciężkości kotwic wszystkich wybranych typów regionu (REGION_TYPE_
+// ANCHORS powyżej) — gdy wybrano kilka naraz (rzadkie, bo dziś realnie
+// aktywne jest tylko "Morze"), liczymy jeden reprezentatywny punkt zamiast
+// arbitralnie wybierać pierwszy z listy. Współdzielone przez
+// getRoutePlaces.ts (środek wyszukiwania uzupełnienia z Geoapify) i
+// generateRoute.ts (geograficzny punkt startowy sortowania trasy, patrz
+// entryAnchor) — jedno miejsce definicji, żeby oba nie mogły się rozjechać.
+export function regionAnchor(regionTypes: string[] | undefined): Coordinates | null {
+  const anchors = (regionTypes ?? [])
+    .map((type) => REGION_TYPE_ANCHORS[type])
+    .filter((a): a is Coordinates => Boolean(a));
+  return centroid(anchors);
+}
 
 export type Bounds = {
   minLat: number;

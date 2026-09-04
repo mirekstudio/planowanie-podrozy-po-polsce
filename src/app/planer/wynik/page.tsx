@@ -5,10 +5,7 @@ import type { Place } from "@/data/places";
 import { getRoutePlaces } from "@/lib/getRoutePlaces";
 import { generateRouteVariants, type RouteVariant } from "@/lib/generateRoute";
 import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
-import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
-import StartNavigationButton from "@/components/StartNavigationButton";
-import SelectRouteButton from "@/components/SelectRouteButton";
-import SaveRouteButton from "@/components/SaveRouteButton";
+import RouteMapAndActions from "@/components/RouteMapAndActions";
 import BackLink from "@/components/BackLink";
 import AccommodationCard from "@/components/AccommodationCard";
 import {
@@ -82,19 +79,15 @@ export default async function PlanerWynikPage({
   const childrenAges = parseNumberList(params.children);
   const accommodationType = parseAccommodationType(params.accommodationType);
 
-  const startPoint =
-    params.startLat && params.startLng
-      ? {
-          lat: Number(params.startLat),
-          lng: Number(params.startLng),
-          label: params.startLabel ?? "Punkt startowy",
-        }
-      : null;
-
+  // Generowanie trasy działa CAŁKOWICIE niezależnie od punktu startowego
+  // użytkownika — appka pyta o niego dopiero na etapie "Start — nawiguj"
+  // (patrz RouteMapAndActions), długo po tym, jak trasa została ułożona.
+  // Algorytm sortowania (generateRoute.ts) dobiera sobie sam geograficzny
+  // punkt "wjazdu" w wybrany region (patrz pickEntryAnchor) — appka nigdy
+  // nie musi w tym celu znać realnej lokalizacji użytkownika.
   const places = await getRoutePlaces({
     days,
     interests,
-    startPoint,
     regionTypes,
     surroundings: surroundingsFilter,
     nearbyAttractions,
@@ -103,7 +96,6 @@ export default async function PlanerWynikPage({
   const variants = generateRouteVariants(places, {
     days,
     interests,
-    startPoint,
     childrenAges: travelGroup === "family" ? childrenAges : undefined,
     regionTypes,
     surroundings: surroundingsFilter,
@@ -133,11 +125,6 @@ export default async function PlanerWynikPage({
             ? "Solo"
             : `${numAdults} dorosłych`}
       </span>
-      {startPoint && (
-        <span className="rounded-full border border-black/[.08] px-3 py-1 dark:border-white/[.145]">
-          🏁 Start: {startPoint.label}
-        </span>
-      )}
       {interests.map((interest) => (
         <span
           key={interest}
@@ -215,7 +202,6 @@ export default async function PlanerWynikPage({
                 <VariantCard
                   key={variant.id}
                   variant={variant}
-                  startPoint={startPoint}
                   href={hrefForVariant(params, variant.id)}
                 />
               ))}
@@ -227,13 +213,15 @@ export default async function PlanerWynikPage({
   }
 
   // Etykieta do wyświetlenia na liście "Moje trasy" — sam URL parametrów nie
-  // mówi userowi nic na pierwszy rzut oka, tytuł wariantu + dni + start już
-  // tak. Zapisujemy dokładnie te parametry (włącznie z "variant"), którymi
+  // mówi userowi nic na pierwszy rzut oka, tytuł wariantu + dni już tak.
+  // Bez punktu startowego (appka pyta o niego dopiero na etapie "Start —
+  // nawiguj", nie zapisujemy go razem z trasą — patrz RouteMapAndActions).
+  // Zapisujemy dokładnie te parametry (włącznie z "variant"), którymi
   // wygenerowano tę stronę — otwarcie zapisanej trasy to nawigacja pod ten
   // sam URL, bez przechodzenia przez formularz Planera od nowa.
   const savedRouteLabel = `${selectedVariant.title} — ${days} ${
     days === 1 ? "dzień" : "dni"
-  }${startPoint ? `, start: ${startPoint.label}` : ""}`;
+  }`;
   const savedRouteParams: Record<string, string> = {};
   for (const [key, value] of Object.entries(params)) {
     if (value) savedRouteParams[key] = value;
@@ -283,18 +271,11 @@ export default async function PlanerWynikPage({
           </p>
         )}
 
-        <div className="mt-8">
-          <MapboxRouteMapLoader stops={route.stops} startPoint={startPoint} />
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <SelectRouteButton />
-          <StartNavigationButton stops={route.stops} startPoint={startPoint} />
-        </div>
-
-        <div className="mt-3">
-          <SaveRouteButton label={savedRouteLabel} params={savedRouteParams} />
-        </div>
+        <RouteMapAndActions
+          stops={route.stops}
+          savedRouteLabel={savedRouteLabel}
+          savedRouteParams={savedRouteParams}
+        />
 
         <ol className="mt-8 flex flex-col gap-4">
           {daysWithAccommodation.map(({ day, places: dayPlaces, accommodationOptions }) => (
@@ -414,17 +395,18 @@ function ItineraryPlaceCard({ place }: { place: Place }) {
 
 function VariantCard({
   variant,
-  startPoint,
   href,
 }: {
   variant: RouteVariant;
-  startPoint: { lat: number; lng: number } | null;
   href: string;
 }) {
   const usedDays = variant.route.days.filter((d) => d.places.length > 0).length;
+  // Punkt startowy nie jest jeszcze znany na etapie wyboru wariantu (appka
+  // pyta o niego dopiero przy "Start — nawiguj") — miniatura pokazuje więc
+  // tylko same przystanki, bez zielonego pinezki startu.
   const thumbnail = buildRouteThumbnailUrl(
     variant.route.stops.map((p) => ({ lat: p.lat, lng: p.lng })),
-    startPoint,
+    null,
   );
 
   return (

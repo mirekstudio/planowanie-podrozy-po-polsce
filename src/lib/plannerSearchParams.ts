@@ -12,9 +12,6 @@ export type PlannerSearchParams = {
   travelGroup?: string;
   numAdults?: string;
   children?: string;
-  startLat?: string;
-  startLng?: string;
-  startLabel?: string;
   accommodationType?: string;
   variant?: string;
 };
@@ -87,14 +84,6 @@ export function parsePlannerInitialValues(
           : "adults",
     numAdults: Math.max(1, Number(params.numAdults) || 1),
     childrenAges: childrenAges.length > 0 ? childrenAges : undefined,
-    startPoint:
-      params.startLat && params.startLng
-        ? {
-            lat: Number(params.startLat),
-            lng: Number(params.startLng),
-            label: params.startLabel ?? "Punkt startowy",
-          }
-        : null,
     accommodationType: parseAccommodationType(params.accommodationType),
   };
 }

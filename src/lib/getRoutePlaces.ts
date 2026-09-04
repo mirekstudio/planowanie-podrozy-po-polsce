@@ -1,6 +1,6 @@
 import type { Place } from "@/data/places";
 import { filterCandidates, type Coordinates, type RouteOptions } from "@/lib/generateRoute";
-import { distanceKm } from "@/lib/geo";
+import { centroid, distanceKm } from "@/lib/geo";
 import {
   activePlacesProvider,
   type ExcludedPlace,
@@ -12,7 +12,7 @@ import {
   REGION_TYPE_ANCHORS,
   SPREAD_REGION_SUB_REGIONS,
   POLAND_CENTER,
-  isWithinPoland,
+  regionAnchor,
   isWithinBounds,
   isWithinSupportedRegions,
   type SubRegion,
@@ -87,43 +87,24 @@ function dedupeAcrossSubRegions(
   return [...byExternalId.values()];
 }
 
-function centroid(points: Coordinates[]): Coordinates | null {
-  if (points.length === 0) return null;
-  const sum = points.reduce(
-    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
-    { lat: 0, lng: 0 },
-  );
-  return { lat: sum.lat / points.length, lng: sum.lng / points.length };
-}
-
-// Jeśli wybrano typ regionu wskazujący na konkretny obszar Polski (np.
-// "Morze"), to on wyznacza środek wyszukiwania — niezależnie od tego,
-// gdzie jest punkt startowy. Dzięki temu "Morze" ze startem w Zurychu
-// nadal szuka nad Bałtykiem, a nie w promieniu od Zurychu.
-function regionAnchor(regionTypes: string[] | undefined): Coordinates | null {
-  const anchors = (regionTypes ?? [])
-    .map((type) => REGION_TYPE_ANCHORS[type])
-    .filter((a): a is Coordinates => Boolean(a));
-  return centroid(anchors);
-}
-
 // Wybiera środek wyszukiwania miejsc podstawowych, z priorytetem:
 // 1) obszar geograficzny wskazany przez typ_regionu (jeśli konkretny),
 // 2) środek ciężkości już pasujących miejsc kuratorskich (zawsze w Polsce),
-// 3) punkt startowy — ale TYLKO jeśli leży w Polsce (start za granicą,
-//    np. w Zurychu, nie może przesuwać wyszukiwania poza kraj),
-// 4) środek ciężkości całej bazy kuratorskiej,
-// 5) geograficzny środek Polski jako ostateczny fallback.
+// 3) środek ciężkości całej bazy kuratorskiej,
+// 4) geograficzny środek Polski jako ostateczny fallback.
+// Celowo NIE bierze pod uwagę punktu startowego użytkownika — appka pyta o
+// niego dopiero na etapie "Start — nawiguj", długo po tym, jak trasa
+// została wygenerowana (patrz uproszczenie architektury: generowanie trasy
+// działa wyłącznie w obrębie Polski, niezależnie od tego, skąd wyruszy
+// użytkownik).
 function pickSearchCenter(
   regionTypes: string[] | undefined,
   matching: Place[],
   curated: Place[],
-  startPoint: Coordinates | null | undefined,
 ): Coordinates {
   return (
     regionAnchor(regionTypes) ??
     centroid(matching.map((p) => ({ lat: p.lat, lng: p.lng }))) ??
-    (startPoint && isWithinPoland(startPoint) ? startPoint : null) ??
     centroid(curated.map((p) => ({ lat: p.lat, lng: p.lng }))) ??
     POLAND_CENTER
   );
@@ -210,7 +191,7 @@ async function fetchSupplementFrom(
 
 export type GetRoutePlacesOptions = Pick<
   RouteOptions,
-  "days" | "interests" | "startPoint" | "regionTypes" | "surroundings" | "nearbyAttractions"
+  "days" | "interests" | "regionTypes" | "surroundings" | "nearbyAttractions"
 >;
 
 // Rdzeń logiki, oddzielony od realnego zapytania do Supabase — testowalny
@@ -298,12 +279,7 @@ export async function resolveRoutePlaces(
     return curated;
   }
 
-  const center = pickSearchCenter(
-    options.regionTypes,
-    matching,
-    curated,
-    options.startPoint,
-  );
+  const center = pickSearchCenter(options.regionTypes, matching, curated);
 
   const results = await fetchSupplementFrom(
     provider,

@@ -1,6 +1,13 @@
 import type { Place } from "@/data/places";
 import { distanceKm } from "@/lib/geo";
-import { SPREAD_REGION_SUB_REGIONS, isWithinBounds, type Bounds } from "@/lib/poland";
+import {
+  SPREAD_REGION_SUB_REGIONS,
+  WIELKOPOLSKA_REGION,
+  POLAND_CENTER,
+  regionAnchor,
+  isWithinBounds,
+  type Bounds,
+} from "@/lib/poland";
 
 const VISIT_HOURS = 2.5;
 const DAILY_HOURS_MAX = 7;
@@ -14,7 +21,6 @@ export type Coordinates = { lat: number; lng: number };
 export type RouteOptions = {
   days: number;
   interests: string[];
-  startPoint?: Coordinates | null;
   childrenAges?: number[];
   // Miejsca z tym tagiem są preferowane przy układaniu kolejności
   // odwiedzin, więc częściej mieszczą się w limicie dni/godzin.
@@ -28,7 +34,35 @@ export type RouteOptions = {
   regionTypes?: string[];
   surroundings?: string[];
   nearbyAttractions?: string[];
+  // Geograficzny punkt, od którego algorytm zaczyna sortowanie trasy
+  // (najbliższego sąsiada) — WEWNĘTRZNA heurystyka, nigdy nie pochodzi od
+  // użytkownika. Appka pyta o prawdziwy punkt startowy dopiero na etapie
+  // "Start — nawiguj", długo po wygenerowaniu trasy (patrz uproszczenie
+  // architektury: generowanie ma działać wyłącznie w obrębie Polski,
+  // niezależnie od tego, skąd faktycznie wyruszy użytkownik). Gdy
+  // nieustawiony, generateRoute dobiera go sam na podstawie regionTypes —
+  // patrz pickEntryAnchor. Ustawiany jawnie tylko przez
+  // generateRouteVariants dla podregionów z kilkoma kotwicami (np.
+  // wybrzeże), żeby każdy klaster zaczynał się od WŁASNEJ, a nie wspólnej
+  // dla całego regionu, kotwicy.
+  entryAnchor?: Coordinates | null;
 };
+
+// Geograficzny punkt "wjazdu" w wybrany obszar, używany WYŁĄCZNIE do
+// wybrania, od którego miejsca algorytm najbliższego sąsiada zaczyna
+// układać kolejność zwiedzania — nigdy do liczenia realnego dystansu/czasu
+// (patrz orderByProximity/generateRoute niżej: pierwszy przystanek zawsze
+// liczy się z zerowym czasem dojazdu, bo z punktu widzenia użytkownika to
+// wciąż "pierwsze miejsce", nie odcinek podróży). Priorytet:
+// 1) kotwica(-i) wybranego typu regionu (np. Ustka dla "Morze"),
+// 2) Poznań — praktyczna "brama" drugiego obsługiwanego dziś obszaru
+//    (Wielkopolska),
+// 3) geograficzny środek Polski jako ostateczny, uniwersalny fallback.
+function pickEntryAnchor(regionTypes: string[] | undefined): Coordinates {
+  return (
+    regionAnchor(regionTypes) ?? WIELKOPOLSKA_REGION.anchors[0] ?? POLAND_CENTER
+  );
+}
 
 export type RouteDay = {
   day: number;
@@ -67,31 +101,33 @@ function effectiveDistance(
     : distance;
 }
 
+// `entryAnchor` decyduje WYŁĄCZNIE o tym, które miejsce trafia na pierwszą
+// pozycję (patrz pickEntryAnchor) — od drugiego miejsca w górę algorytm
+// zawsze kontynuuje łańcuch najbliższego sąsiada od poprzedniego
+// PRZYSTANKU, nigdy od anchora ponownie.
 function orderByProximity(
   places: Place[],
-  start: Coordinates | null,
+  entryAnchor: Coordinates,
   focusTag: string | null | undefined,
 ): Place[] {
   const remaining = [...places].sort((a, b) => {
     const focusDiff = Number(matchesFocus(b, focusTag)) - Number(matchesFocus(a, focusTag));
-    return focusDiff !== 0 ? focusDiff : a.sortOrder - b.sortOrder;
+    return focusDiff !== 0
+      ? focusDiff
+      : effectiveDistance(entryAnchor, a, focusTag) - effectiveDistance(entryAnchor, b, focusTag);
   });
   const ordered: Place[] = [];
 
-  let current: Coordinates | null = start;
-
-  if (!current) {
-    const first = remaining.shift();
-    if (!first) return ordered;
-    ordered.push(first);
-    current = first;
-  }
+  const first = remaining.shift();
+  if (!first) return ordered;
+  ordered.push(first);
+  let current: Coordinates = first;
 
   while (remaining.length > 0) {
     remaining.sort(
       (a, b) =>
-        effectiveDistance(current!, a, focusTag) -
-        effectiveDistance(current!, b, focusTag),
+        effectiveDistance(current, a, focusTag) -
+        effectiveDistance(current, b, focusTag),
     );
     const next = remaining.shift()!;
     ordered.push(next);
@@ -101,9 +137,15 @@ function orderByProximity(
   return ordered;
 }
 
-function calcTotalDistance(stops: Place[], start: Coordinates | null): number {
+// Suma odległości WYŁĄCZNIE między kolejnymi przystankami — celowo bez
+// żadnego "punktu zerowego" (ani entryAnchor, ani prawdziwego punktu
+// startowego): to pierwsze pokazywałoby fikcyjny odcinek, którego
+// użytkownik nigdy nie przejedzie (entryAnchor to tylko heurystyka
+// sortowania, patrz pickEntryAnchor), a drugi appka poznaje dopiero na
+// etapie "Start — nawiguj", długo po policzeniu tego dystansu.
+function calcTotalDistance(stops: Place[]): number {
   let total = 0;
-  let prev: Coordinates | null = start;
+  let prev: Coordinates | null = null;
 
   for (const stop of stops) {
     if (prev) total += distanceKm(prev, stop);
@@ -171,8 +213,8 @@ export function generateRoute(
     candidates = places;
   }
 
-  const startCoords = options.startPoint ?? null;
-  const ordered = orderByProximity(candidates, startCoords, focusTag);
+  const entryAnchor = options.entryAnchor ?? pickEntryAnchor(options.regionTypes);
+  const ordered = orderByProximity(candidates, entryAnchor, focusTag);
 
   const days: RouteDay[] = Array.from({ length: dayCount }, (_, i) => ({
     day: i + 1,
@@ -182,7 +224,12 @@ export function generateRoute(
   const stops: Place[] = [];
   let dayIndex = 0;
   let dayHoursUsed = 0;
-  let current: Coordinates = startCoords ?? ordered[0] ?? { lat: 0, lng: 0 };
+  // Zaczyna się od PIERWSZEGO PRZYSTANKU, nie od entryAnchor — inaczej
+  // pierwszy przystanek dostałby fikcyjny czas dojazdu od punktu, którego
+  // użytkownik nigdy realnie nie odwiedza (patrz pickEntryAnchor). Z punktu
+  // widzenia budżetu godzin dziennie pierwszy przystanek liczy się więc
+  // wyłącznie czasem zwiedzania.
+  let current: Coordinates = ordered[0] ?? { lat: 0, lng: 0 };
 
   for (const place of ordered) {
     if (dayIndex >= dayCount) break;
@@ -201,7 +248,7 @@ export function generateRoute(
     current = place;
   }
 
-  const totalDistanceKm = calcTotalDistance(stops, startCoords);
+  const totalDistanceKm = calcTotalDistance(stops);
 
   return { stops, days, totalDistanceKm, usedFallback, dailyHoursLimit };
 }
@@ -278,7 +325,6 @@ function enforceSubRegionBounds(
   subRegionId: string,
   anchors: Coordinates[],
   allPlaces: Place[],
-  startPoint: Coordinates | null,
 ): GeneratedRoute {
   const usedSlugs = new Set(route.stops.map((p) => p.slug));
   const replacements = withinSubRegion(allPlaces, subRegionId, anchors).filter(
@@ -322,7 +368,7 @@ function enforceSubRegionBounds(
   return {
     stops,
     days,
-    totalDistanceKm: calcTotalDistance(stops, startPoint),
+    totalDistanceKm: calcTotalDistance(stops),
     usedFallback: route.usedFallback,
     dailyHoursLimit: route.dailyHoursLimit,
   };
@@ -387,7 +433,7 @@ function distributeDays(totalDays: number, parts: number): number[] {
 
 // Łączy kilka wygenerowanych mini-tras (jedna na kotwicę podregionu) w
 // jedną, z ponownie ponumerowanymi dniami po kolei.
-function mergeRoutes(routes: GeneratedRoute[], startPoint: Coordinates | null): GeneratedRoute {
+function mergeRoutes(routes: GeneratedRoute[]): GeneratedRoute {
   const stops = routes.flatMap((r) => r.stops);
   const days: RouteDay[] = [];
   let dayNumber = 0;
@@ -401,7 +447,7 @@ function mergeRoutes(routes: GeneratedRoute[], startPoint: Coordinates | null): 
   return {
     stops,
     days,
-    totalDistanceKm: calcTotalDistance(stops, startPoint),
+    totalDistanceKm: calcTotalDistance(stops),
     usedFallback: routes.some((r) => r.usedFallback),
     dailyHoursLimit: routes[0]?.dailyHoursLimit ?? DAILY_HOURS_MAX,
   };
@@ -485,12 +531,18 @@ export function generateRouteVariants(
                 days: daysPerCluster[i],
                 focusTag: spec.focusTag,
                 paceFactor: spec.paceFactor,
+                // Każdy klaster zaczyna się od WŁASNEJ kotwicy (np. Hel), nie
+                // od jednej wspólnej dla całego podregionu — inaczej mini-trasa
+                // dla dalszego klastra i tak zaczynałaby sortowanie od kotwicy
+                // pierwszego, co bywało geograficznie bez sensu (patrz
+                // pickEntryAnchor/entryAnchor w RouteOptions).
+                entryAnchor: spec.geoAnchors![i],
               })
             : null,
         )
         .filter((r): r is GeneratedRoute => r !== null);
 
-      route = mergeRoutes(subRoutes, options.startPoint ?? null);
+      route = mergeRoutes(subRoutes);
     } else {
       const candidatePool = spec.geoAnchors
         ? withinSubRegion(places, spec.id, spec.geoAnchors)
@@ -500,6 +552,7 @@ export function generateRouteVariants(
         ...options,
         focusTag: spec.focusTag,
         paceFactor: spec.paceFactor,
+        entryAnchor: spec.geoAnchors?.[0] ?? options.entryAnchor,
       });
     }
 
@@ -513,7 +566,6 @@ export function generateRouteVariants(
         spec.id,
         spec.geoAnchors ?? [],
         places,
-        options.startPoint ?? null,
       );
     }
 

@@ -1,3 +1,19 @@
+// Środek ciężkości zbioru punktów — używany wszędzie tam, gdzie trzeba
+// jeden reprezentatywny punkt z kilku (np. kilka wybranych typów regionu,
+// albo kilka już pasujących miejsc kuratorskich). Pusty zbiór nie ma
+// sensownego środka, więc zwracamy null zamiast (0, 0), które wyglądałoby
+// jak realna, ale błędna współrzędna.
+export function centroid<T extends { lat: number; lng: number }>(
+  points: T[],
+): { lat: number; lng: number } | null {
+  if (points.length === 0) return null;
+  const sum = points.reduce(
+    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    { lat: 0, lng: 0 },
+  );
+  return { lat: sum.lat / points.length, lng: sum.lng / points.length };
+}
+
 export function distanceKm(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
