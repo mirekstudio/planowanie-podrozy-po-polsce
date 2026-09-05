@@ -55,6 +55,7 @@ function makeExternal(overrides: Partial<ExternalPlaceResult> = {}): ExternalPla
     image: null,
     imageAlt: "Muzeum Regionalne",
     sourceUrl: null,
+    icon: "📍",
     ...overrides,
   };
 }

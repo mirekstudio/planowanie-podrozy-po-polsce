@@ -4,6 +4,7 @@ import type { Place } from "@/data/places";
 import { getPlaces } from "@/lib/getPlaces";
 import { getCategoryPlaces } from "@/lib/getCategoryPlaces";
 import BackButton from "@/components/BackButton";
+import BasicPlaceThumbnail from "@/components/BasicPlaceThumbnail";
 
 export const dynamic = "force-dynamic";
 
@@ -89,23 +90,12 @@ function PlaceCard({ place }: { place: Place }) {
       className="block h-full overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
     >
       {isBasic ? (
-        place.image ? (
-          // Zdjęcia z Geoapify pochodzą z różnych domen (zależnie od
-          // miejsca) — next/image wymagałby zarejestrowania każdej z nich
-          // w next.config, zwykły <img> jest prostszy i wystarczający dla
-          // miniatury (ten sam wzorzec co ItineraryPlaceCard na
-          // /planer/wynik).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={place.image}
-            alt={place.imageAlt}
-            className="h-40 w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-40 w-full items-center justify-center bg-zinc-100 text-3xl dark:bg-zinc-800">
-            📍
-          </div>
-        )
+        <BasicPlaceThumbnail
+          image={place.image}
+          imageAlt={place.imageAlt}
+          icon={place.basicPlaceIcon}
+          className="h-40 w-full object-cover"
+        />
       ) : (
         <Image
           src={place.image}

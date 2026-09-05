@@ -9,6 +9,7 @@ import { displaySummary } from "@/lib/routeVariantDisplay";
 import RouteMapAndActions from "@/components/RouteMapAndActions";
 import BackLink from "@/components/BackLink";
 import AccommodationCard from "@/components/AccommodationCard";
+import BasicPlaceThumbnail from "@/components/BasicPlaceThumbnail";
 import {
   parseAccommodationType,
   parseNumberList,
@@ -333,22 +334,13 @@ function ItineraryPlaceCard({ place }: { place: Place }) {
   const content = (
     <>
       {isBasic ? (
-        place.image ? (
-          // Zdjęcia z Geoapify pochodzą z różnych domen (zależnie od
-          // miejsca) — next/image wymagałby zarejestrowania każdej z
-          // nich w next.config, zwykły <img> jest prostszy i wystarczający
-          // dla miniatury.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={place.image}
-            alt={place.imageAlt}
-            className="h-20 w-20 shrink-0 rounded-lg object-cover"
-          />
-        ) : (
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-2xl dark:bg-zinc-800">
-            📍
-          </div>
-        )
+        <BasicPlaceThumbnail
+          image={place.image}
+          imageAlt={place.imageAlt}
+          icon={place.basicPlaceIcon}
+          className="h-20 w-20 shrink-0 rounded-lg object-cover"
+          iconClassName="text-2xl"
+        />
       ) : (
         <Image
           src={place.image}

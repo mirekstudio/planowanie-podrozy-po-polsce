@@ -18,6 +18,13 @@ export type ExternalPlaceResult = {
   // (patrz guessTypeFromCategories w accommodation.ts), skoro ExternalPlaceResult
   // celowo nie zna żadnej konkretnej taksonomii dostawcy.
   categories?: string[];
+  // Zgłoszenie 05.09: neutralny emoji dopasowany do typu miejsca (patrz
+  // getCategoryDisplay w placesProviders/geoapifyCategoryDisplay.ts) — do
+  // pokazania na karcie, gdy `image` jest puste, zamiast jednej
+  // uniwersalnej pinezki dla WSZYSTKICH miejsc "podstawowych". Zawsze
+  // ustawione przez dostawcę (nigdy undefined) — konkretny dostawca może
+  // nie mieć kategorii, ale wtedy i tak zwraca neutralny domyślny emoji.
+  icon: string;
 };
 
 // Miejsce kuratorskie, którego provider powinien unikać w wynikach — samych

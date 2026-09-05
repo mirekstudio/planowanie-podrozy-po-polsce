@@ -4,6 +4,7 @@ import {
   looksLikeNonTouristPlace,
   looksLikeNonLakeWaterFeature,
   looksLikeGenericBeachAccessPoint,
+  buildBasicPlaceDescription,
 } from "./geoapify";
 
 // Przypadki, które faktycznie pojawiły się jako "przystanki" w
@@ -114,4 +115,68 @@ test("looksLikeGenericBeachAccessPoint NIE odrzuca prawdziwie nazwanych plaż", 
   assert.equal(looksLikeGenericBeachAccessPoint("Plaża Orłowo"), false);
   assert.equal(looksLikeGenericBeachAccessPoint("plaża nudystów"), false);
   assert.equal(looksLikeGenericBeachAccessPoint("Latarnia Morska Rozewie"), false);
+});
+
+// Zgłoszenie 05.09 (jakość kart "Odkryj więcej", punkt 3): krótka fraza
+// kategoria+okolica zamiast surowego adresu pocztowego.
+test("buildBasicPlaceDescription buduje czytelną frazę z kategorii i miejscowości, realny przykład z audytu (Łeba)", () => {
+  assert.equal(
+    buildBasicPlaceDescription(["tourism", "tourism.attraction", "tourism.attraction.viewpoint"], {
+      city: "Łeba",
+    }),
+    "Punkt widokowy w pobliżu miejscowości Łeba.",
+  );
+});
+
+test("buildBasicPlaceDescription NIGDY nie odmienia nazwy miejscowości przez przypadki — zostaje w mianowniku dla każdej nazwy", () => {
+  // Celowo różne rodzaje gramatyczne polskich nazw miejscowości (żeński,
+  // męski, nijaki) — automatyczna, niezawodna deklinacja dowolnej z nich
+  // bez osobnej biblioteki językowej nie jest możliwa (patrz komentarz w
+  // geoapify.ts), więc żadna z nich nie może zostać odmieniona.
+  assert.equal(
+    buildBasicPlaceDescription(["tourism.sights.castle"], { city: "Łeba" }),
+    "Zamek w pobliżu miejscowości Łeba.",
+  );
+  assert.equal(
+    buildBasicPlaceDescription(["tourism.sights.castle"], { city: "Sopot" }),
+    "Zamek w pobliżu miejscowości Sopot.",
+  );
+  assert.equal(
+    buildBasicPlaceDescription(["tourism.sights.castle"], { city: "Władysławowo" }),
+    "Zamek w pobliżu miejscowości Władysławowo.",
+  );
+});
+
+test("buildBasicPlaceDescription woli city, potem suburb/district, potem (osobno, poprawnie odmienione) county — i radzi sobie z brakiem żadnego z nich", () => {
+  assert.equal(
+    buildBasicPlaceDescription(["beach"], { city: "Łeba", suburb: "Port morski Łeba" }),
+    "Plaża w pobliżu miejscowości Łeba.",
+  );
+  assert.equal(
+    buildBasicPlaceDescription(["beach"], { suburb: "Rozgard", county: "powiat pucki" }),
+    "Plaża w pobliżu miejscowości Rozgard.",
+  );
+  // Bez żadnej miejscowości/dzielnicy, tylko powiat — realny przypadek z
+  // audytu (Woliński Park Narodowy w danych Geoapify miał TYLKO county).
+  assert.equal(
+    buildBasicPlaceDescription(["national_park"], { county: "powiat kamieński" }),
+    "Park narodowy w powiecie kamieńskim.",
+  );
+  assert.equal(
+    buildBasicPlaceDescription(["beach"], { county: "powiat pucki" }),
+    "Plaża w powiecie puckim.",
+  );
+  assert.equal(
+    buildBasicPlaceDescription(["beach"], { county: "powiat lęborski" }),
+    "Plaża w powiecie lęborskim.",
+  );
+  // Nierozpoznany wzorzec nazwy powiatu (np. miasto na prawach powiatu) —
+  // generyczny, wciąż bezpieczny fallback zamiast łamania się na regexie.
+  assert.equal(
+    buildBasicPlaceDescription(["beach"], { county: "powiat m. Poznań" }),
+    "Plaża w pobliżu miejscowości powiat m. Poznań.",
+  );
+  // Bez żadnej składowej adresu ani rozpoznanej kategorii — wciąż zwraca
+  // sensowne, niepuste zdanie zamiast rzucać wyjątek albo zwracać "".
+  assert.equal(buildBasicPlaceDescription(undefined, {}), "Ciekawe miejsce.");
 });

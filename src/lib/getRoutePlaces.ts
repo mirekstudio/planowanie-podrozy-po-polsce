@@ -139,6 +139,7 @@ function toBasicPlace(
     tags,
     source: "basic",
     sourceUrl: result.sourceUrl,
+    basicPlaceIcon: result.icon,
     // Dostawcy zewnętrzni nie znają naszej taksonomii otoczenia/bliskości
     // atrakcji, więc te dwa pola zostają puste — patrz komentarz przy
     // filterCandidates w generateRoute.ts. typ_regionu jest wyjątkiem:

@@ -11,6 +11,7 @@ import {
   DETAIL_DEFAULT_RADIUS_KM,
 } from "@/lib/suggestBases";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
+import BasicPlaceThumbnail from "@/components/BasicPlaceThumbnail";
 
 // Odstęp między ostatnim ruchem suwaka a faktycznym przeliczeniem
 // widocznej listy/mapy — bez tego przeciąganie suwaka wywoływałoby
@@ -96,18 +97,13 @@ function NearbyPlaceCard({ place }: { place: Place }) {
   const content = (
     <>
       {isBasic ? (
-        place.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={place.image}
-            alt={place.imageAlt}
-            className="h-20 w-20 shrink-0 rounded-lg object-cover"
-          />
-        ) : (
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-2xl dark:bg-zinc-800">
-            📍
-          </div>
-        )
+        <BasicPlaceThumbnail
+          image={place.image}
+          imageAlt={place.imageAlt}
+          icon={place.basicPlaceIcon}
+          className="h-20 w-20 shrink-0 rounded-lg object-cover"
+          iconClassName="text-2xl"
+        />
       ) : (
         <Image
           src={place.image}

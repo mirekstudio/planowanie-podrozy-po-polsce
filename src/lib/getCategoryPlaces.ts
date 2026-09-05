@@ -57,6 +57,7 @@ function toBasicCategoryPlace(result: ExternalPlaceResult, tag: string): Place {
     tags: [tag],
     source: "basic",
     sourceUrl: result.sourceUrl,
+    basicPlaceIcon: result.icon,
     regionType: [],
     surroundings: [],
     nearbyAttraction: null,

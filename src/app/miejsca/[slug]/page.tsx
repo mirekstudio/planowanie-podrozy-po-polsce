@@ -6,6 +6,7 @@ import type { ExternalPlaceResult } from "@/lib/placesProviders";
 import { getPlaceSaveStatus } from "@/lib/userPlaces";
 import SavePlaceButtons from "@/components/SavePlaceButtons";
 import BackButton from "@/components/BackButton";
+import BasicPlaceThumbnail from "@/components/BasicPlaceThumbnail";
 
 export const dynamic = "force-dynamic";
 
@@ -44,18 +45,21 @@ async function BasicPlacePage({
           {result.title}
         </h1>
 
-        {result.image && (
-          <div className="mt-6 overflow-hidden rounded-xl">
-            {/* Zdjęcia z Geoapify pochodzą z różnych domen — next/image
-                wymagałby zarejestrowania każdej z nich w next.config. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={result.image}
-              alt={result.imageAlt}
-              className="h-72 w-full object-cover"
-            />
-          </div>
-        )}
+        {/* Zgłoszenie 05.09: wcześniej ten blok był całkiem POMIJANY, gdy
+            miejsce nie miało zdjęcia — puste miejsce na stronie zamiast
+            czegokolwiek. Teraz zawsze pokazuje albo prawdziwe zdjęcie
+            (własne z Geoapify albo, częściej, dociągnięte z Wikipedii —
+            patrz fetchWikipediaThumbnail), albo placeholder dopasowany do
+            kategorii miejsca. */}
+        <div className="mt-6 overflow-hidden rounded-xl">
+          <BasicPlaceThumbnail
+            image={result.image}
+            imageAlt={result.imageAlt}
+            icon={result.icon}
+            className="h-72 w-full object-cover"
+            iconClassName="text-5xl"
+          />
+        </div>
 
         <p className="mt-6 text-lg leading-8 text-zinc-600 dark:text-zinc-400">
           {result.description}

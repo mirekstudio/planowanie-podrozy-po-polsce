@@ -21,6 +21,13 @@ export type Place = {
   // miejscami tworzonymi/edytowanymi poza tym mechanizmem).
   source?: "curated" | "basic";
   sourceUrl?: string | null;
+  // Zgłoszenie 05.09: neutralny emoji dopasowany do kategorii miejsca
+  // (patrz getCategoryDisplay w placesProviders/geoapifyCategoryDisplay.ts)
+  // — placeholder graficzny na karcie, gdy miejsce "basic" nie ma
+  // prawdziwego zdjęcia. Tylko dla source: "basic" (miejsca kuratorskie
+  // zawsze mają prawdziwe, redakcyjnie dobrane zdjęcie, więc go nie
+  // potrzebują) — undefined dla curated.
+  basicPlaceIcon?: string;
   // Wymiary filtrowania w planerze — patrz src/lib/placeFilters.ts.
   // Miejsca "basic" z zewnętrznych dostawców nie są nimi otagowane
   // (dostawcy nie znają naszej taksonomii), więc te filtry realnie

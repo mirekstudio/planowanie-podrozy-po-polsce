@@ -18,6 +18,7 @@ import {
 } from "@/lib/plannerSearchParams";
 import BackLink from "@/components/BackLink";
 import SubRegionPreviewMapLoader from "@/components/SubRegionPreviewMapLoader";
+import BasicPlaceThumbnail from "@/components/BasicPlaceThumbnail";
 
 export const dynamic = "force-dynamic";
 
@@ -283,18 +284,12 @@ function BaseCard({
       className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition-colors hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
     >
       {isBasic ? (
-        candidate.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={candidate.image}
-            alt={candidate.imageAlt}
-            className="h-40 w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-40 w-full items-center justify-center bg-zinc-100 text-3xl dark:bg-zinc-800">
-            📍
-          </div>
-        )
+        <BasicPlaceThumbnail
+          image={candidate.image}
+          imageAlt={candidate.imageAlt}
+          icon={candidate.basicPlaceIcon}
+          className="h-40 w-full object-cover"
+        />
       ) : (
         <Image
           src={candidate.image}

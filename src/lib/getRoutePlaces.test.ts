@@ -47,6 +47,7 @@ function makeExternal(overrides: Partial<ExternalPlaceResult> = {}): ExternalPla
     image: null,
     imageAlt: "Zewnętrzne miejsce",
     sourceUrl: null,
+    icon: "📍",
     ...overrides,
   };
 }

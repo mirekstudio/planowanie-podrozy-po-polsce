@@ -23,6 +23,8 @@ export type BaseCandidate = {
   imageAlt: string;
   imagePosition?: "center" | "top";
   source: "curated" | "basic";
+  // Placeholder graficzny dopasowany do kategorii — patrz Place.basicPlaceIcon.
+  basicPlaceIcon?: string;
   nearbyCount: number;
   radiusKm: number;
 };
@@ -144,6 +146,7 @@ export function suggestBaseCandidates(
     imageAlt: place.imageAlt,
     imagePosition: place.imagePosition,
     source: place.source ?? "curated",
+    basicPlaceIcon: place.basicPlaceIcon,
     nearbyCount,
     radiusKm: BASE_SEARCH_RADIUS_KM,
   }));

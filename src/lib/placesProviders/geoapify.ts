@@ -1,6 +1,8 @@
 import type { Coordinates } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
 import { POLAND_BOUNDS } from "@/lib/poland";
+import { getCategoryDisplay } from "./geoapifyCategoryDisplay";
+import { fetchWikipediaThumbnail } from "@/lib/wikipediaThumbnail";
 import type {
   ExcludedPlace,
   ExternalPlaceResult,
@@ -134,6 +136,14 @@ type GeoapifyPlaceFeature = {
     // pole kiedyś nie przyszło — wtedy filtr kategorii po prostu przepuszcza
     // wynik dalej (jedyną linią obrony zostaje wtedy filtr nazwy).
     categories?: string[];
+    // Zgłoszenie 05.09 (jakość kart "Odkryj więcej", punkt 3): składowe
+    // adresu, sprawdzone bezpośrednio w realnej odpowiedzi Geoapify —
+    // priorytet city > suburb > district w pickAreaLabel, county osobno
+    // (describeCounty) niżej.
+    city?: string;
+    suburb?: string;
+    district?: string;
+    county?: string;
   };
 };
 
@@ -230,6 +240,18 @@ type GeoapifyDetailsFeature = {
       wikipedia?: string;
       wikimedia_commons?: string;
     };
+    // Sprawdzone bezpośrednio (05.09): endpoint place-details, w
+    // przeciwieństwie do samego typu z dokumentacji, faktycznie zwraca
+    // też kategorie i składowe adresu na properties, dokładnie jak
+    // endpoint wyszukiwania (GeoapifyPlaceFeature wyżej) — realny
+    // przykład: "Zamek Krzyżacki w Pucku" ma tu categories,
+    // city="Puck", district, suburb.
+    categories?: string[];
+    city?: string;
+    suburb?: string;
+    district?: string;
+    county?: string;
+    formatted?: string;
   };
   // Dla obszarów (jeziora, parki, budynki) geometria to Polygon/
   // MultiPolygon — zagnieżdżona tablica pierścieni, nie prosta para
@@ -237,6 +259,92 @@ type GeoapifyDetailsFeature = {
   // je ostrożnie, tylko gdy typ to faktycznie "Point".
   geometry?: { type: string; coordinates: unknown };
 };
+
+// Wspólny kształt składowych adresu, niezależny od tego, czy pochodzą z
+// wyniku wyszukiwania (GeoapifyPlaceFeature) czy z place-details
+// (GeoapifyDetailsFeature) — oba mają identyczne nazwy pól, sprawdzone
+// bezpośrednio w obu endpointach.
+type AddressParts = { city?: string; suburb?: string; district?: string; county?: string };
+
+// Zgłoszenie 05.09 (jakość kart "Odkryj więcej", punkt 3): "city" to
+// najczęściej realna miejscowość (np. "Łeba") i dlatego ma priorytet;
+// "suburb"/"district" bywają dzielnicami większych miast (przydatne, gdy
+// "city" nie przyszło). "county" (powiat) CELOWO nie jest tu uwzględniony
+// — w przeciwieństwie do miejscowości/dzielnicy nie da się go bezpiecznie
+// wstawić w tę samą konstrukcję (patrz describeCounty niżej, osobna,
+// poprawna gramatycznie fraza dla powiatów).
+function pickAreaLabel(address: AddressParts): string | null {
+  return address.city || address.suburb || address.district || null;
+}
+
+// Nazwy powiatów w polskich danych Geoapify są ZAWSZE postaci "powiat
+// <przymiotnik>" (np. "powiat pucki", "powiat kamieński", "powiat
+// lęborski") — sprawdzone bezpośrednio w realnych odpowiedziach. To, w
+// przeciwieństwie do dowolnej nazwy miejscowości (patrz komentarz przy
+// buildBasicPlaceDescription niżej), jest w pełni regularna, przewidywalna
+// polska odmiana przymiotnikowa (nie nazwy własnej) — końcówki -ski/-cki/
+// -dzki zawsze i niezawodnie stają się -skim/-ckim/-dzkim w miejscowniku
+// ("w powiecie puckim"). Realny przypadek z audytu, który to ujawnił:
+// "Woliński Park Narodowy" miał w danych Geoapify TYLKO county (żadnego
+// city/suburb/district) — bez tej funkcji opis brzmiałby "w pobliżu
+// miejscowości powiat kamieński", co jest mylące (powiat to nie
+// miejscowość). Zwraca null dla nierozpoznanego wzorca (np. powiaty
+// grodzkie typu "powiat m. Poznań") — wtedy buildBasicPlaceDescription
+// spada na generyczną, wciąż bezpieczną frazę.
+function describeCounty(county: string): string | null {
+  const match = /^powiat\s+(\S+)$/i.exec(county.trim());
+  if (!match) return null;
+
+  const adjective = match[1];
+  const suffixes: [RegExp, string][] = [
+    [/ski$/i, "skim"],
+    [/cki$/i, "ckim"],
+    [/dzki$/i, "dzkim"],
+  ];
+  for (const [suffix, locativeEnding] of suffixes) {
+    if (suffix.test(adjective)) {
+      return `w powiecie ${adjective.replace(suffix, locativeEnding)}`;
+    }
+  }
+  return null;
+}
+
+// Zgłoszenie 05.09 (jakość kart "Odkryj więcej", punkt 3): krótka, czytelna
+// fraza zamiast surowego adresu pocztowego — ale WPROST oznaczona jako
+// wygenerowana z kategorii/lokalizacji, nie kuratorski opis "z duszą"
+// (patrz odznaka "Odkryj więcej" w UI, niezmieniona).
+//
+// Świadomie NIE odmieniamy nazwy miejscowości przez przypadki (np.
+// "w okolicy Łeby") — poprawna polska deklinacja dowolnej, nieznanej z
+// góry nazwy własnej (miejscowości bywają rodzaju żeńskiego, męskiego,
+// nijakiego, wielowyrazowe, obcego pochodzenia...) nie da się niezawodnie
+// zautomatyzować bez osobnej biblioteki językowej, której ten projekt nie
+// ma i nie potrzebuje dla jednego kosmetycznego zdania — ryzyko po cichu
+// błędnej polszczyzny byłoby wyższe niż korzyść. Konstrukcja "w pobliżu
+// miejscowości X" jest w 100% poprawna gramatycznie dla KAŻDEJ nazwy
+// (nazwa własna po rzeczowniku klasyfikującym zostaje w mianowniku — ten
+// sam zabieg co np. "w mieście Warszawa"). Powiat to inny przypadek — patrz
+// describeCounty wyżej — bo to nazwa przymiotnikowa, nie własna, więc jej
+// odmiana JEST niezawodnie automatyzowalna.
+export function buildBasicPlaceDescription(
+  categories: string[] | undefined,
+  address: AddressParts,
+): string {
+  const { label } = getCategoryDisplay(categories);
+
+  const areaLabel = pickAreaLabel(address);
+  if (areaLabel) return `${label} w pobliżu miejscowości ${areaLabel}.`;
+
+  const countyPhrase = address.county ? describeCounty(address.county) : null;
+  if (countyPhrase) return `${label} ${countyPhrase}.`;
+
+  // Ostatnia deska ratunku: powiat jest, ale nie pasuje do rozpoznanego
+  // wzorca przymiotnikowego — wciąż lepsze niż surowy adres, tylko mniej
+  // eleganckie niż odmieniona fraza.
+  if (address.county) return `${label} w pobliżu miejscowości ${address.county}.`;
+
+  return `${label}.`;
+}
 
 export type FetchProtectedPlacesParams = {
   // Surowe kategorie Geoapify, już rozstrzygnięte przez wywołującego (patrz
@@ -341,12 +449,44 @@ export async function fetchProtectedPlaces({
       }),
     );
 
+    // Zgłoszenie 05.09 (jakość kart "Odkryj więcej", punkt 1): własne pole
+    // Geoapify wiki_and_media.image jest w praktyce prawie zawsze puste
+    // (sprawdzone bezpośrednio, patrz komentarz w wikipediaThumbnail.ts) —
+    // dla miejsc, które go nie mają, ale MAJĄ referencję do Wikipedii,
+    // dociągamy realne zdjęcie stamtąd. Osobny przebieg, tylko dla
+    // podzbioru, który tego faktycznie potrzebuje (nie dla wszystkich —
+    // gdyby wiki_and_media.image jednak było, ma pierwszeństwo).
+    const wikipediaThumbnails = await Promise.all(
+      details.map((detail) => {
+        if (detail?.properties.wiki_and_media?.image) return Promise.resolve(null);
+        return fetchWikipediaThumbnail(detail?.properties.wiki_and_media?.wikipedia);
+      }),
+    );
+
     return picked.map((feature, index) => {
       const detailProps = details[index]?.properties;
+      const categories = detailProps?.categories ?? feature.properties.categories;
+      const address = {
+        city: detailProps?.city ?? feature.properties.city,
+        suburb: detailProps?.suburb ?? feature.properties.suburb,
+        district: detailProps?.district ?? feature.properties.district,
+        county: detailProps?.county ?? feature.properties.county,
+      };
+
+      // Priorytet opisu: (1) prawdziwy opis od Geoapify/Wikidaty, jeśli
+      // kiedyś się trafi (w testach na realnych danych nigdy nie widzieliśmy
+      // go wypełnionego, ale API na to pozwala) — (2) nasza czytelna fraza
+      // kategoria+okolica (buildBasicPlaceDescription NIGDY nie zwraca
+      // pustego wyniku — bez kategorii/okolicy daje neutralne "Ciekawe
+      // miejsce.", ale to wciąż lepsze niż surowy adres pocztowy, którego
+      // zgłoszenie 05.09 wprost chciało się pozbyć) — (3) sztywny tekst
+      // zapasowy, tylko gdyby powyższe kiedyś rzuciło wyjątkiem.
       const description =
         detailProps?.description?.trim() ||
-        feature.properties.formatted ||
+        buildBasicPlaceDescription(categories, address) ||
         "Dodatkowe miejsce w pobliżu trasy, znalezione poza naszą kuratorską bazą.";
+
+      const { icon } = getCategoryDisplay(categories);
 
       return {
         externalId: feature.properties.place_id,
@@ -354,11 +494,12 @@ export async function fetchProtectedPlaces({
         description: description.slice(0, 220),
         lat: feature.properties.lat,
         lng: feature.properties.lon,
-        image: detailProps?.wiki_and_media?.image ?? null,
+        image: detailProps?.wiki_and_media?.image ?? wikipediaThumbnails[index] ?? null,
         imageAlt: feature.properties.name!,
         sourceUrl:
           detailProps?.wiki_and_media?.wikipedia ?? detailProps?.website ?? null,
-        categories: feature.properties.categories,
+        categories,
+        icon,
       };
     });
   } catch {
@@ -429,9 +570,24 @@ async function fetchPlaceDetails(externalId: string): Promise<ExternalPlaceResul
 
     if (lat === undefined || lng === undefined) return null;
 
+    // Ta sama poprawa jakości co w fetchProtectedPlaces (patrz komentarze
+    // tam) — strona szczegółów miejsca "podstawowego" (/miejsca/[slug])
+    // dociąga dane TYM samym endpointem, więc ma dokładnie te same
+    // składowe (categories, city/suburb/district/county) dostępne.
     const description =
       feature.properties.description?.trim() ||
+      buildBasicPlaceDescription(feature.properties.categories, {
+        city: feature.properties.city,
+        suburb: feature.properties.suburb,
+        district: feature.properties.district,
+        county: feature.properties.county,
+      }) ||
       "Dodatkowe miejsce, znalezione poza naszą kuratorską bazą.";
+
+    const { icon } = getCategoryDisplay(feature.properties.categories);
+    const image =
+      feature.properties.wiki_and_media?.image ??
+      (await fetchWikipediaThumbnail(feature.properties.wiki_and_media?.wikipedia));
 
     return {
       externalId,
@@ -439,10 +595,12 @@ async function fetchPlaceDetails(externalId: string): Promise<ExternalPlaceResul
       description: description.slice(0, 600),
       lat,
       lng,
-      image: feature.properties.wiki_and_media?.image ?? null,
+      image,
       imageAlt: feature.properties.name,
       sourceUrl:
         feature.properties.wiki_and_media?.wikipedia ?? feature.properties.website ?? null,
+      categories: feature.properties.categories,
+      icon,
     };
   } catch {
     return null;
