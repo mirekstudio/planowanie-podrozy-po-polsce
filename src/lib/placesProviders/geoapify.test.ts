@@ -147,6 +147,28 @@ test("buildBasicPlaceDescription NIGDY nie odmienia nazwy miejscowości przez pr
   );
 });
 
+// Zgłoszenie 05.09 (kontynuacja): "Zatopiony las koło Czołpina" miał w
+// Geoapify JEDYNĄ kategorię "beach" (sprawdzone bezpośrednio w API,
+// zarówno search jak i place-details — surowy tag OSM to natural=beach),
+// mimo że to atrakcja przyrodnicza, nie plaża. Bez przekazania `name` do
+// buildBasicPlaceDescription opis brzmiałby błędnie "Plaża w pobliżu...".
+test("buildBasicPlaceDescription poprawia mylącą kategorię 'beach' na podstawie nazwy — realny przypadek z audytu (Zatopiony las koło Czołpina)", () => {
+  assert.equal(
+    buildBasicPlaceDescription(
+      ["beach"],
+      { city: "Smołdzino", county: "powiat słupski" },
+      "Zatopiony las koło Czołpina",
+    ),
+    "Obszar naturalny w pobliżu miejscowości Smołdzino.",
+  );
+  // Kontrola negatywna — prawdziwa plaża o tej samej kategorii zostaje
+  // przy "Plaża", opis się nie zmienia.
+  assert.equal(
+    buildBasicPlaceDescription(["beach"], { city: "Łeba" }, "plaża nudystów"),
+    "Plaża w pobliżu miejscowości Łeba.",
+  );
+});
+
 test("buildBasicPlaceDescription woli city, potem suburb/district, potem (osobno, poprawnie odmienione) county — i radzi sobie z brakiem żadnego z nich", () => {
   assert.equal(
     buildBasicPlaceDescription(["beach"], { city: "Łeba", suburb: "Port morski Łeba" }),

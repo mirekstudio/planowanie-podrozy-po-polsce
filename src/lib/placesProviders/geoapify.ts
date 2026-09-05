@@ -329,8 +329,9 @@ function describeCounty(county: string): string | null {
 export function buildBasicPlaceDescription(
   categories: string[] | undefined,
   address: AddressParts,
+  name?: string,
 ): string {
-  const { label } = getCategoryDisplay(categories);
+  const { label } = getCategoryDisplay(categories, name);
 
   const areaLabel = pickAreaLabel(address);
   if (areaLabel) return `${label} w pobliżu miejscowości ${areaLabel}.`;
@@ -483,10 +484,10 @@ export async function fetchProtectedPlaces({
       // zapasowy, tylko gdyby powyższe kiedyś rzuciło wyjątkiem.
       const description =
         detailProps?.description?.trim() ||
-        buildBasicPlaceDescription(categories, address) ||
+        buildBasicPlaceDescription(categories, address, feature.properties.name) ||
         "Dodatkowe miejsce w pobliżu trasy, znalezione poza naszą kuratorską bazą.";
 
-      const { icon } = getCategoryDisplay(categories);
+      const { icon } = getCategoryDisplay(categories, feature.properties.name);
 
       return {
         externalId: feature.properties.place_id,
@@ -576,15 +577,19 @@ async function fetchPlaceDetails(externalId: string): Promise<ExternalPlaceResul
     // składowe (categories, city/suburb/district/county) dostępne.
     const description =
       feature.properties.description?.trim() ||
-      buildBasicPlaceDescription(feature.properties.categories, {
-        city: feature.properties.city,
-        suburb: feature.properties.suburb,
-        district: feature.properties.district,
-        county: feature.properties.county,
-      }) ||
+      buildBasicPlaceDescription(
+        feature.properties.categories,
+        {
+          city: feature.properties.city,
+          suburb: feature.properties.suburb,
+          district: feature.properties.district,
+          county: feature.properties.county,
+        },
+        feature.properties.name,
+      ) ||
       "Dodatkowe miejsce, znalezione poza naszą kuratorską bazą.";
 
-    const { icon } = getCategoryDisplay(feature.properties.categories);
+    const { icon } = getCategoryDisplay(feature.properties.categories, feature.properties.name);
     const image =
       feature.properties.wiki_and_media?.image ??
       (await fetchWikipediaThumbnail(feature.properties.wiki_and_media?.wikipedia));
