@@ -1,6 +1,7 @@
 import type { Place } from "@/data/places";
 import { filterCandidates, type RouteOptions } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
+import { isWithinBounds, type Bounds } from "@/lib/poland";
 
 // Logika dla stylu podróży "Baza wypadowa" — CELOWO osobna od
 // generateRoute.ts/generateRouteVariants.ts. Tamten algorytm (najbliższy
@@ -36,8 +37,17 @@ export const BASE_SEARCH_RADIUS_KM = 30;
 // sensowne propozycje, tylko duplikat.
 const MIN_DISTANCE_BETWEEN_BASES_KM = 40;
 
-const MAX_BASE_CANDIDATES = 3;
+const MAX_BASE_CANDIDATES = 4;
 const MIN_BASE_CANDIDATES_BEFORE_FALLBACK = 2;
+
+// Promień domyślny i zakres suwaka na tymczasowym widoku szczegółów bazy
+// (/planer/baza) — patrz BaseRadiusExplorer.tsx. Osobne od
+// BASE_SEARCH_RADIUS_KM (który steruje TYLKO doborem/oceną kandydatów na
+// listach wyżej) — tu chodzi o to, ile użytkownik faktycznie chce
+// przejechać z konkretnej, już wybranej bazy, i to on o tym decyduje.
+export const DETAIL_MIN_RADIUS_KM = 5;
+export const DETAIL_MAX_RADIUS_KM = 50;
+export const DETAIL_DEFAULT_RADIUS_KM = 15;
 
 function countNearby(pool: Place[], center: Place, radiusKm: number): number {
   return pool.filter(
@@ -90,15 +100,55 @@ export function suggestBaseCandidates(
   }));
 }
 
-// Miejsca "w zasięgu" wybranej bazy — posortowane od najbliższego, do
-// pokazania na tymczasowym widoku /planer/baza (patrz zgłoszenie: bez
-// podziału na dni, to osobne zadanie na później).
-export function nearbyPlacesForBase(
+export type NearbyPlaceWithDistance = { place: Place; distanceKm: number };
+
+// Miejsca "w zasięgu" wybranej bazy, z dystansem, posortowane od
+// najbliższego, do pokazania na tymczasowym widoku /planer/baza — patrz
+// BaseRadiusExplorer.tsx. Liczy raz, do DETAIL_MAX_RADIUS_KM (górny koniec
+// suwaka), żeby przesuwanie suwaka na kliencie mogło tylko FILTROWAĆ już
+// policzoną listę, bez ponownego przeliczania odległości ani nowego
+// zapytania do serwera przy każdym ruchu suwaka.
+export function nearbyPlacesWithDistance(
   places: Place[],
   base: { slug: string; lat: number; lng: number },
-  radiusKm: number = BASE_SEARCH_RADIUS_KM,
+  maxRadiusKm: number = DETAIL_MAX_RADIUS_KM,
+): NearbyPlaceWithDistance[] {
+  return places
+    .filter((p) => p.slug !== base.slug)
+    .map((place) => ({ place, distanceKm: distanceKm(base, place) }))
+    .filter((entry) => entry.distanceKm <= maxRadiusKm)
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+// Ogranicza pulę do jednego podregionu wybrzeża (Zachodnie/Środkowe/
+// Wschodnie) — CELOWA, osobna kopia identycznej reguły przynależności co
+// withinSubRegion w generateRoute.ts (miejsca "basic" po tagu regionu z
+// getRoutePlaces.ts, miejsca kuratorskie po odległości od kotwic
+// podregionu), a NIE import z generateRoute.ts — patrz komentarz na górze
+// pliku: ta ścieżka ma zostać w 100% niezależna od pliku z algorytmem
+// najbliższego sąsiada, nawet kosztem odrobiny duplikacji.
+const CURATED_SUB_REGION_RADIUS_KM = 120;
+
+// Promień 120 km wokół kotwic (jak wyżej) sam w sobie jest CELOWO luźny —
+// sąsiednie podregiony (np. Środkowe/Zachodnie) leżą bliżej siebie niż
+// 120 km, więc same kotwice/promień potrafią złapać miejsce z SĄSIEDNIEGO
+// podregionu (zaobserwowane na żywo: Kołobrzeg — kotwica Zachodniego —
+// wpadał też do puli Środkowego). W generateRoute.ts to koryguje osobny,
+// twardy strażnik (enforceSubRegionBounds) PO ułożeniu trasy; tu, bez
+// takiego etapu, granica `bounds` musi być sprawdzona od razu, dla
+// WSZYSTKICH miejsc (kuratorskich i "basic" — tag regionu w danych też
+// może się mylić, patrz ten sam komentarz w generateRoute.ts).
+export function restrictToSubRegion(
+  places: Place[],
+  subRegionId: string,
+  anchors: { lat: number; lng: number }[],
+  bounds: Bounds,
 ): Place[] {
   return places
-    .filter((p) => p.slug !== base.slug && distanceKm(base, p) <= radiusKm)
-    .sort((a, b) => distanceKm(base, a) - distanceKm(base, b));
+    .filter((place) =>
+      place.source === "basic"
+        ? place.region === subRegionId
+        : anchors.some((anchor) => distanceKm(anchor, place) <= CURATED_SUB_REGION_RADIUS_KM),
+    )
+    .filter((place) => isWithinBounds({ lat: place.lat, lng: place.lng }, bounds));
 }

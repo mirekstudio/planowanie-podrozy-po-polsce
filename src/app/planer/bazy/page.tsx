@@ -2,10 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRoutePlaces } from "@/lib/getRoutePlaces";
-import { suggestBaseCandidates, type BaseCandidate } from "@/lib/suggestBases";
+import {
+  suggestBaseCandidates,
+  restrictToSubRegion,
+  type BaseCandidate,
+} from "@/lib/suggestBases";
+import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import { filterActiveRegionTypes } from "@/lib/placeFilters";
+import { COASTAL_SUB_REGIONS, type SubRegion } from "@/lib/poland";
 import {
   plannerFormHref,
+  bazySubRegionPickerHref,
   type PlannerSearchParams,
 } from "@/lib/plannerSearchParams";
 import BackLink from "@/components/BackLink";
@@ -13,6 +20,16 @@ import BackLink from "@/components/BackLink";
 export const dynamic = "force-dynamic";
 
 type SearchParams = PlannerSearchParams;
+
+function hrefForSubRegion(params: SearchParams, subRegionId: string): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "baza" || key === "variant" || key === "podregion" || !value) continue;
+    search.set(key, value);
+  }
+  search.set("podregion", subRegionId);
+  return `/planer/bazy?${search.toString()}`;
+}
 
 function hrefForBase(params: SearchParams, baseSlug: string): string {
   const search = new URLSearchParams();
@@ -47,11 +64,49 @@ export default async function PlanerBazyPage({
     redirect("/planer");
   }
 
-  const days = Math.max(1, Number(params.days) || 1);
-  const interests = params.interests ? params.interests.split(",") : [];
   const regionTypes = params.regionType
     ? filterActiveRegionTypes(params.regionType.split(","))
     : [];
+  const hasMorze = regionTypes.includes("Morze");
+
+  // POZIOM 1: dla "Morze" appka najpierw pyta o ODCINEK wybrzeża — te same
+  // trzy podregiony (Zachodnie/Środkowe/Wschodnie), co warianty geograficzne
+  // w ścieżce "Trasa objazdowa" (patrz SPREAD_REGION_SUB_REGIONS w
+  // poland.ts). Celowo bez żadnego zapytania o miejsca na tym poziomie —
+  // to tylko wybór obszaru, nie generowanie/ocena kandydatów.
+  if (hasMorze && !params.podregion) {
+    return (
+      <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
+        <main className="mx-auto max-w-3xl px-6 py-16">
+          <BackLink href={plannerFormHref(params)} label="Zmień parametry" />
+
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
+            Wybierz odcinek wybrzeża
+          </h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Polskie wybrzeże jest długie — najpierw wybierz odcinek, potem
+            zaproponujemy w nim konkretne bazy wypadowe.
+          </p>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {COASTAL_SUB_REGIONS.map((sub) => (
+              <SubRegionCard
+                key={sub.id}
+                sub={sub}
+                href={hrefForSubRegion(params, sub.id)}
+              />
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // POZIOM 2: propozycje konkretnych baz — w obrębie wybranego podregionu
+  // (jeśli Morze), albo z całej dopasowanej puli (Wielkopolska, gdzie nie
+  // ma podziału na podregiony).
+  const days = Math.max(1, Number(params.days) || 1);
+  const interests = params.interests ? params.interests.split(",") : [];
   const surroundingsFilter = params.surroundings
     ? params.surroundings.split(",")
     : [];
@@ -59,18 +114,30 @@ export default async function PlanerBazyPage({
     ? params.nearbyAttraction.split(",")
     : [];
 
+  let subRegion: SubRegion | null = null;
+  if (hasMorze && params.podregion) {
+    subRegion = COASTAL_SUB_REGIONS.find((s) => s.id === params.podregion) ?? null;
+    if (!subRegion) {
+      redirect(bazySubRegionPickerHref(params));
+    }
+  }
+
   // getRoutePlaces zwraca tylko PULĘ kandydatów (kuratorskie + uzupełnienie
   // z Geoapify) — nie odpala żadnego sortowania/podziału na dni. Właściwy
   // dobór baz robi suggestBaseCandidates, celowo osobno od generateRoute.ts
   // (patrz komentarz w suggestBases.ts) — ta strona nigdy nie dotyka
   // algorytmu najbliższego sąsiada ani wariantów geograficznych.
-  const places = await getRoutePlaces({
+  const allPlaces = await getRoutePlaces({
     days,
     interests,
     regionTypes,
     surroundings: surroundingsFilter,
     nearbyAttractions,
   });
+  const places = subRegion
+    ? restrictToSubRegion(allPlaces, subRegion.id, subRegion.anchors, subRegion.bounds)
+    : allPlaces;
+
   const candidates = suggestBaseCandidates(places, {
     interests,
     regionTypes,
@@ -81,15 +148,18 @@ export default async function PlanerBazyPage({
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <BackLink href={plannerFormHref(params)} label="Zmień parametry" />
+        <BackLink
+          href={subRegion ? bazySubRegionPickerHref(params) : plannerFormHref(params)}
+          label={subRegion ? "Wybierz inny odcinek" : "Zmień parametry"}
+        />
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          Wybierz bazę wypadową
+          {subRegion ? `Wybierz bazę — ${subRegion.title}` : "Wybierz bazę wypadową"}
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Zamieszkasz w jednym miejscu i stamtąd zwiedzasz okolicę. Wybierz
-          miejscowość, która najbardziej Ci odpowiada — pokażemy Ci, co jest
-          w zasięgu.
+          {subRegion
+            ? subRegion.summary
+            : "Zamieszkasz w jednym miejscu i stamtąd zwiedzasz okolicę. Wybierz miejscowość, która najbardziej Ci odpowiada — pokażemy Ci, co jest w zasięgu."}
         </p>
 
         {candidates.length === 0 ? (
@@ -110,6 +180,39 @@ export default async function PlanerBazyPage({
         )}
       </main>
     </div>
+  );
+}
+
+function SubRegionCard({ sub, href }: { sub: SubRegion; href: string }) {
+  const thumbnail = buildRouteThumbnailUrl(sub.anchors, null);
+
+  return (
+    <Link
+      href={href}
+      className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
+    >
+      <div className="aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800">
+        {thumbnail && (
+          // Mapbox Static Images API — ten sam wzorzec co miniatury
+          // wariantów tras na /planer/wynik (buildRouteThumbnailUrl).
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnail}
+            alt={`Podgląd odcinka: ${sub.title}`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <h2 className="font-semibold text-black dark:text-zinc-50">
+          {sub.title}
+        </h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {sub.summary}
+        </p>
+      </div>
+    </Link>
   );
 }
 

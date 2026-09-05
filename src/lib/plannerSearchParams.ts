@@ -21,6 +21,10 @@ export type PlannerSearchParams = {
   // Slug wybranej bazy wypadowej — istnieje tylko na /planer/baza, ten sam
   // wzorzec co "variant" dla /planer/wynik (patrz suggestBases.ts).
   baza?: string;
+  // ID podregionu wybrzeża (np. "srodkowe-wybrzeze") — pośredni poziom
+  // ścieżki "Baza wypadowa": /planer/bazy bez tego pokazuje 3 karty
+  // podregionów, z tym pokazuje propozycje baz W TYM podregionie.
+  podregion?: string;
 };
 
 const VALID_TRAVEL_STYLES: TravelStyle[] = ["baza_wypadowa", "trasa_objazdowa"];
@@ -71,6 +75,21 @@ export function bazyListHref(params: PlannerSearchParams): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (key === "baza" || key === "variant" || !value) continue;
+    search.set(key, value);
+  }
+  const query = search.toString();
+  return query ? `/planer/bazy?${query}` : "/planer/bazy";
+}
+
+// Buduje URL wyboru PODREGIONU wybrzeża (/planer/bazy bez "podregion") —
+// pierwszy poziom ścieżki "Baza wypadowa". W odróżnieniu od bazyListHref
+// (który zostaje w wybranym podregionie, tylko cofa z konkretnej bazy do
+// jego listy) ten link cofa o jeden poziom wyżej, do wyboru samego
+// podregionu.
+export function bazySubRegionPickerHref(params: PlannerSearchParams): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "baza" || key === "variant" || key === "podregion" || !value) continue;
     search.set(key, value);
   }
   const query = search.toString();

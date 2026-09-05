@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Place } from "@/data/places";
-import { suggestBaseCandidates, nearbyPlacesForBase } from "./suggestBases";
+import {
+  suggestBaseCandidates,
+  nearbyPlacesWithDistance,
+  restrictToSubRegion,
+} from "./suggestBases";
 
 // Dowód, że suggestBaseCandidates NIGDY nie korzysta z generateRoute.ts —
 // patrz komentarz w suggestBases.ts. Testy sprawdzają tylko własną logikę
@@ -101,7 +105,7 @@ test("odrzuca kolejnego kandydata zbyt blisko już wybranej bazy (nie proponuje 
   );
 });
 
-test("nearbyPlacesForBase zwraca miejsca w promieniu, posortowane od najbliższego, bez samej bazy", () => {
+test("nearbyPlacesWithDistance zwraca miejsca w promieniu z policzonym dystansem, posortowane od najbliższego, bez samej bazy", () => {
   const baza = makePlace({ slug: "ustka", title: "Ustka", lat: 54.5805, lng: 16.8614 });
   const bliskie = makePlace({ slug: "rowy", title: "Rowy", lat: 54.6, lng: 16.9 });
   const dalsze = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
@@ -112,11 +116,125 @@ test("nearbyPlacesForBase zwraca miejsca w promieniu, posortowane od najbliższe
     lng: 14.2477,
   });
 
-  const nearby = nearbyPlacesForBase([baza, bliskie, dalsze, bardzoDaleko], baza, 30);
+  const nearby = nearbyPlacesWithDistance([baza, bliskie, dalsze, bardzoDaleko], baza, 30);
 
   assert.deepEqual(
-    nearby.map((p) => p.slug),
+    nearby.map((n) => n.place.slug),
     ["rowy"],
     "w promieniu 30 km od Ustki powinno być tylko Rowy — nie sama baza, nie odległe miejsca",
+  );
+  assert.ok(
+    nearby[0].distanceKm > 0 && nearby[0].distanceKm < 30,
+    "dystans do Rowów powinien być policzony i mieścić się w promieniu",
+  );
+});
+
+test("nearbyPlacesWithDistance przy większym promieniu (suwak) zwraca więcej miejsc, bez ponownego przeliczania odległości", () => {
+  const baza = makePlace({ slug: "ustka", title: "Ustka", lat: 54.5805, lng: 16.8614 });
+  const bliskie = makePlace({ slug: "rowy", title: "Rowy", lat: 54.6, lng: 16.9 });
+  const dalsze = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
+
+  // Liczone RAZ do maksymalnego promienia (symulacja tego, co robi
+  // /planer/baza przed przekazaniem do klienta) — kolejne promienie tylko
+  // filtrują tę samą listę, tak jak BaseRadiusExplorer.tsx po stronie klienta.
+  const wszystkie = nearbyPlacesWithDistance([baza, bliskie, dalsze], baza, 50);
+
+  const przy15km = wszystkie.filter((n) => n.distanceKm <= 15);
+  const przy50km = wszystkie.filter((n) => n.distanceKm <= 50);
+
+  assert.deepEqual(przy15km.map((n) => n.place.slug), ["rowy"]);
+  assert.deepEqual(przy50km.map((n) => n.place.slug), ["rowy", "leba"]);
+});
+
+test("restrictToSubRegion ogranicza pulę do jednego podregionu wybrzeża po tagu (basic) i po odległości od kotwic (kuratorskie)", () => {
+  const kotwiceSrodkowego = [
+    { lat: 54.5805, lng: 16.8614 }, // Ustka
+    { lat: 54.7597, lng: 17.5536 }, // Łeba
+  ];
+  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+
+  const bazowyWSrodkowym = makePlace({
+    slug: "rowy",
+    title: "Rowy",
+    lat: 54.6,
+    lng: 16.9,
+    source: "curated",
+  });
+  const bazowyDaleko = makePlace({
+    slug: "swinoujscie",
+    title: "Świnoujście",
+    lat: 53.9099,
+    lng: 14.2477,
+    source: "curated",
+  });
+  const basicOtagowanySrodkowy = makePlace({
+    slug: "geoapify-cos",
+    title: "Coś z Geoapify",
+    lat: 54.65,
+    lng: 17.0,
+    source: "basic",
+    region: "srodkowe-wybrzeze",
+  });
+  const basicOtagowanyInny = makePlace({
+    slug: "geoapify-cos-innego",
+    title: "Coś innego z Geoapify",
+    lat: 54.65,
+    lng: 17.0, // fizycznie blisko, ale otagowane jako inny podregion
+    source: "basic",
+    region: "zachodnie-wybrzeze",
+  });
+
+  const result = restrictToSubRegion(
+    [bazowyWSrodkowym, bazowyDaleko, basicOtagowanySrodkowy, basicOtagowanyInny],
+    "srodkowe-wybrzeze",
+    kotwiceSrodkowego,
+    granice,
+  );
+
+  const slugs = result.map((p) => p.slug);
+  assert.ok(slugs.includes("rowy"), "kuratorskie miejsce blisko kotwic podregionu powinno przejść");
+  assert.ok(!slugs.includes("swinoujscie"), "kuratorskie miejsce daleko od kotwic nie powinno przejść");
+  assert.ok(
+    slugs.includes("geoapify-cos"),
+    "miejsce 'basic' otagowane właściwym podregionem powinno przejść",
+  );
+  assert.ok(
+    !slugs.includes("geoapify-cos-innego"),
+    "miejsce 'basic' otagowane INNYM podregionem nie powinno przejść, nawet gdy fizycznie blisko",
+  );
+});
+
+// Realny przypadek z live-testu 05.09: promień 120 km wokół kotwic
+// Środkowego wybrzeża (Ustka/Łeba) sam w sobie łapał Kołobrzeg — kotwicę
+// SĄSIEDNIEGO, Zachodniego wybrzeża, leżącą ~94 km od Ustki. Bez twardej
+// granicy `bounds` appka pokazywałaby Kołobrzeg jako propozycję bazy w
+// "Środkowym wybrzeżu", mimo że to inny odcinek.
+test("restrictToSubRegion odrzuca kuratorskie miejsce w promieniu kotwic, ale POZA twardą granicą podregionu (kotwica sąsiedniego odcinka)", () => {
+  const kotwiceSrodkowego = [
+    { lat: 54.5805, lng: 16.8614 }, // Ustka
+    { lat: 54.7597, lng: 17.5536 }, // Łeba
+    { lat: 54.8289, lng: 18.21 }, // Karwia
+  ];
+  const graniceSrodkowego = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+
+  const kolobrzeg = makePlace({
+    slug: "kolobrzeg",
+    title: "Kołobrzeg i Dźwirzyno",
+    lat: 54.1752,
+    lng: 15.5762,
+    source: "curated",
+  });
+
+  const result = restrictToSubRegion(
+    [kolobrzeg],
+    "srodkowe-wybrzeze",
+    kotwiceSrodkowego,
+    graniceSrodkowego,
+  );
+
+  assert.deepEqual(
+    result,
+    [],
+    "Kołobrzeg (kotwica Zachodniego wybrzeża) nie powinien pojawić się jako propozycja dla Środkowego wybrzeża",
   );
 });
