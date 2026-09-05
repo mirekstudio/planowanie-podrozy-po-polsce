@@ -36,9 +36,19 @@ async function BasicPlacePage({
         {/* Neutralna, przyciszona odznaka — celowo bez koloru z palety
             (bordo/bursztyn/turkus), żeby kontrastować z bursztynową
             odznaką "Kuratorskie"/"★ Poleca przewodnik" i wizualnie
-            oznaczać miejsca "podstawowe" jako mniej wyróżnione. */}
+            oznaczać miejsca "podstawowe" jako mniej wyróżnione.
+            Zgłoszenie 05.09: tekst "Odkryj więcej" ma sens jako
+            zaproszenie do kliknięcia na LIŚCIE miejsc (patrz np.
+            miejsca/page.tsx, BaseCard, ItineraryPlaceCard — tam to
+            faktycznie link prowadzący tutaj) — na tej stronie, gdzie
+            użytkownik już jest, to czasownikowe wezwanie do działania
+            brzmi jak zaproszenie donikąd. Ten span nigdy nie był linkiem
+            (patrz brak href/onClick), więc tu — i TYLKO tu — czysto
+            informacyjny opis statusu, bez czasownika zachęcającego do
+            kliknięcia. Odznaka "Odkryj więcej →" na listach zostaje bez
+            zmian, bo tam faktycznie prowadzi dalej. */}
         <span className="mt-4 inline-flex w-fit items-center gap-1 rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-white/10 dark:text-zinc-400">
-          Odkryj więcej — miejsce spoza naszej kuratorskiej bazy
+          Dane spoza naszej kuratorskiej bazy
         </span>
 
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
