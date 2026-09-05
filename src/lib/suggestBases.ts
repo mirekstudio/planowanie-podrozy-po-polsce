@@ -207,6 +207,16 @@ export type PreviewPin = { lat: number; lng: number; title: string };
 // zdarza się tylko wtedy, gdy w granicach podregionu nie ma ŻADNEGO
 // kuratorskiego miejsca — nie powinno się zdarzyć dla obsługiwanych dziś
 // podregionów wybrzeża, ale miniatura nigdy nie zostaje wtedy pusta.
+//
+// Zgłoszenie 05.09 (kontynuacja): ten sam błąd koncepcyjny co w
+// suggestBaseCandidates — "Słowiński Park Narodowy" pojawiał się tu jako
+// jeden z reprezentatywnych pinesek/nazw podregionu, mimo że ten ekran
+// prowadzi WPROST do wyboru bazy, a park nie jest wybieralny jako baza
+// (patrz isProtectedArea). Ten sam filtr, żeby podgląd Poziomu 1 nigdy
+// nie sugerował miejsca, którego i tak nie będzie można wybrać krok
+// niżej — park narodowy zostaje pominięty tu dokładnie tak samo jak przy
+// wyborze kandydatów, ale wciąż normalnie pojawi się jako atrakcja w
+// promieniu wybranej bazy (patrz nearbyPlacesWithDistance, niezmienione).
 export function previewPinsForSubRegion(
   curatedPlaces: Place[],
   bounds: Bounds,
@@ -215,6 +225,7 @@ export function previewPinsForSubRegion(
 ): PreviewPin[] {
   const inBounds = curatedPlaces
     .filter((p) => isWithinBounds({ lat: p.lat, lng: p.lng }, bounds))
+    .filter((p) => !isProtectedArea(p))
     .slice(0, limit)
     .map((p) => ({ lat: p.lat, lng: p.lng, title: p.title }));
   return inBounds.length > 0

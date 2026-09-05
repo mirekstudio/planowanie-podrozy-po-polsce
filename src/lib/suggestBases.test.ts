@@ -337,6 +337,39 @@ test("liczba tytułów z previewPinsForSubRegion nigdy nie przekracza liczby pin
   );
 });
 
+// Zgłoszenie 05.09 (kontynuacja druga): ten sam błąd koncepcyjny co przy
+// suggestBaseCandidates, ale o piętro wyżej — na Poziomie 1 (karta
+// podregionu, ekran PRZED wyborem bazy) "Słowiński Park Narodowy" nadal
+// pojawiał się jako jedna z reprezentatywnych pinesek/nazw miniatury,
+// mimo że ten ekran prowadzi wprost do wyboru bazy, a park nie jest
+// wybieralny jako baza. previewPinsForSubRegion musi wykluczać obszary
+// chronione dokładnie tak samo jak suggestBaseCandidates.
+test("previewPinsForSubRegion nigdy nie pokazuje parku narodowego jako reprezentatywnego pineska/nazwy podregionu", () => {
+  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+  const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
+
+  // Te same prawdziwe współrzędne Słowińskiego PN co w teście
+  // suggestBaseCandidates niżej — leży w granicach Środkowego wybrzeża.
+  const slowinski = makePlace({
+    slug: "slowinski-park-narodowy",
+    title: "Słowiński Park Narodowy",
+    lat: 54.7378,
+    lng: 17.4611,
+    tags: ["Natura", "Aktywność fizyczna", "Parki Narodowe"],
+  });
+  const leba = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
+  const rowy = makePlace({ slug: "rowy", title: "Rowy i Jezioro Gardno", lat: 54.6875, lng: 17.1539 });
+
+  const pins = previewPinsForSubRegion([slowinski, leba, rowy], granice, kotwice, 3);
+  const tytuly = pins.map((p) => p.title);
+
+  assert.ok(
+    !tytuly.includes("Słowiński Park Narodowy"),
+    `Park narodowy nie powinien pojawić się w podglądzie Poziomu 1: ${JSON.stringify(tytuly)}`,
+  );
+  assert.ok(tytuly.includes("Łeba"), "Łeba (prawdziwa miejscowość, kandydatka na bazę) powinna zostać w podglądzie");
+});
+
 // Zgłoszenie 05.09 (kontynuacja): "Słowiński Park Narodowy" pojawiał się
 // jako propozycja BAZY wypadowej — błąd koncepcyjny, park narodowy to
 // obszar chroniony bez noclegów, atrakcja do której się jedzie, nie
