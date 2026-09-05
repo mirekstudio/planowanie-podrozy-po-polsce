@@ -274,54 +274,59 @@ export default function MapboxRouteMap({
     }
 
     stops.forEach((stop, index) => {
-      // Kontener pozycjonujący — samą numerowaną pinezkę i mały odznaczek
-      // ikony kategorii w jej rogu (patrz niżej) trzeba pozycjonować
+      // Kontener pozycjonujący — samą pinezkę z ikoną kategorii i mały
+      // odznaczek numeru w jej rogu (patrz niżej) trzeba pozycjonować
       // względem wspólnego rodzica, inaczej mapboxgl.Marker (który sam
       // pozycjonuje SWÓJ element) nie wie, co ma być jednym markerem.
       const el = document.createElement("div");
       el.style.position = "relative";
-      el.style.width = "28px";
-      el.style.height = "28px";
+      el.style.width = "32px";
+      el.style.height = "32px";
       el.style.cursor = "pointer";
 
-      // Zgłoszenie 05.09 (mapy z ikonami kategorii): numer kolejności na
-      // trasie zostaje głównym elementem pinezki (kluczowy do śledzenia
-      // trasy) — kategoria dochodzi jako mały, dodatkowy odznaczek w rogu,
-      // żeby nie zaśmiecić małej 28px pinezki, ale wciąż dać odpowiedź
-      // "co to za miejsce" bez klikania. Patrz getPlaceMapIcon (ten sam
-      // mechanizm dopasowania co karty/placeholdery).
+      // Zgłoszenie 05.09 (kontynuacja — czytelność ikon): ikona kategorii
+      // ma być GŁÓWNYM, czytelnym elementem pinezki (na tyle duża, żeby
+      // rozpoznać zamek/plażę/latarnię bez klikania), nie małym
+      // dodatkiem w rogu — poprzednia wersja robiła odwrotnie (numer
+      // główny, 9px ikona w rogu) i ikona była nieczytelna. Numer
+      // kolejności na trasie wciąż jest potrzebny do śledzenia trasy, ale
+      // teraz to ON jest małym odznaczkiem w rogu — nadal w pełni czytelny
+      // przy 1-2 cyfrach, w przeciwieństwie do emoji przy bardzo małym
+      // rozmiarze. Patrz getPlaceMapIcon (ten sam mechanizm dopasowania
+      // co karty/placeholdery).
+      const categoryIcon = document.createElement("div");
+      categoryIcon.style.background = "white";
+      categoryIcon.style.width = "32px";
+      categoryIcon.style.height = "32px";
+      categoryIcon.style.borderRadius = "50%";
+      categoryIcon.style.display = "flex";
+      categoryIcon.style.alignItems = "center";
+      categoryIcon.style.justifyContent = "center";
+      categoryIcon.style.fontSize = "17px";
+      categoryIcon.style.lineHeight = "1";
+      categoryIcon.style.border = "2px solid var(--color-wine-solid)";
+      categoryIcon.style.boxShadow = "0 0 4px rgba(0,0,0,0.4)";
+      categoryIcon.textContent = getPlaceMapIcon(stop);
+      el.appendChild(categoryIcon);
+
       const numberEl = document.createElement("div");
+      numberEl.style.position = "absolute";
+      numberEl.style.bottom = "-6px";
+      numberEl.style.right = "-6px";
       numberEl.style.background = "var(--color-wine-solid)";
       numberEl.style.color = "#fff";
-      numberEl.style.width = "28px";
-      numberEl.style.height = "28px";
+      numberEl.style.width = "17px";
+      numberEl.style.height = "17px";
       numberEl.style.borderRadius = "50%";
       numberEl.style.display = "flex";
       numberEl.style.alignItems = "center";
       numberEl.style.justifyContent = "center";
-      numberEl.style.fontSize = "13px";
+      numberEl.style.fontSize = "10px";
       numberEl.style.fontWeight = "600";
-      numberEl.style.border = "2px solid white";
-      numberEl.style.boxShadow = "0 0 4px rgba(0,0,0,0.4)";
+      numberEl.style.border = "1.5px solid white";
+      numberEl.style.boxShadow = "0 0 3px rgba(0,0,0,0.4)";
       numberEl.textContent = String(index + 1);
       el.appendChild(numberEl);
-
-      const categoryIcon = document.createElement("div");
-      categoryIcon.style.position = "absolute";
-      categoryIcon.style.top = "-6px";
-      categoryIcon.style.right = "-6px";
-      categoryIcon.style.width = "16px";
-      categoryIcon.style.height = "16px";
-      categoryIcon.style.borderRadius = "50%";
-      categoryIcon.style.background = "white";
-      categoryIcon.style.border = "1.5px solid var(--color-wine-solid)";
-      categoryIcon.style.display = "flex";
-      categoryIcon.style.alignItems = "center";
-      categoryIcon.style.justifyContent = "center";
-      categoryIcon.style.fontSize = "9px";
-      categoryIcon.style.lineHeight = "1";
-      categoryIcon.textContent = getPlaceMapIcon(stop);
-      el.appendChild(categoryIcon);
 
       const popup = new mapboxgl.Popup({
         offset: 16,
@@ -383,11 +388,19 @@ export default function MapboxRouteMap({
               paint: { "line-color": "#6b1725", "line-width": 4 },
             });
 
-            const routeBounds = new mapboxgl.LngLatBounds();
-            result.geometry.coordinates.forEach((c) =>
-              routeBounds.extend(c),
-            );
-            map.fitBounds(routeBounds, { padding: 60, maxZoom: 11 });
+            // Zgłoszenie 05.09: ROZSZERZAMY te same `bounds`, które już
+            // zawierają bazę/start i WSZYSTKIE przystanki (patrz wyżej) —
+            // nie budujemy osobnych granic tylko z geometrii trasy. W
+            // teorii linia trasy i tak przechodzi przez każdy przystanek,
+            // więc oba zbiory granic powinny wychodzić na to samo — ale
+            // to założenie, nie gwarancja (przybliżenie drogi do
+            // najbliższej drogi, kolejność waypointów przez odległość od
+            // bazy a nie sensowną trasę w BaseRadiusExplorer...). Suma
+            // obu granic matematycznie GWARANTUJE, że żaden przystanek z
+            // listy pod mapą nigdy nie wypadnie poza kadr, niezależnie od
+            // kształtu samej trasy.
+            result.geometry.coordinates.forEach((c) => bounds.extend(c));
+            map.fitBounds(bounds, { padding: 60, maxZoom: 11 });
           };
 
           if (map.isStyleLoaded()) {
