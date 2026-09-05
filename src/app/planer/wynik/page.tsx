@@ -5,6 +5,7 @@ import type { Place } from "@/data/places";
 import { getRoutePlaces } from "@/lib/getRoutePlaces";
 import { generateRouteVariants, type RouteVariant } from "@/lib/generateRoute";
 import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
+import { displaySummary } from "@/lib/routeVariantDisplay";
 import RouteMapAndActions from "@/components/RouteMapAndActions";
 import BackLink from "@/components/BackLink";
 import AccommodationCard from "@/components/AccommodationCard";
@@ -251,7 +252,7 @@ export default async function PlanerWynikPage({
           {selectedVariant.title}
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {selectedVariant.summary}
+          {displaySummary(selectedVariant)}
         </p>
 
         {chips}
@@ -439,7 +440,7 @@ function VariantCard({
           {variant.route.stops.length === 1 ? "przystanek" : "przystanków"}
         </p>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {variant.summary}
+          {displaySummary(variant)}
         </p>
       </div>
     </Link>

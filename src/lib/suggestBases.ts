@@ -162,27 +162,39 @@ const CURATED_SUB_REGION_RADIUS_KM = 120;
 // takiego etapu, granica `bounds` musi być sprawdzona od razu, dla
 // WSZYSTKICH miejsc (kuratorskich i "basic" — tag regionu w danych też
 // może się mylić, patrz ten sam komentarz w generateRoute.ts).
+export type PreviewPin = { lat: number; lng: number; title: string };
+
 // Miniatura mapy na Poziomie 1 (wybór podregionu) ma pokazywać to, co
 // USER FAKTYCZNIE zobaczy po kliknięciu — nie stałe, orientacyjne kotwice
 // z poland.ts (używane gdzie indziej wyłącznie do wyznaczania promienia
-// wyszukiwania Geoapify, patrz SubRegion.anchors). Zgłoszenie 05.09: mapa
-// pokazywała 3 kotwice, a lista kart niżej — inną liczbę i inne miejsca,
-// bo to dwa niezależne źródła danych. Ta funkcja bierze prawdziwe
-// kuratorskie miejsca leżące w granicach podregionu (ten sam `bounds` co
-// restrictToSubRegion) — jeśli żadnych nie ma (nie powinno się zdarzyć
-// dla obsługiwanych dziś podregionów wybrzeża), spada z powrotem na
-// kotwice, żeby miniatura nigdy nie została pusta.
+// wyszukiwania Geoapify, patrz SubRegion.anchors). Zgłoszenie 05.09
+// (pierwsza część): mapa pokazywała 3 kotwice, a lista kart niżej — inną
+// liczbę i inne miejsca, bo to dwa niezależne źródła danych.
+//
+// Zwraca też `title` (nie same współrzędne) — druga część tego samego
+// zgłoszenia: podpis tekstowy pod miniaturą MUSI być zbudowany z TYCH
+// SAMYCH obiektów co pineski na mapie (patrz subRegionCaption w
+// /planer/bazy/page.tsx), inaczej liczba wymienionych miejscowości w
+// tekście znowu mogłaby się rozjechać z liczbą pinesek — dokładnie ten
+// sam błąd, tylko w drugą stronę.
+//
+// Fallback na kotwice (bez tytułów, patrz brak `title` u wywołującego)
+// zdarza się tylko wtedy, gdy w granicach podregionu nie ma ŻADNEGO
+// kuratorskiego miejsca — nie powinno się zdarzyć dla obsługiwanych dziś
+// podregionów wybrzeża, ale miniatura nigdy nie zostaje wtedy pusta.
 export function previewPinsForSubRegion(
   curatedPlaces: Place[],
   bounds: Bounds,
   fallbackAnchors: { lat: number; lng: number }[],
   limit = 3,
-): { lat: number; lng: number }[] {
+): PreviewPin[] {
   const inBounds = curatedPlaces
     .filter((p) => isWithinBounds({ lat: p.lat, lng: p.lng }, bounds))
     .slice(0, limit)
-    .map((p) => ({ lat: p.lat, lng: p.lng }));
-  return inBounds.length > 0 ? inBounds : fallbackAnchors;
+    .map((p) => ({ lat: p.lat, lng: p.lng, title: p.title }));
+  return inBounds.length > 0
+    ? inBounds
+    : fallbackAnchors.map((a) => ({ ...a, title: "" }));
 }
 
 export function restrictToSubRegion(

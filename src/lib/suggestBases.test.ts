@@ -282,7 +282,7 @@ test("restrictToSubRegion odrzuca kuratorskie miejsce w promieniu kotwic, ale PO
 // pokazywała stałe kotwice z poland.ts — niezależne od tego, co faktycznie
 // wychodziło z suggestBaseCandidates na liście niżej. previewPinsForSubRegion
 // ma zamiast tego pokazywać prawdziwe kuratorskie miejsca z tego podregionu.
-test("previewPinsForSubRegion zwraca prawdziwe kuratorskie miejsca z granic podregionu, nie stałe kotwice", () => {
+test("previewPinsForSubRegion zwraca prawdziwe kuratorskie miejsca (z tytułem) z granic podregionu, nie stałe kotwice", () => {
   const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
   const kotwice = [{ lat: 54.5805, lng: 16.8614 }]; // Ustka — fallback, nie powinien być użyty
 
@@ -293,16 +293,46 @@ test("previewPinsForSubRegion zwraca prawdziwe kuratorskie miejsca z granic podr
 
   assert.deepEqual(
     pins,
-    [{ lat: 54.7597, lng: 17.5536 }],
-    "powinien zwrócić współrzędne Łeby (w granicach), nie Kołobrzegu (poza) ani kotwicy fallback",
+    [{ lat: 54.7597, lng: 17.5536, title: "Łeba" }],
+    "powinien zwrócić Łebę z tytułem (w granicach), nie Kołobrzeg (poza) ani kotwicę fallback",
   );
 });
 
-test("previewPinsForSubRegion spada na kotwice, gdy brak kuratorskich miejsc w granicach", () => {
+test("previewPinsForSubRegion spada na kotwice (bez tytułu), gdy brak kuratorskich miejsc w granicach", () => {
   const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
   const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
 
   const pins = previewPinsForSubRegion([], granice, kotwice);
 
-  assert.deepEqual(pins, kotwice, "bez żadnych kuratorskich miejsc w granicach powinien użyć kotwic");
+  assert.deepEqual(
+    pins,
+    [{ lat: 54.5805, lng: 16.8614, title: "" }],
+    "bez żadnych kuratorskich miejsc w granicach powinien użyć kotwic, ale bez zmyślonego tytułu",
+  );
+});
+
+// Zgłoszenie 05.09 (kontynuacja): podpis pod miniaturą MUSI pochodzić z
+// tych samych obiektów co pineski, żeby liczba wymienionych miejscowości
+// nigdy nie mogła przekroczyć liczby pinesek — sprawdzane tu wprost na
+// wyniku previewPinsForSubRegion, tej samej funkcji, która zasila mapę.
+test("liczba tytułów z previewPinsForSubRegion nigdy nie przekracza liczby pinesek (ten sam obiekt zasila oba)", () => {
+  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+  const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
+
+  const miejsca = [
+    makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 }),
+    makePlace({ slug: "ustka", title: "Ustka", lat: 54.5805, lng: 16.8614 }),
+    makePlace({ slug: "rowy", title: "Rowy i Jezioro Gardno", lat: 54.6875, lng: 17.1539 }),
+    makePlace({ slug: "bialogora", title: "Białogóra", lat: 54.7889, lng: 17.9833 }),
+  ];
+
+  const pins = previewPinsForSubRegion(miejsca, granice, kotwice, 3);
+  const tytuly = pins.map((p) => p.title).filter(Boolean);
+
+  assert.equal(pins.length, 3, "limit powinien ograniczyć liczbę pinesek");
+  assert.equal(
+    tytuly.length,
+    pins.length,
+    "liczba nazw dostępnych do podpisu musi się zgadzać z liczbą pinesek",
+  );
 });

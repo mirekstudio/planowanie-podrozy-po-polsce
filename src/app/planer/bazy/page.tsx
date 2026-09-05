@@ -7,6 +7,7 @@ import {
   restrictToSubRegion,
   previewPinsForSubRegion,
   type BaseCandidate,
+  type PreviewPin,
 } from "@/lib/suggestBases";
 import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import { filterActiveRegionTypes } from "@/lib/placeFilters";
@@ -193,16 +194,27 @@ export default async function PlanerBazyPage({
   );
 }
 
+// Podpis pod miniaturą budowany z TYCH SAMYCH obiektów co pineski na
+// mapie (patrz komentarz przy previewPinsForSubRegion) — jedyny sposób,
+// żeby tekst i mapa nigdy nie mogły się rozjechać. Pusty string, gdy
+// `pins` to fallbackowe kotwice bez tytułów (patrz previewPinsForSubRegion)
+// — wtedy lepiej nie pokazywać żadnej listy nazw niż znowu zgadywać.
+function subRegionCaption(pins: PreviewPin[]): string | null {
+  const titles = pins.map((p) => p.title).filter(Boolean);
+  return titles.length > 0 ? titles.join(" – ") : null;
+}
+
 function SubRegionCard({
   sub,
   pins,
   href,
 }: {
   sub: SubRegion;
-  pins: { lat: number; lng: number }[];
+  pins: PreviewPin[];
   href: string;
 }) {
   const thumbnail = buildRouteThumbnailUrl(pins, null);
+  const caption = subRegionCaption(pins);
 
   return (
     <Link
@@ -226,9 +238,11 @@ function SubRegionCard({
         <h2 className="font-semibold text-black dark:text-zinc-50">
           {sub.title}
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {sub.summary}
-        </p>
+        {caption && (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {caption}
+          </p>
+        )}
       </div>
     </Link>
   );
