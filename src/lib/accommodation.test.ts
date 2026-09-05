@@ -2,7 +2,7 @@ import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import type { Nocleg } from "@/data/noclegi";
 import type { ExternalPlaceResult } from "@/lib/placesProviders";
-import { getAccommodationOptions } from "./accommodation";
+import { getAccommodationOptions, looksLikeMembersOnlyAccommodation } from "./accommodation";
 
 // Dowód dla punktu 2 ścieżki naprawczej, część 2 (23.08): fallback
 // noclegowy miał wcześniej własny, osobny fetch do Geoapify — bez filtra
@@ -88,4 +88,54 @@ test("brak dopasowania w bazie i pusty wynik z dostawcy: zwraca pustą listę", 
   const result = await getAccommodationOptions(point, [], { transport: "car" }, fetchPlaces);
 
   assert.deepEqual(result, []);
+});
+
+// Zgłoszenie 04.09: "Obóz ZHP" (prywatny obóz harcerski, niedostępny dla
+// przypadkowego turysty) pojawił się jako propozycja noclegu dla ogólnej
+// podróży camperem — kategoria Geoapify "camping" nie rozróżnia obozów
+// otwartych od zamkniętych dla członków organizacji.
+test("looksLikeMembersOnlyAccommodation odrzuca obozy harcerskie/ZHP", () => {
+  assert.equal(looksLikeMembersOnlyAccommodation("Obóz ZHP"), true);
+  assert.equal(looksLikeMembersOnlyAccommodation("Obóz Harcerski Szczep Watra"), true);
+  assert.equal(looksLikeMembersOnlyAccommodation("ZHP Chorągiew Gdańska - baza obozowa"), true);
+});
+
+test("looksLikeMembersOnlyAccommodation NIE odrzuca normalnych kempingów/pól namiotowych", () => {
+  assert.equal(looksLikeMembersOnlyAccommodation("Camping Tramp"), false);
+  assert.equal(looksLikeMembersOnlyAccommodation("Pole namiotowe nad jeziorem"), false);
+  assert.equal(looksLikeMembersOnlyAccommodation("Hotel Bałtyk"), false);
+});
+
+test("fallback do Geoapify pomija obóz ZHP i proponuje kolejny, otwarty wynik", async () => {
+  const point = { lat: 54.76, lng: 17.55 };
+  const fetchPlaces = mock.fn(async () => [
+    makeExternal({
+      externalId: "oboz-zhp",
+      title: "Obóz ZHP",
+      lat: 54.761,
+      lng: 17.551,
+      categories: ["camping"],
+    }),
+    makeExternal({
+      externalId: "camping-otwarty",
+      title: "Camping nad Łebą",
+      lat: 54.762,
+      lng: 17.552,
+      categories: ["camping.camp_site"],
+    }),
+  ]);
+
+  const result = await getAccommodationOptions(
+    point,
+    [],
+    { transport: "camper" },
+    fetchPlaces,
+  );
+
+  assert.equal(result.length, 1);
+  assert.equal(
+    result[0].nazwa,
+    "Camping nad Łebą",
+    "obóz ZHP powinien zostać pominięty na rzecz kolejnego, otwartego wyniku",
+  );
 });

@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { looksLikeNonTouristPlace, looksLikeNonLakeWaterFeature } from "./geoapify";
+import {
+  looksLikeNonTouristPlace,
+  looksLikeNonLakeWaterFeature,
+  looksLikeGenericBeachAccessPoint,
+} from "./geoapify";
 
 // Przypadki, które faktycznie pojawiły się jako "przystanki" w
 // wygenerowanych trasach na produkcji (Środkowe/Wschodnie wybrzeże,
@@ -88,4 +92,26 @@ test("looksLikeNonLakeWaterFeature NIE odrzuca prawdziwych jezior, w tym bez sł
   // być odrzucane tylko dlatego, że są niestandardowe.
   assert.equal(looksLikeNonLakeWaterFeature("Wilcze"), false);
   assert.equal(looksLikeNonLakeWaterFeature("Trzy Tonie"), false);
+});
+
+// Realne nazwy z kategorii "beach" wzdłuż polskiego wybrzeża (zgłoszenie
+// 04.09) — ponumerowane wejścia na plażę, zwłaszcza okolice Białogóry,
+// gdzie każdy fizyczny dostęp do plaży ma własny punkt w OSM.
+test("looksLikeGenericBeachAccessPoint odrzuca ponumerowane wejścia/plaże bez nazwy własnej", () => {
+  assert.equal(looksLikeGenericBeachAccessPoint("Wejście 31"), true);
+  assert.equal(looksLikeGenericBeachAccessPoint("Wejście 34 Białogóra"), true);
+  assert.equal(looksLikeGenericBeachAccessPoint("Zejście 12"), true);
+  // Realny przypadek z live-testu 04.09: numer z literą-dopiskiem ("36A")
+  // łamał granicę słowa (\b) między cyfrą a literą w pierwszej wersji wzorca.
+  assert.equal(looksLikeGenericBeachAccessPoint("Wejście 36A Osieki"), true);
+  assert.equal(looksLikeGenericBeachAccessPoint("Plaża B"), true);
+  assert.equal(looksLikeGenericBeachAccessPoint("Plaża C"), true);
+  assert.equal(looksLikeGenericBeachAccessPoint("Plaża 3"), true);
+});
+
+test("looksLikeGenericBeachAccessPoint NIE odrzuca prawdziwie nazwanych plaż", () => {
+  assert.equal(looksLikeGenericBeachAccessPoint("Plaża Miejska"), false);
+  assert.equal(looksLikeGenericBeachAccessPoint("Plaża Orłowo"), false);
+  assert.equal(looksLikeGenericBeachAccessPoint("plaża nudystów"), false);
+  assert.equal(looksLikeGenericBeachAccessPoint("Latarnia Morska Rozewie"), false);
 });

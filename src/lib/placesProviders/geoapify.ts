@@ -198,6 +198,24 @@ export function looksLikeNonLakeWaterFeature(name: string): boolean {
   return NON_LAKE_WATER_NAME_PATTERN.test(name.trim());
 }
 
+// Filtr swoisty dla kombinacji "Morze" + "Relaks" (patrz COASTAL_RELAX_
+// CATEGORIES/resolveCategories wyżej) — kategoria "beach" w OSM oznacza
+// KAŻDY fizyczny punkt dostępu do plaży, nie tylko wartościowe atrakcje.
+// Wzdłuż polskiego wybrzeża (zwłaszcza okolice Białogóry) każde
+// ponumerowane wejście na plażę ma tam własny punkt, np. "Wejście 31",
+// "Wejście 34 Białogóra", "Plaża B", "Plaża C" — appka parowała je po
+// dwa na przystanek jako "atrakcje", co wyglądało jak sztuczny wypełniacz
+// (zgłoszenie 04.09). To nie są miejsca warte pokazania jako osobne karty:
+// bez nazwy własnej, tylko numer/litera-kod. NIE odrzuca prawdziwie
+// nazwanych plaż ("Plaża Miejska", "Plaża Orłowo") — tylko gdy po słowie
+// "Plaża" jest sam pojedynczy numer/litera, bez dalszej nazwy.
+const GENERIC_BEACH_ACCESS_NAME_PATTERN =
+  /^(wej[śs]cie|zej[śs]cie)\s*(na\s*pla[żz]ę\s*)?\d+[a-z]?\b|^pla[żz]a\s+[a-z0-9]{1,2}$/i;
+
+export function looksLikeGenericBeachAccessPoint(name: string): boolean {
+  return GENERIC_BEACH_ACCESS_NAME_PATTERN.test(name.trim());
+}
+
 type GeoapifyDetailsFeature = {
   properties: {
     name?: string;
@@ -361,13 +379,18 @@ async function fetchPlaces({
   const categories = resolveCategories(interests, regionTypes);
   const results = await fetchProtectedPlaces({ categories, center, radiusMeters, limit, exclude });
 
-  // Filtr swoisty dla "Jeziora" — patrz komentarz przy
-  // looksLikeNonLakeWaterFeature. Stosowany tu, a nie w fetchProtectedPlaces,
-  // bo to filtr znający semantykę NASZYCH zainteresowań/kategorii bocznego
-  // menu — fetchProtectedPlaces celowo o nich nic nie wie (przyjmuje surowe
+  // Filtry swoiste dla konkretnych zainteresowań/kombinacji — patrz
+  // komentarze przy looksLikeNonLakeWaterFeature/looksLikeGenericBeach
+  // AccessPoint. Stosowane tu, a nie w fetchProtectedPlaces, bo to filtry
+  // znające semantykę NASZYCH zainteresowań/kategorii bocznego menu —
+  // fetchProtectedPlaces celowo o nich nic nie wie (przyjmuje surowe
   // kategorie Geoapify od dowolnego wywołującego, patrz jej komentarz).
   if (interests.includes("Jeziora")) {
     return results.filter((r) => !looksLikeNonLakeWaterFeature(r.title));
+  }
+
+  if ((regionTypes ?? []).includes("Morze") && interests.includes("Relaks")) {
+    return results.filter((r) => !looksLikeGenericBeachAccessPoint(r.title));
   }
 
   return results;

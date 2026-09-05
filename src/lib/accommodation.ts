@@ -106,7 +106,9 @@ export function pickCuratedAccommodation(
   options: AccommodationMatchOptions,
   limit = 3,
 ): AccommodationOption[] {
-  const withinRadius = noclegi.filter((n) => distanceKm(point, n) <= MAX_DISTANCE_KM);
+  const withinRadius = noclegi
+    .filter((n) => distanceKm(point, n) <= MAX_DISTANCE_KM)
+    .filter((n) => !looksLikeMembersOnlyAccommodation(n.nazwa));
   const preferred = withinRadius.filter((n) =>
     matchesPreference(n.typ, options.accommodationType),
   );
@@ -137,6 +139,22 @@ function resolveFallbackCategories(
   return transport === "camper"
     ? ["camping.camp_site", "camping.caravan_site", "accommodation"]
     : ["accommodation.hotel", "accommodation.guest_house", "camping.camp_site"];
+}
+
+// Kategorie Geoapify dla noclegów (camping.*/accommodation) nie
+// rozróżniają "otwarte dla każdego" od "prywatne, tylko dla członków
+// organizacji" — obóz harcerski (ZHP) formalnie mieści się w kategorii
+// "camping", ale nie da się tam po prostu przyjechać jako przypadkowy
+// turysta (zgłoszenie 04.09: appka zaproponowała "Obóz ZHP" jako nocleg
+// dla ogólnej podróży camperem). Ten sam wzorzec co looksLikeNonTouristPlace
+// w geoapify.ts — niezależna, tekstowa druga linia obrony, tu swoista dla
+// noclegów. Nie ma odpowiednika w fetchProtectedPlaces, bo to filtr
+// znający semantykę NASZEGO pojęcia "nocleg dostępny dla turysty", nie
+// ogólną kategorię "atrakcja"/"biznes".
+const MEMBERS_ONLY_ACCOMMODATION_NAME_PATTERN = /\bzhp\b|harcer|obóz\s+(szkoleniowy|zamkni[eę]ty)/i;
+
+export function looksLikeMembersOnlyAccommodation(nazwa: string): boolean {
+  return MEMBERS_ONLY_ACCOMMODATION_NAME_PATTERN.test(nazwa.trim());
 }
 
 function guessTypeFromCategories(categories: string[] | undefined): NoclegTyp | "nocleg" {
@@ -186,9 +204,9 @@ async function fetchAccommodationFallback(
   // wypaść poza granicę, blisko jej krawędzi. fetchProtectedPlaces chroni
   // przed nieturystycznymi/zagranicznymi wynikami, ale nie zna pojęcia
   // "region wspierany przez tę appkę" — to sprawdzamy dopiero tutaj.
-  const withinSupportedRegions = results.filter((r) =>
-    isWithinSupportedRegions({ lat: r.lat, lng: r.lng }),
-  );
+  const withinSupportedRegions = results
+    .filter((r) => isWithinSupportedRegions({ lat: r.lat, lng: r.lng }))
+    .filter((r) => !looksLikeMembersOnlyAccommodation(r.title));
 
   // fetchProtectedPlaces zwraca wyniki w kolejności preferowanej przez
   // "bias" Geoapify (najbliższe najpierw) — pierwszy pasujący jest więc
