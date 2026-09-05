@@ -1,4 +1,4 @@
-import type { PlanerFormInitialValues } from "@/components/PlanerForm";
+import type { PlanerFormInitialValues, TravelStyle } from "@/components/PlanerForm";
 import type { AccommodationTypePreference } from "@/lib/accommodation";
 import { filterActiveRegionTypes } from "@/lib/placeFilters";
 
@@ -13,8 +13,18 @@ export type PlannerSearchParams = {
   numAdults?: string;
   children?: string;
   accommodationType?: string;
+  // Na razie tylko zapamiętywany i przekazywany dalej — patrz komentarz
+  // przy STEP_LABELS w PlanerForm.tsx. Bez efektu na sam algorytm
+  // generowania trasy (to osobne, kolejne zadanie).
+  travelStyle?: string;
   variant?: string;
 };
+
+const VALID_TRAVEL_STYLES: TravelStyle[] = ["baza_wypadowa", "trasa_objazdowa"];
+
+function parseTravelStyle(value: string | undefined): TravelStyle {
+  return VALID_TRAVEL_STYLES.find((v) => v === value) ?? "trasa_objazdowa";
+}
 
 const VALID_ACCOMMODATION_TYPES: AccommodationTypePreference[] = [
   "kemping",
@@ -85,5 +95,6 @@ export function parsePlannerInitialValues(
     numAdults: Math.max(1, Number(params.numAdults) || 1),
     childrenAges: childrenAges.length > 0 ? childrenAges : undefined,
     accommodationType: parseAccommodationType(params.accommodationType),
+    travelStyle: parseTravelStyle(params.travelStyle),
   };
 }

@@ -14,6 +14,8 @@ import {
   type AccommodationTypePreference,
 } from "@/lib/accommodation";
 
+export type TravelStyle = "baza_wypadowa" | "trasa_objazdowa";
+
 export type PlanerFormInitialValues = {
   days?: number;
   interests?: string[];
@@ -25,15 +27,19 @@ export type PlanerFormInitialValues = {
   numAdults?: number;
   childrenAges?: number[];
   accommodationType?: AccommodationTypePreference;
+  travelStyle?: TravelStyle;
 };
 
-// Trzy kroki tej samej ścieżki (nie osobne strony/formularze) — patrz
+// Cztery kroki tej samej ścieżki (nie osobne strony/formularze) — patrz
 // uproszczenie architektury appki: "Planowanie trasy" przestało być
 // osobnym punktem wejścia w menu, a Planer stał się jedyną, spójną
 // ścieżką od pytań do gotowej, wybranej trasy z mapą (ostatni krok
-// mieszka już na /planer/wynik, poza tym komponentem).
-const STEP_LABELS = ["Zainteresowania", "Czas trwania", "Logistyka"] as const;
-type Step = 1 | 2 | 3;
+// mieszka już na /planer/wynik, poza tym komponentem). "Styl podróży" na
+// razie tylko zapisuje wybór (patrz travelStyle w handleSubmit) — nie ma
+// jeszcze żadnego efektu na sam algorytm generowania trasy, to celowe,
+// osobne zadanie na później.
+const STEP_LABELS = ["Styl podróży", "Zainteresowania", "Czas trwania", "Logistyka"] as const;
+type Step = 1 | 2 | 3 | 4;
 
 export default function PlanerForm({
   initialValues,
@@ -48,6 +54,9 @@ export default function PlanerForm({
   // sygnalizuje stanu oczekiwania stronie źródłowej samo z siebie.
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<Step>(1);
+  const [travelStyle, setTravelStyle] = useState<TravelStyle>(
+    initialValues?.travelStyle ?? "trasa_objazdowa",
+  );
   const [days, setDays] = useState(initialValues?.days ?? 3);
   const [interests, setInterests] = useState<string[]>(
     initialValues?.interests ?? [],
@@ -129,6 +138,9 @@ export default function PlanerForm({
 
     const params = new URLSearchParams();
     params.set("days", String(days));
+    // Na razie tylko przekazywany dalej i zapamiętywany — bez efektu na
+    // sam algorytm generowania trasy (patrz komentarz przy STEP_LABELS).
+    params.set("travelStyle", travelStyle);
     params.set("transport", transport);
     params.set("travelGroup", travelGroup);
     params.set("numAdults", String(numAdults));
@@ -189,7 +201,7 @@ export default function PlanerForm({
               >
                 {label}
               </span>
-              {stepNumber < 3 && (
+              {stepNumber < 4 && (
                 <span className="h-px flex-1 bg-black/[.08] dark:bg-white/[.145]" />
               )}
             </li>
@@ -197,10 +209,61 @@ export default function PlanerForm({
         })}
       </ol>
       <p className="-mt-6 text-xs text-zinc-500 sm:hidden">
-        Krok {step} z 3: {STEP_LABELS[step - 1]}
+        Krok {step} z 4: {STEP_LABELS[step - 1]}
       </p>
 
       {step === 1 && (
+        <section>
+          <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+            Styl podróży
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            To na razie wpływa tylko na to, co appka zapamięta — dobór miejsc
+            dostosujemy do tego wyboru w kolejnym kroku prac.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {(
+              [
+                {
+                  value: "baza_wypadowa",
+                  label: "Baza wypadowa",
+                  description:
+                    "Jeden punkt centralny, z którego robisz wypady w okolicę",
+                },
+                {
+                  value: "trasa_objazdowa",
+                  label: "Trasa objazdowa",
+                  description:
+                    "Codziennie nowe miejsce, przemieszczasz się wzdłuż trasy",
+                },
+              ] as const
+            ).map((option) => (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border border-black/[.08] bg-white p-3 transition-colors hover:border-honey/40 has-checked:border-honey has-checked:bg-honey/10 active:bg-honey/10 dark:border-white/[.145] dark:bg-zinc-900"
+              >
+                <input
+                  type="radio"
+                  name="travelStyle"
+                  checked={travelStyle === option.value}
+                  onChange={() => setTravelStyle(option.value)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-honey"
+                />
+                <span className="flex flex-col">
+                  <span className="text-black dark:text-zinc-50">
+                    {option.label}
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    {option.description}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {step === 2 && (
         <>
           <section>
             <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
@@ -280,7 +343,7 @@ export default function PlanerForm({
         </>
       )}
 
-      {step === 2 && (
+      {step === 3 && (
         <section>
           <label className="text-sm font-medium uppercase tracking-wide text-zinc-500">
             Liczba dni: {days}
@@ -296,7 +359,7 @@ export default function PlanerForm({
         </section>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <>
           <section>
             <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
@@ -518,7 +581,7 @@ export default function PlanerForm({
           </button>
         )}
 
-        {step < 3 ? (
+        {step < 4 ? (
           <button
             key="next"
             type="button"
