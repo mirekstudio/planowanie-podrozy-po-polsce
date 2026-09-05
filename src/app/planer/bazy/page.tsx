@@ -5,11 +5,10 @@ import { getRoutePlaces } from "@/lib/getRoutePlaces";
 import {
   suggestBaseCandidates,
   restrictToSubRegion,
-  previewPinsForSubRegion,
+  pinsFromBaseCandidates,
   type BaseCandidate,
   type PreviewPin,
 } from "@/lib/suggestBases";
-import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
 import { filterActiveRegionTypes } from "@/lib/placeFilters";
 import { COASTAL_SUB_REGIONS, type SubRegion } from "@/lib/poland";
 import {
@@ -18,6 +17,7 @@ import {
   type PlannerSearchParams,
 } from "@/lib/plannerSearchParams";
 import BackLink from "@/components/BackLink";
+import SubRegionPreviewMapLoader from "@/components/SubRegionPreviewMapLoader";
 
 export const dynamic = "force-dynamic";
 
@@ -86,19 +86,51 @@ export default async function PlanerBazyPage({
     : [];
   const hasMorze = regionTypes.includes("Morze");
 
+  const days = Math.max(1, Number(params.days) || 1);
+  const interests = params.interests ? params.interests.split(",") : [];
+  const surroundingsFilter = params.surroundings
+    ? params.surroundings.split(",")
+    : [];
+  const nearbyAttractions = params.nearbyAttraction
+    ? params.nearbyAttraction.split(",")
+    : [];
+  const candidateOptions = {
+    interests,
+    regionTypes,
+    surroundings: surroundingsFilter,
+    nearbyAttractions,
+  };
+
+  // getRoutePlaces zwraca tylko PULĘ kandydatów (kuratorskie + uzupełnienie
+  // z Geoapify) — nie odpala żadnego sortowania/podziału na dni. Właściwy
+  // dobór baz robi suggestBaseCandidates, celowo osobno od generateRoute.ts
+  // (patrz komentarz w suggestBases.ts) — ta strona nigdy nie dotyka
+  // algorytmu najbliższego sąsiada ani wariantów geograficznych. Jedno
+  // zapytanie o pulę dla CAŁEGO wybrzeża, użyte niżej i na Poziomie 1 (dla
+  // wszystkich trzech podregionów naraz), i na Poziomie 2 (dla wybranego) —
+  // to samo źródło danych dla obu poziomów.
+  const allPlaces = await getRoutePlaces({ days, ...candidateOptions });
+
   // POZIOM 1: dla "Morze" appka najpierw pyta o ODCINEK wybrzeża — te same
   // trzy podregiony (Zachodnie/Środkowe/Wschodnie), co warianty geograficzne
   // w ścieżce "Trasa objazdowa" (patrz SPREAD_REGION_SUB_REGIONS w
-  // poland.ts). Miniatury pokazują prawdziwe kuratorskie miejsca z danego
-  // podregionu (patrz previewPinsForSubRegion) — nie same stałe kotwice —
-  // żeby mapa na tym poziomie nie obiecywała czegoś innego niż lista
-  // kandydatów niżej (zgłoszenie 05.09: dwa niezależne, niespójne źródła).
-  // Sam wybór/ocena kandydatów (suggestBaseCandidates) wciąż dzieje się
-  // dopiero na Poziomie 2 — tu tylko podgląd, jedno tanie zapytanie do
-  // kuratorskiej bazy, bez Geoapify.
+  // poland.ts).
+  //
+  // Zgłoszenie 05.09 (trzecia kontynuacja): miniatura ma pokazywać
+  // WSZYSTKICH kandydatów na bazę w danym podregionie — te same, które
+  // użytkownik zobaczy jako pełną listę kart na Poziomie 2 — a nie osobny,
+  // ograniczony podgląd. Więc dla każdego podregionu liczymy tu dokładnie
+  // to samo, co Poziom 2 liczy dla WYBRANEGO podregionu: restrictToSubRegion
+  // + suggestBaseCandidates, z tych samych `allPlaces` i tych samych
+  // filtrów. Koszt: Poziom 1 wykonuje teraz to samo zapytanie
+  // (getRoutePlaces, ewentualnie z Geoapify) co Poziom 2, zamiast dawnego
+  // taniego zapytania tylko do kuratorskiej bazy — cena za to, żeby mapa i
+  // lista kart nigdy nie mogły pokazać czegoś innego.
   if (hasMorze && !params.podregion) {
-    const { getPlaces } = await import("@/lib/getPlaces");
-    const curated = await getPlaces();
+    const subRegionCandidates = COASTAL_SUB_REGIONS.map((sub) => {
+      const places = restrictToSubRegion(allPlaces, sub.id, sub.anchors, sub.bounds);
+      return { sub, candidates: suggestBaseCandidates(places, candidateOptions) };
+    });
 
     return (
       <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
@@ -114,11 +146,11 @@ export default async function PlanerBazyPage({
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {COASTAL_SUB_REGIONS.map((sub) => (
+            {subRegionCandidates.map(({ sub, candidates }) => (
               <SubRegionCard
                 key={sub.id}
                 sub={sub}
-                pins={previewPinsForSubRegion(curated, sub.bounds, sub.anchors)}
+                pins={pinsFromBaseCandidates(candidates, sub.anchors)}
                 href={hrefForSubRegion(params, sub.id)}
               />
             ))}
@@ -131,15 +163,6 @@ export default async function PlanerBazyPage({
   // POZIOM 2: propozycje konkretnych baz — w obrębie wybranego podregionu
   // (jeśli Morze), albo z całej dopasowanej puli (Wielkopolska, gdzie nie
   // ma podziału na podregiony).
-  const days = Math.max(1, Number(params.days) || 1);
-  const interests = params.interests ? params.interests.split(",") : [];
-  const surroundingsFilter = params.surroundings
-    ? params.surroundings.split(",")
-    : [];
-  const nearbyAttractions = params.nearbyAttraction
-    ? params.nearbyAttraction.split(",")
-    : [];
-
   let subRegion: SubRegion | null = null;
   if (hasMorze && params.podregion) {
     subRegion = COASTAL_SUB_REGIONS.find((s) => s.id === params.podregion) ?? null;
@@ -148,28 +171,11 @@ export default async function PlanerBazyPage({
     }
   }
 
-  // getRoutePlaces zwraca tylko PULĘ kandydatów (kuratorskie + uzupełnienie
-  // z Geoapify) — nie odpala żadnego sortowania/podziału na dni. Właściwy
-  // dobór baz robi suggestBaseCandidates, celowo osobno od generateRoute.ts
-  // (patrz komentarz w suggestBases.ts) — ta strona nigdy nie dotyka
-  // algorytmu najbliższego sąsiada ani wariantów geograficznych.
-  const allPlaces = await getRoutePlaces({
-    days,
-    interests,
-    regionTypes,
-    surroundings: surroundingsFilter,
-    nearbyAttractions,
-  });
   const places = subRegion
     ? restrictToSubRegion(allPlaces, subRegion.id, subRegion.anchors, subRegion.bounds)
     : allPlaces;
 
-  const candidates = suggestBaseCandidates(places, {
-    interests,
-    regionTypes,
-    surroundings: surroundingsFilter,
-    nearbyAttractions,
-  });
+  const candidates = suggestBaseCandidates(places, candidateOptions);
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
@@ -210,10 +216,13 @@ export default async function PlanerBazyPage({
 }
 
 // Podpis pod miniaturą budowany z TYCH SAMYCH obiektów co pineski na
-// mapie (patrz komentarz przy previewPinsForSubRegion) — jedyny sposób,
-// żeby tekst i mapa nigdy nie mogły się rozjechać. Pusty string, gdy
-// `pins` to fallbackowe kotwice bez tytułów (patrz previewPinsForSubRegion)
-// — wtedy lepiej nie pokazywać żadnej listy nazw niż znowu zgadywać.
+// mapie (patrz komentarz przy pinsFromBaseCandidates) — jedyny sposób,
+// żeby tekst i mapa nigdy nie mogły się rozjechać. Zgłoszenie 05.09
+// (trzecia kontynuacja): WSZYSTKIE tytuły, bez skracania/ograniczania —
+// tyle samo miejsc, ile kart zobaczy się o piętro niżej. Pusty string,
+// gdy `pins` to fallbackowe kotwice bez tytułów (patrz
+// pinsFromBaseCandidates) — wtedy lepiej nie pokazywać żadnej listy nazw
+// niż znowu zgadywać.
 function subRegionCaption(pins: PreviewPin[]): string | null {
   const titles = pins.map((p) => p.title).filter(Boolean);
   return titles.length > 0 ? titles.join(" – ") : null;
@@ -228,7 +237,6 @@ function SubRegionCard({
   pins: PreviewPin[];
   href: string;
 }) {
-  const thumbnail = buildRouteThumbnailUrl(pins, null);
   const caption = subRegionCaption(pins);
 
   return (
@@ -236,18 +244,15 @@ function SubRegionCard({
       href={href}
       className="flex flex-col overflow-hidden rounded-xl border border-black/[.08] bg-white transition hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
     >
-      <div className="aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800">
-        {thumbnail && (
-          // Mapbox Static Images API — ten sam wzorzec co miniatury
-          // wariantów tras na /planer/wynik (buildRouteThumbnailUrl).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail}
-            alt={`Podgląd odcinka: ${sub.title}`}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        )}
+      <div
+        className="aspect-[2/1] w-full bg-zinc-100 dark:bg-zinc-800"
+        aria-label={`Podgląd odcinka: ${sub.title}`}
+      >
+        {/* Prawdziwa, interaktywna mapa (nie statyczny obrazek) — Poziomu
+            1 nie da się już oddać zwykłym Static Images API, bo zgłoszenie
+            05.09 (druga kontynuacja) wymaga etykiety z nazwą miejsca po
+            najechaniu/dotknięciu na pinezkę, patrz SubRegionPreviewMap. */}
+        <SubRegionPreviewMapLoader pins={pins} />
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h2 className="font-semibold text-black dark:text-zinc-50">

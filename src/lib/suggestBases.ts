@@ -196,41 +196,38 @@ export type PreviewPin = { lat: number; lng: number; title: string };
 // (pierwsza część): mapa pokazywała 3 kotwice, a lista kart niżej — inną
 // liczbę i inne miejsca, bo to dwa niezależne źródła danych.
 //
-// Zwraca też `title` (nie same współrzędne) — druga część tego samego
-// zgłoszenia: podpis tekstowy pod miniaturą MUSI być zbudowany z TYCH
-// SAMYCH obiektów co pineski na mapie (patrz subRegionCaption w
-// /planer/bazy/page.tsx), inaczej liczba wymienionych miejscowości w
-// tekście znowu mogłaby się rozjechać z liczbą pinesek — dokładnie ten
-// sam błąd, tylko w drugą stronę.
+// Zgłoszenie 05.09 (druga kontynuacja): NAWET realne kuratorskie miejsca
+// nie wystarczały — funkcja sama filtrowała po granicach i parkach
+// narodowych (`isProtectedArea`, patrz historia gita), czyli była TRZECIM,
+// osobnym doborem miejsc, niezależnym od suggestBaseCandidates, które
+// faktyczne wybiera kandydatów na Poziomie 2 (gęstość sąsiadów,
+// priorytet kuratorskich, MAX_BASE_CANDIDATES...). Dwa niezależne dobory
+// tego samego zbioru nieuchronnie prędzej czy później się rozjadą.
 //
-// Fallback na kotwice (bez tytułów, patrz brak `title` u wywołującego)
-// zdarza się tylko wtedy, gdy w granicach podregionu nie ma ŻADNEGO
-// kuratorskiego miejsca — nie powinno się zdarzyć dla obsługiwanych dziś
-// podregionów wybrzeża, ale miniatura nigdy nie zostaje wtedy pusta.
+// Rozwiązanie: ta funkcja NIE dobiera już niczego sama — przyjmuje
+// gotowe `BaseCandidate[]` z suggestBaseCandidates (wywołanego dla
+// KAŻDEGO podregionu dokładnie tak samo jak dla wybranego podregionu na
+// Poziomie 2, patrz /planer/bazy/page.tsx) i mapuje WSZYSTKIE (bez
+// żadnego limitu/slice) na piny — Poziom 1 pokazuje więc dokładnie te
+// same miejsca, w tej samej liczbie, co pełna lista kart o piętro niżej.
+// Wyklucza to jednocześnie parki narodowe bez osobnego filtra: skoro
+// suggestBaseCandidates już ich nie zwraca, nie mogą trafić i tutaj.
 //
-// Zgłoszenie 05.09 (kontynuacja): ten sam błąd koncepcyjny co w
-// suggestBaseCandidates — "Słowiński Park Narodowy" pojawiał się tu jako
-// jeden z reprezentatywnych pinesek/nazw podregionu, mimo że ten ekran
-// prowadzi WPROST do wyboru bazy, a park nie jest wybieralny jako baza
-// (patrz isProtectedArea). Ten sam filtr, żeby podgląd Poziomu 1 nigdy
-// nie sugerował miejsca, którego i tak nie będzie można wybrać krok
-// niżej — park narodowy zostaje pominięty tu dokładnie tak samo jak przy
-// wyborze kandydatów, ale wciąż normalnie pojawi się jako atrakcja w
-// promieniu wybranej bazy (patrz nearbyPlacesWithDistance, niezmienione).
-export function previewPinsForSubRegion(
-  curatedPlaces: Place[],
-  bounds: Bounds,
+// Zwraca `title` (nie same współrzędne) — podpis tekstowy pod miniaturą
+// MUSI być zbudowany z TYCH SAMYCH obiektów co pineski na mapie (patrz
+// subRegionCaption w /planer/bazy/page.tsx), inaczej liczba wymienionych
+// miejscowości w tekście mogłaby się rozjechać z liczbą pinesek.
+//
+// Fallback na kotwice (bez tytułów) zdarza się tylko wtedy, gdy dla
+// danego podregionu suggestBaseCandidates nie zwróciło ŻADNEGO
+// kandydata — nie powinno się zdarzyć dla obsługiwanych dziś podregionów
+// wybrzeża, ale miniatura nigdy nie zostaje wtedy pusta.
+export function pinsFromBaseCandidates(
+  candidates: BaseCandidate[],
   fallbackAnchors: { lat: number; lng: number }[],
-  limit = 3,
 ): PreviewPin[] {
-  const inBounds = curatedPlaces
-    .filter((p) => isWithinBounds({ lat: p.lat, lng: p.lng }, bounds))
-    .filter((p) => !isProtectedArea(p))
-    .slice(0, limit)
-    .map((p) => ({ lat: p.lat, lng: p.lng, title: p.title }));
-  return inBounds.length > 0
-    ? inBounds
-    : fallbackAnchors.map((a) => ({ ...a, title: "" }));
+  const pins = candidates.map((c) => ({ lat: c.lat, lng: c.lng, title: c.title }));
+  return pins.length > 0 ? pins : fallbackAnchors.map((a) => ({ ...a, title: "" }));
 }
 
 export function restrictToSubRegion(

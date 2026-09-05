@@ -5,7 +5,7 @@ import {
   suggestBaseCandidates,
   nearbyPlacesWithDistance,
   restrictToSubRegion,
-  previewPinsForSubRegion,
+  pinsFromBaseCandidates,
 } from "./suggestBases";
 
 // Dowód, że suggestBaseCandidates NIGDY nie korzysta z generateRoute.ts —
@@ -280,45 +280,24 @@ test("restrictToSubRegion odrzuca kuratorskie miejsce w promieniu kotwic, ale PO
 
 // Zgłoszenie 05.09, punkt 1: miniatura Poziomu 1 (wybór podregionu)
 // pokazywała stałe kotwice z poland.ts — niezależne od tego, co faktycznie
-// wychodziło z suggestBaseCandidates na liście niżej. previewPinsForSubRegion
-// ma zamiast tego pokazywać prawdziwe kuratorskie miejsca z tego podregionu.
-test("previewPinsForSubRegion zwraca prawdziwe kuratorskie miejsca (z tytułem) z granic podregionu, nie stałe kotwice", () => {
-  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
-  const kotwice = [{ lat: 54.5805, lng: 16.8614 }]; // Ustka — fallback, nie powinien być użyty
+// wychodziło z suggestBaseCandidates na liście niżej.
+//
+// Zgłoszenie 05.09 (trzecia kontynuacja): sama zamiana kotwic na realne
+// miejsca to było za mało — previewPinsForSubRegion nadal SAMA dobierała
+// (i limitowała do 3, i filtrowała parki) niezależnie od
+// suggestBaseCandidates, czyli był to trzeci, osobny dobór tego samego
+// zbioru miejsc, który mógł się rozjechać z Poziomem 2. Naprawa: funkcja
+// (przemianowana na pinsFromBaseCandidates) nie dobiera już NICZEGO sama
+// — przyjmuje gotowe BaseCandidate[] z suggestBaseCandidates i mapuje
+// WSZYSTKIE (bez limitu) na piny, więc Poziom 1 pokazuje dokładnie to
+// samo, w tej samej liczbie, co pełna lista kart Poziomu 2.
+test("pinsFromBaseCandidates mapuje WSZYSTKICH kandydatów na bazę na piny z tytułem, bez żadnego limitu", () => {
+  const kotwice = [{ lat: 54.5805, lng: 16.8614 }]; // fallback, nie powinien być użyty
 
-  const wSrodkowym = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
-  const pozaSrodkowym = makePlace({ slug: "kolobrzeg", title: "Kołobrzeg", lat: 54.1752, lng: 15.5762 });
-
-  const pins = previewPinsForSubRegion([wSrodkowym, pozaSrodkowym], granice, kotwice);
-
-  assert.deepEqual(
-    pins,
-    [{ lat: 54.7597, lng: 17.5536, title: "Łeba" }],
-    "powinien zwrócić Łebę z tytułem (w granicach), nie Kołobrzeg (poza) ani kotwicę fallback",
-  );
-});
-
-test("previewPinsForSubRegion spada na kotwice (bez tytułu), gdy brak kuratorskich miejsc w granicach", () => {
-  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
-  const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
-
-  const pins = previewPinsForSubRegion([], granice, kotwice);
-
-  assert.deepEqual(
-    pins,
-    [{ lat: 54.5805, lng: 16.8614, title: "" }],
-    "bez żadnych kuratorskich miejsc w granicach powinien użyć kotwic, ale bez zmyślonego tytułu",
-  );
-});
-
-// Zgłoszenie 05.09 (kontynuacja): podpis pod miniaturą MUSI pochodzić z
-// tych samych obiektów co pineski, żeby liczba wymienionych miejscowości
-// nigdy nie mogła przekroczyć liczby pinesek — sprawdzane tu wprost na
-// wyniku previewPinsForSubRegion, tej samej funkcji, która zasila mapę.
-test("liczba tytułów z previewPinsForSubRegion nigdy nie przekracza liczby pinesek (ten sam obiekt zasila oba)", () => {
-  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
-  const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
-
+  // 4 różne, kuratorskie miejscowości — tyle, ile MAX_BASE_CANDIDATES
+  // pozwala zwrócić naraz z suggestBaseCandidates. Dawny domyślny limit=3
+  // previewPinsForSubRegion obciąłby to do 3 — pinsFromBaseCandidates nie
+  // może obcinać niczego, bo dobór już się skończył w suggestBaseCandidates.
   const miejsca = [
     makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 }),
     makePlace({ slug: "ustka", title: "Ustka", lat: 54.5805, lng: 16.8614 }),
@@ -326,30 +305,46 @@ test("liczba tytułów z previewPinsForSubRegion nigdy nie przekracza liczby pin
     makePlace({ slug: "bialogora", title: "Białogóra", lat: 54.7889, lng: 17.9833 }),
   ];
 
-  const pins = previewPinsForSubRegion(miejsca, granice, kotwice, 3);
-  const tytuly = pins.map((p) => p.title).filter(Boolean);
+  const candidates = suggestBaseCandidates(miejsca, { interests: [], regionTypes: ["Morze"] });
+  const pins = pinsFromBaseCandidates(candidates, kotwice);
 
-  assert.equal(pins.length, 3, "limit powinien ograniczyć liczbę pinesek");
-  assert.equal(
-    tytuly.length,
-    pins.length,
-    "liczba nazw dostępnych do podpisu musi się zgadzać z liczbą pinesek",
+  assert.equal(candidates.length, 4, "kontrola: suggestBaseCandidates powinno zwrócić wszystkie 4 miejscowości");
+  assert.equal(pins.length, 4, "pinsFromBaseCandidates nie może obcinać listy kandydatów");
+  assert.deepEqual(
+    new Set(pins.map((p) => p.title)),
+    new Set(candidates.map((c) => c.title)),
+    "piny muszą wymieniać dokładnie te same miejsca co kandydaci na bazę",
+  );
+  for (const pin of pins) {
+    const candidate = candidates.find((c) => c.title === pin.title)!;
+    assert.equal(pin.lat, candidate.lat, "współrzędne pineska muszą pochodzić z tego samego kandydata");
+    assert.equal(pin.lng, candidate.lng);
+  }
+});
+
+test("pinsFromBaseCandidates spada na kotwice (bez tytułu), gdy suggestBaseCandidates nie zwróciło żadnego kandydata", () => {
+  const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
+
+  const pins = pinsFromBaseCandidates([], kotwice);
+
+  assert.deepEqual(
+    pins,
+    [{ lat: 54.5805, lng: 16.8614, title: "" }],
+    "bez żadnych kandydatów powinien użyć kotwic, ale bez zmyślonego tytułu",
   );
 });
 
-// Zgłoszenie 05.09 (kontynuacja druga): ten sam błąd koncepcyjny co przy
-// suggestBaseCandidates, ale o piętro wyżej — na Poziomie 1 (karta
-// podregionu, ekran PRZED wyborem bazy) "Słowiński Park Narodowy" nadal
-// pojawiał się jako jedna z reprezentatywnych pinesek/nazw miniatury,
-// mimo że ten ekran prowadzi wprost do wyboru bazy, a park nie jest
-// wybieralny jako baza. previewPinsForSubRegion musi wykluczać obszary
-// chronione dokładnie tak samo jak suggestBaseCandidates.
-test("previewPinsForSubRegion nigdy nie pokazuje parku narodowego jako reprezentatywnego pineska/nazwy podregionu", () => {
-  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+// Zgłoszenie 05.09 (kontynuacja druga i trzecia): "Słowiński Park
+// Narodowy" nie może się pojawić na Poziomie 1 jako reprezentatywny
+// pinesek/nazwa podregionu — sprawdzone tu jako test integracyjny całego
+// łańcucha, którego Poziom 1 faktycznie teraz używa (suggestBaseCandidates
+// → pinsFromBaseCandidates), a nie osobnego, potencjalnie niespójnego
+// filtra.
+test("łańcuch suggestBaseCandidates → pinsFromBaseCandidates nigdy nie pokazuje parku narodowego jako pineska Poziomu 1", () => {
   const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
 
-  // Te same prawdziwe współrzędne Słowińskiego PN co w teście
-  // suggestBaseCandidates niżej — leży w granicach Środkowego wybrzeża.
+  // Te same prawdziwe współrzędne Słowińskiego PN co w testach
+  // suggestBaseCandidates niżej.
   const slowinski = makePlace({
     slug: "slowinski-park-narodowy",
     title: "Słowiński Park Narodowy",
@@ -360,7 +355,8 @@ test("previewPinsForSubRegion nigdy nie pokazuje parku narodowego jako reprezent
   const leba = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
   const rowy = makePlace({ slug: "rowy", title: "Rowy i Jezioro Gardno", lat: 54.6875, lng: 17.1539 });
 
-  const pins = previewPinsForSubRegion([slowinski, leba, rowy], granice, kotwice, 3);
+  const candidates = suggestBaseCandidates([slowinski, leba, rowy], { interests: [], regionTypes: ["Morze"] });
+  const pins = pinsFromBaseCandidates(candidates, kotwice);
   const tytuly = pins.map((p) => p.title);
 
   assert.ok(
