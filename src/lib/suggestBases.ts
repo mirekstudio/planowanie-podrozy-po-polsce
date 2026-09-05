@@ -34,7 +34,11 @@ export const BASE_SEARCH_RADIUS_KM = 30;
 
 // Dwie proponowane bazy nie mogą leżeć praktycznie w tym samym miejscu
 // (np. dwie plaże w tej samej miejscowości) — to nie są dwie różne
-// sensowne propozycje, tylko duplikat.
+// sensowne propozycje, tylko duplikat. Stosowany TYLKO do miejsc "basic"
+// (Geoapify) — patrz komentarz przy suggestBaseCandidates niżej: dane z
+// Geoapify nie przechodzą redakcyjnej weryfikacji i realnie potrafią się
+// dublować (cała historia filtrów w geoapify.ts), więc tu ta ochrona
+// nadal ma sens.
 const MIN_DISTANCE_BETWEEN_BASES_KM = 40;
 
 const MAX_BASE_CANDIDATES = 4;
@@ -55,12 +59,23 @@ function countNearby(pool: Place[], center: Place, radiusKm: number): number {
   ).length;
 }
 
-// Wybiera 2-3 kandydatów na bazę wypadową spośród `places`: miejsca z
-// największą "gęstością" innych pasujących miejsc w promieniu
-// BASE_SEARCH_RADIUS_KM — to one najlepiej nadają się na centralny punkt
-// noclegowy. Zachłannie odrzuca kolejnych kandydatów zbyt blisko już
-// wybranych (patrz MIN_DISTANCE_BETWEEN_BASES_KM), żeby propozycje były
-// realnie różnymi opcjami, nie tym samym miejscem dwa razy.
+// Wybiera do MAX_BASE_CANDIDATES kandydatów na bazę wypadową spośród
+// `places`: miejsca z największą "gęstością" innych pasujących miejsc w
+// promieniu BASE_SEARCH_RADIUS_KM — to one najlepiej nadają się na
+// centralny punkt noclegowy.
+//
+// PRIORYTET dla naszych miejsc kuratorskich (zgłoszenie 05.09: Łeba, mimo
+// pełnego opisu redakcyjnego i wysokiej gęstości, znikała z propozycji
+// tylko dlatego, że leżała ~27 km od już wybranego Rowy — obie to jednak
+// dwie różne, w pełni opisane kuratorskie miejscowości, nie duplikat).
+// Dlatego kuratorskie miejsca NIGDY nie wykluczają się nawzajem po
+// odległości — każde było już indywidualnie zweryfikowane redakcyjnie,
+// więc ufamy, że to realnie różne propozycje, nawet blisko siebie na
+// wąskim pasie wybrzeża. Miejsca "basic" (Geoapify) uzupełniają wolne
+// miejsca na liście TYLKO gdy kuratorskich jest za mało, i tam odległość
+// od już wybranych (patrz MIN_DISTANCE_BETWEEN_BASES_KM) nadal się liczy
+// — te dane nie przechodzą redakcyjnej weryfikacji i realnie potrafią się
+// dublować.
 export function suggestBaseCandidates(
   places: Place[],
   options: Pick<RouteOptions, "interests" | "regionTypes" | "surroundings" | "nearbyAttractions">,
@@ -75,8 +90,17 @@ export function suggestBaseCandidates(
     .map((place) => ({ place, nearbyCount: countNearby(pool, place, BASE_SEARCH_RADIUS_KM) }))
     .sort((a, b) => b.nearbyCount - a.nearbyCount);
 
+  const curatedScored = scored.filter((c) => c.place.source !== "basic");
+  const basicScored = scored.filter((c) => c.place.source === "basic");
+
   const selected: { place: Place; nearbyCount: number }[] = [];
-  for (const candidate of scored) {
+
+  for (const candidate of curatedScored) {
+    if (selected.length >= MAX_BASE_CANDIDATES) break;
+    selected.push(candidate);
+  }
+
+  for (const candidate of basicScored) {
     if (selected.length >= MAX_BASE_CANDIDATES) break;
     const tooCloseToExisting = selected.some(
       (s) => distanceKm(s.place, candidate.place) < MIN_DISTANCE_BETWEEN_BASES_KM,
@@ -138,6 +162,29 @@ const CURATED_SUB_REGION_RADIUS_KM = 120;
 // takiego etapu, granica `bounds` musi być sprawdzona od razu, dla
 // WSZYSTKICH miejsc (kuratorskich i "basic" — tag regionu w danych też
 // może się mylić, patrz ten sam komentarz w generateRoute.ts).
+// Miniatura mapy na Poziomie 1 (wybór podregionu) ma pokazywać to, co
+// USER FAKTYCZNIE zobaczy po kliknięciu — nie stałe, orientacyjne kotwice
+// z poland.ts (używane gdzie indziej wyłącznie do wyznaczania promienia
+// wyszukiwania Geoapify, patrz SubRegion.anchors). Zgłoszenie 05.09: mapa
+// pokazywała 3 kotwice, a lista kart niżej — inną liczbę i inne miejsca,
+// bo to dwa niezależne źródła danych. Ta funkcja bierze prawdziwe
+// kuratorskie miejsca leżące w granicach podregionu (ten sam `bounds` co
+// restrictToSubRegion) — jeśli żadnych nie ma (nie powinno się zdarzyć
+// dla obsługiwanych dziś podregionów wybrzeża), spada z powrotem na
+// kotwice, żeby miniatura nigdy nie została pusta.
+export function previewPinsForSubRegion(
+  curatedPlaces: Place[],
+  bounds: Bounds,
+  fallbackAnchors: { lat: number; lng: number }[],
+  limit = 3,
+): { lat: number; lng: number }[] {
+  const inBounds = curatedPlaces
+    .filter((p) => isWithinBounds({ lat: p.lat, lng: p.lng }, bounds))
+    .slice(0, limit)
+    .map((p) => ({ lat: p.lat, lng: p.lng }));
+  return inBounds.length > 0 ? inBounds : fallbackAnchors;
+}
+
 export function restrictToSubRegion(
   places: Place[],
   subRegionId: string,

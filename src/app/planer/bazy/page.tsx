@@ -5,6 +5,7 @@ import { getRoutePlaces } from "@/lib/getRoutePlaces";
 import {
   suggestBaseCandidates,
   restrictToSubRegion,
+  previewPinsForSubRegion,
   type BaseCandidate,
 } from "@/lib/suggestBases";
 import { buildRouteThumbnailUrl } from "@/lib/mapboxStaticThumbnail";
@@ -72,9 +73,17 @@ export default async function PlanerBazyPage({
   // POZIOM 1: dla "Morze" appka najpierw pyta o ODCINEK wybrzeża — te same
   // trzy podregiony (Zachodnie/Środkowe/Wschodnie), co warianty geograficzne
   // w ścieżce "Trasa objazdowa" (patrz SPREAD_REGION_SUB_REGIONS w
-  // poland.ts). Celowo bez żadnego zapytania o miejsca na tym poziomie —
-  // to tylko wybór obszaru, nie generowanie/ocena kandydatów.
+  // poland.ts). Miniatury pokazują prawdziwe kuratorskie miejsca z danego
+  // podregionu (patrz previewPinsForSubRegion) — nie same stałe kotwice —
+  // żeby mapa na tym poziomie nie obiecywała czegoś innego niż lista
+  // kandydatów niżej (zgłoszenie 05.09: dwa niezależne, niespójne źródła).
+  // Sam wybór/ocena kandydatów (suggestBaseCandidates) wciąż dzieje się
+  // dopiero na Poziomie 2 — tu tylko podgląd, jedno tanie zapytanie do
+  // kuratorskiej bazy, bez Geoapify.
   if (hasMorze && !params.podregion) {
+    const { getPlaces } = await import("@/lib/getPlaces");
+    const curated = await getPlaces();
+
     return (
       <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
         <main className="mx-auto max-w-3xl px-6 py-16">
@@ -93,6 +102,7 @@ export default async function PlanerBazyPage({
               <SubRegionCard
                 key={sub.id}
                 sub={sub}
+                pins={previewPinsForSubRegion(curated, sub.bounds, sub.anchors)}
                 href={hrefForSubRegion(params, sub.id)}
               />
             ))}
@@ -183,8 +193,16 @@ export default async function PlanerBazyPage({
   );
 }
 
-function SubRegionCard({ sub, href }: { sub: SubRegion; href: string }) {
-  const thumbnail = buildRouteThumbnailUrl(sub.anchors, null);
+function SubRegionCard({
+  sub,
+  pins,
+  href,
+}: {
+  sub: SubRegion;
+  pins: { lat: number; lng: number }[];
+  href: string;
+}) {
+  const thumbnail = buildRouteThumbnailUrl(pins, null);
 
   return (
     <Link

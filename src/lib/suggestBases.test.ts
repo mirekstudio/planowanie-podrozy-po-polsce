@@ -5,6 +5,7 @@ import {
   suggestBaseCandidates,
   nearbyPlacesWithDistance,
   restrictToSubRegion,
+  previewPinsForSubRegion,
 } from "./suggestBases";
 
 // Dowód, że suggestBaseCandidates NIGDY nie korzysta z generateRoute.ts —
@@ -72,36 +73,74 @@ test("wybiera jako bazę miejsce z największą gęstością pobliskich miejsc, 
   );
 });
 
-test("odrzuca kolejnego kandydata zbyt blisko już wybranej bazy (nie proponuje dwa razy tej samej okolicy)", () => {
+// Regresja zgłoszenia 05.09: Łeba (kuratorska, pełny opis redakcyjny)
+// znikała z propozycji dla Środkowego wybrzeża tylko dlatego, że leżała
+// ~27 km od już wybranego Rowy — mimo że to dwie różne, w pełni opisane
+// kuratorskie miejscowości, nie duplikat tej samej okolicy. Kuratorskie
+// miejsca NIE wykluczają się już nawzajem po odległości.
+test("NIE odrzuca kuratorskiego kandydata tylko za to, że leży blisko innego już wybranego kuratorskiego miejsca", () => {
+  // Prawdziwe współrzędne z bazy (patrz zgłoszenie): Rowy i Łeba, ~27 km
+  // od siebie, obie kuratorskie, obie z wysoką gęstością sąsiadów.
+  const rowy = makePlace({ slug: "rowy-jezioro-gardno", title: "Rowy i Jezioro Gardno", lat: 54.6875, lng: 17.1539 });
+  const slowinski = makePlace({ slug: "slowinski-park-narodowy", title: "Słowiński Park Narodowy", lat: 54.7378, lng: 17.4611 });
+  const leba = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
+  const bialogora = makePlace({ slug: "bialogora-krokowa", title: "Białogóra i Krokowa", lat: 54.7889, lng: 17.9833 });
   const ustka = makePlace({ slug: "ustka", title: "Ustka", lat: 54.5805, lng: 16.8614 });
-  // Duplikat okolicy Ustki — gęsty klaster, ale ~5 km od Ustki, więc to
-  // TA SAMA okolica, nie druga, sensowna propozycja.
-  const bliskoUstki = [
-    makePlace({ slug: "ustka-2", title: "Ustka-2", lat: 54.6, lng: 16.9 }),
-    makePlace({ slug: "rowy", title: "Rowy", lat: 54.62, lng: 16.95 }),
-    makePlace({ slug: "duninowo", title: "Duninowo", lat: 54.61, lng: 16.92 }),
-    makePlace({ slug: "orzechowo", title: "Orzechowo", lat: 54.63, lng: 16.88 }),
-  ];
-  // Prawdziwie inna okolica, wystarczająco daleko (Łeba, ~70 km).
-  const leba = [
-    makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 }),
-    makePlace({ slug: "karwia", title: "Karwia", lat: 54.79, lng: 17.6 }),
-  ];
 
-  const candidates = suggestBaseCandidates([ustka, ...bliskoUstki, ...leba], {
+  const candidates = suggestBaseCandidates([rowy, slowinski, leba, bialogora, ustka], {
     interests: [],
     regionTypes: ["Morze"],
   });
 
   const slugs = candidates.map((c) => c.slug);
   assert.ok(
-    slugs.includes("leba") || slugs.includes("karwia"),
-    `Powinna pojawić się propozycja z okolicy Łeby jako druga, różna baza — dostał: ${JSON.stringify(slugs)}`,
+    slugs.includes("leba"),
+    `Łeba powinna pojawić się jako propozycja obok Rowy, mimo bliskości (~27 km) — dostał: ${JSON.stringify(slugs)}`,
   );
-  // Nie może zaproponować zarówno Ustki, jak i Ustki-2 — to duplikat okolicy.
   assert.ok(
-    !(slugs.includes("ustka") && slugs.includes("ustka-2")),
-    `Nie powinien zaproponować dwóch baz z tej samej, bliskiej okolicy: ${JSON.stringify(slugs)}`,
+    slugs.includes("rowy-jezioro-gardno"),
+    `Rowy też powinno zostać zaproponowane — obie to różne, kuratorskie miejscowości: ${JSON.stringify(slugs)}`,
+  );
+});
+
+test("miejsca 'basic' (Geoapify) nadal odrzucają kolejnego kandydata zbyt blisko już wybranej bazy", () => {
+  const kuratorska = makePlace({
+    slug: "ustka",
+    title: "Ustka",
+    lat: 54.5805,
+    lng: 16.8614,
+    source: "curated",
+  });
+  // Duplikat okolicy Ustki z Geoapify — ~5 km od kuratorskiej Ustki, więc
+  // to TA SAMA okolica, nie druga, sensowna propozycja.
+  const basicBliskoUstki = [
+    makePlace({ slug: "geo-1", title: "Geoapify blisko", lat: 54.6, lng: 16.9, source: "basic" }),
+    makePlace({ slug: "geo-2", title: "Geoapify blisko 2", lat: 54.62, lng: 16.95, source: "basic" }),
+    makePlace({ slug: "geo-3", title: "Geoapify blisko 3", lat: 54.61, lng: 16.92, source: "basic" }),
+  ];
+  // Prawdziwie inna okolica z Geoapify, wystarczająco daleko (~70 km).
+  const basicDaleko = makePlace({
+    slug: "geo-daleko",
+    title: "Geoapify daleko",
+    lat: 54.79,
+    lng: 17.6,
+    source: "basic",
+  });
+
+  const candidates = suggestBaseCandidates([kuratorska, ...basicBliskoUstki, basicDaleko], {
+    interests: [],
+    regionTypes: ["Morze"],
+  });
+
+  const slugs = candidates.map((c) => c.slug);
+  assert.ok(slugs.includes("ustka"), "kuratorska Ustka powinna zawsze się pojawić");
+  assert.ok(
+    slugs.includes("geo-daleko"),
+    `propozycja z dala od Ustki powinna się pojawić jako uzupełnienie: ${JSON.stringify(slugs)}`,
+  );
+  assert.ok(
+    !slugs.some((s) => s.startsWith("geo-") && s !== "geo-daleko"),
+    `żadna propozycja "basic" blisko już wybranej Ustki nie powinna się pojawić: ${JSON.stringify(slugs)}`,
   );
 });
 
@@ -237,4 +276,33 @@ test("restrictToSubRegion odrzuca kuratorskie miejsce w promieniu kotwic, ale PO
     [],
     "Kołobrzeg (kotwica Zachodniego wybrzeża) nie powinien pojawić się jako propozycja dla Środkowego wybrzeża",
   );
+});
+
+// Zgłoszenie 05.09, punkt 1: miniatura Poziomu 1 (wybór podregionu)
+// pokazywała stałe kotwice z poland.ts — niezależne od tego, co faktycznie
+// wychodziło z suggestBaseCandidates na liście niżej. previewPinsForSubRegion
+// ma zamiast tego pokazywać prawdziwe kuratorskie miejsca z tego podregionu.
+test("previewPinsForSubRegion zwraca prawdziwe kuratorskie miejsca z granic podregionu, nie stałe kotwice", () => {
+  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+  const kotwice = [{ lat: 54.5805, lng: 16.8614 }]; // Ustka — fallback, nie powinien być użyty
+
+  const wSrodkowym = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
+  const pozaSrodkowym = makePlace({ slug: "kolobrzeg", title: "Kołobrzeg", lat: 54.1752, lng: 15.5762 });
+
+  const pins = previewPinsForSubRegion([wSrodkowym, pozaSrodkowym], granice, kotwice);
+
+  assert.deepEqual(
+    pins,
+    [{ lat: 54.7597, lng: 17.5536 }],
+    "powinien zwrócić współrzędne Łeby (w granicach), nie Kołobrzegu (poza) ani kotwicy fallback",
+  );
+});
+
+test("previewPinsForSubRegion spada na kotwice, gdy brak kuratorskich miejsc w granicach", () => {
+  const granice = { minLat: 54.4, maxLat: 54.87, minLng: 16.83, maxLng: 18.39 };
+  const kotwice = [{ lat: 54.5805, lng: 16.8614 }];
+
+  const pins = previewPinsForSubRegion([], granice, kotwice);
+
+  assert.deepEqual(pins, kotwice, "bez żadnych kuratorskich miejsc w granicach powinien użyć kotwic");
 });
