@@ -336,3 +336,90 @@ test("liczba tytułów z previewPinsForSubRegion nigdy nie przekracza liczby pin
     "liczba nazw dostępnych do podpisu musi się zgadzać z liczbą pinesek",
   );
 });
+
+// Zgłoszenie 05.09 (kontynuacja): "Słowiński Park Narodowy" pojawiał się
+// jako propozycja BAZY wypadowej — błąd koncepcyjny, park narodowy to
+// obszar chroniony bez noclegów, atrakcja do której się jedzie, nie
+// miejscowość, z której się wyrusza.
+test("park narodowy (tag 'Parki Narodowe') nigdy nie jest proponowany jako baza, nawet z najwyższą gęstością sąsiadów", () => {
+  // Prawdziwe współrzędne z bazy — Słowiński PN faktycznie ma tu wysoką
+  // gęstość (blisko Łeby i Rowów), więc bez filtra wygrałby ranking.
+  const slowinski = makePlace({
+    slug: "slowinski-park-narodowy",
+    title: "Słowiński Park Narodowy",
+    lat: 54.7378,
+    lng: 17.4611,
+    tags: ["Natura", "Aktywność fizyczna", "Parki Narodowe"],
+  });
+  const leba = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
+  const rowy = makePlace({ slug: "rowy", title: "Rowy i Jezioro Gardno", lat: 54.6875, lng: 17.1539 });
+
+  const candidates = suggestBaseCandidates([slowinski, leba, rowy], {
+    interests: [],
+    regionTypes: ["Morze"],
+  });
+
+  const slugs = candidates.map((c) => c.slug);
+  assert.ok(
+    !slugs.includes("slowinski-park-narodowy"),
+    `Park narodowy nie powinien nigdy pojawić się jako propozycja bazy: ${JSON.stringify(slugs)}`,
+  );
+  assert.ok(slugs.includes("leba"), "Łeba (prawdziwa miejscowość) powinna zostać zaproponowana");
+});
+
+test("park narodowy bez tagu, ale z 'Park Narodowy'/'Rezerwat przyrody' w nazwie (np. dane z Geoapify), też jest wykluczony z bycia bazą", () => {
+  const rezerwat = makePlace({
+    slug: "geo-rezerwat",
+    title: "Rezerwat przyrody Beka",
+    lat: 54.7,
+    lng: 18.4,
+    source: "basic",
+    tags: [], // dane "basic" nie niosą naszego tagu "Parki Narodowe"
+  });
+  const miasteczko = makePlace({
+    slug: "geo-miasto",
+    title: "Jakieś miasteczko",
+    lat: 54.71,
+    lng: 18.41,
+    source: "basic",
+    tags: [],
+  });
+
+  const candidates = suggestBaseCandidates([rezerwat, miasteczko], {
+    interests: [],
+    regionTypes: ["Morze"],
+  });
+
+  const slugs = candidates.map((c) => c.slug);
+  assert.ok(
+    !slugs.includes("geo-rezerwat"),
+    `Rezerwat przyrody (po nazwie, bez tagu) nie powinien pojawić się jako baza: ${JSON.stringify(slugs)}`,
+  );
+});
+
+test("wykluczenie parku narodowego z bycia bazą NIE psuje jego wkładu w gęstość sąsiedniej, prawdziwej miejscowości", () => {
+  const leba = makePlace({ slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 });
+  const slowinski = makePlace({
+    slug: "slowinski-park-narodowy",
+    title: "Słowiński Park Narodowy",
+    lat: 54.7378,
+    lng: 17.4611,
+    tags: ["Natura", "Aktywność fizyczna", "Parki Narodowe"],
+  });
+  // Trzecie miejsce w promieniu Łeby, żeby jej nearbyCount > 0 niezależnie
+  // od parku — sprawdzamy, że PARK TEŻ się do tej liczby wlicza.
+  const trzecie = makePlace({ slug: "trzecie", title: "Trzecie miejsce", lat: 54.75, lng: 17.5 });
+
+  const candidates = suggestBaseCandidates([leba, slowinski, trzecie], {
+    interests: [],
+    regionTypes: ["Morze"],
+  });
+
+  const lebaCandidate = candidates.find((c) => c.slug === "leba");
+  assert.ok(lebaCandidate, "Łeba powinna pojawić się jako propozycja");
+  assert.equal(
+    lebaCandidate!.nearbyCount,
+    2,
+    "gęstość Łeby powinna liczyć zarówno park narodowy, jak i trzecie miejsce — park odpada tylko z bycia SAMĄ bazą",
+  );
+});

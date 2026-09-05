@@ -59,6 +59,26 @@ function countNearby(pool: Place[], center: Place, radiusKm: number): number {
   ).length;
 }
 
+// Zgłoszenie 05.09: "Słowiński Park Narodowy" pojawiał się jako propozycja
+// BAZY wypadowej — błąd koncepcyjny. Park narodowy/rezerwat to obszar
+// chroniony bez infrastruktury noclegowej, ATRAKCJA do której się jedzie,
+// nie miejscowość, z której się wyrusza. Dwa niezależne sygnały (ten sam
+// wzorzec co looksLikeNonTouristPlace/looksLikeGenericBeachAccessPoint w
+// geoapify.ts): tag "Parki Narodowe" — precyzyjny dla naszych dwóch
+// kuratorskich parków (sprawdzone wprost w bazie: Słowiński i
+// Wielkopolski, żadnych innych) — oraz nazwa, na wypadek gdyby podobny
+// obszar trafił się kiedyś z Geoapify (dane "basic" nie niosą naszych
+// tagów, patrz toBasicPlace w getRoutePlaces.ts). Wyklucza z bycia
+// KANDYDATEM na bazę, ale NIE z puli używanej do liczenia gęstości
+// (`pool` niżej) — park narodowy w pobliżu nadal powinien podnosić
+// atrakcyjność INNEJ, prawdziwej miejscowości jako bazy, i nadal pojawia
+// się jako atrakcja w promieniu wybranej bazy (patrz nearbyPlacesWithDistance).
+const PROTECTED_AREA_NAME_PATTERN = /park narodowy|rezerwat przyrody|obszar chroniony/i;
+
+function isProtectedArea(place: Place): boolean {
+  return place.tags.includes("Parki Narodowe") || PROTECTED_AREA_NAME_PATTERN.test(place.title);
+}
+
 // Wybiera do MAX_BASE_CANDIDATES kandydatów na bazę wypadową spośród
 // `places`: miejsca z największą "gęstością" innych pasujących miejsc w
 // promieniu BASE_SEARCH_RADIUS_KM — to one najlepiej nadają się na
@@ -88,6 +108,11 @@ export function suggestBaseCandidates(
 
   const scored = pool
     .map((place) => ({ place, nearbyCount: countNearby(pool, place, BASE_SEARCH_RADIUS_KM) }))
+    // Parki narodowe/rezerwaty odpadają TYLKO tutaj (z bycia kandydatem) —
+    // `pool` powyżej, użyty do liczenia nearbyCount, zostaje pełny, więc
+    // park w pobliżu nadal podbija atrakcyjność sąsiedniej, prawdziwej
+    // miejscowości.
+    .filter(({ place }) => !isProtectedArea(place))
     .sort((a, b) => b.nearbyCount - a.nearbyCount);
 
   const curatedScored = scored.filter((c) => c.place.source !== "basic");

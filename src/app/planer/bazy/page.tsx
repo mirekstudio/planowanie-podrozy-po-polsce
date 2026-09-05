@@ -55,6 +55,21 @@ function attractionWord(n: number): string {
   return "atrakcji";
 }
 
+// Zgłoszenie 05.09: podpis Poziomu 2 wcześniej pokazywał sub.summary —
+// pełną listę WSZYSTKICH miejscowości całego podregionu (np. 6 dla
+// Środkowego), sugerując, że wszystkie to dostępne bazy, podczas gdy
+// karty niżej pokazują tylko podzbiór (do MAX_BASE_CANDIDATES)
+// najlepszych kandydatów wg suggestBaseCandidates. To nie był błąd
+// danych (nagłówek i karty celowo opisują różne zbiory — cały podregion
+// vs. najlepsze propozycje), ale mylące sformułowanie. Liczba tu = liczba
+// kart faktycznie renderowanych niżej, więc nie może się z nimi rozjechać.
+function baseSelectionIntro(count: number): string {
+  if (count === 1) {
+    return "W tym regionie mamy dla Ciebie jedną proponowaną bazę — pokażemy Ci, co jest w jej zasięgu.";
+  }
+  return `Wybierz jedną z ${count} proponowanych baz w tym regionie — pokażemy Ci, co jest w zasięgu.`;
+}
+
 export default async function PlanerBazyPage({
   searchParams,
 }: {
@@ -169,7 +184,7 @@ export default async function PlanerBazyPage({
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {subRegion
-            ? subRegion.summary
+            ? baseSelectionIntro(candidates.length)
             : "Zamieszkasz w jednym miejscu i stamtąd zwiedzasz okolicę. Wybierz miejscowość, która najbardziej Ci odpowiada — pokażemy Ci, co jest w zasięgu."}
         </p>
 
