@@ -138,8 +138,9 @@ export default function PlanerForm({
 
     const params = new URLSearchParams();
     params.set("days", String(days));
-    // Na razie tylko przekazywany dalej i zapamiętywany — bez efektu na
-    // sam algorytm generowania trasy (patrz komentarz przy STEP_LABELS).
+    // Decyduje, na którą ścieżkę trafi submit (patrz niżej) — samego
+    // algorytmu doboru/sortowania miejsc na razie nie zmienia, patrz
+    // komentarz przy STEP_LABELS i src/lib/suggestBases.ts.
     params.set("travelStyle", travelStyle);
     params.set("transport", transport);
     params.set("travelGroup", travelGroup);
@@ -163,10 +164,23 @@ export default function PlanerForm({
       params.set("accommodationType", accommodationType);
     }
 
+    // "Baza wypadowa" prowadzi na osobną ścieżkę (lista proponowanych baz,
+    // patrz suggestBases.ts) zamiast do generatora tras wielodniowych —
+    // to inna logika, nie wariant tej samej, patrz komentarz w
+    // suggestBases.ts.
+    const destination =
+      travelStyle === "baza_wypadowa" ? "/planer/bazy" : "/planer/wynik";
+
     startTransition(() => {
-      router.push(`/planer/wynik?${params.toString()}`);
+      router.push(`${destination}?${params.toString()}`);
     });
   }
+
+  const isBazaWypadowa = travelStyle === "baza_wypadowa";
+  const submitLabel = isBazaWypadowa ? "Pokaż proponowane bazy" : "Generuj trasę";
+  const submitPendingLabel = isBazaWypadowa
+    ? "Szukanie baz…"
+    : "Generowanie trasy…";
 
   return (
     <form onSubmit={handleSubmit} className="mt-10 flex max-w-xl flex-col gap-8">
@@ -622,7 +636,7 @@ export default function PlanerForm({
                 />
               </svg>
             )}
-            {isPending ? "Generowanie trasy…" : "Generuj trasę"}
+            {isPending ? submitPendingLabel : submitLabel}
           </button>
         )}
       </div>

@@ -18,11 +18,14 @@ export type PlannerSearchParams = {
   // generowania trasy (to osobne, kolejne zadanie).
   travelStyle?: string;
   variant?: string;
+  // Slug wybranej bazy wypadowej — istnieje tylko na /planer/baza, ten sam
+  // wzorzec co "variant" dla /planer/wynik (patrz suggestBases.ts).
+  baza?: string;
 };
 
 const VALID_TRAVEL_STYLES: TravelStyle[] = ["baza_wypadowa", "trasa_objazdowa"];
 
-function parseTravelStyle(value: string | undefined): TravelStyle {
+export function parseTravelStyle(value: string | undefined): TravelStyle {
   return VALID_TRAVEL_STYLES.find((v) => v === value) ?? "trasa_objazdowa";
 }
 
@@ -58,6 +61,20 @@ export function plannerFormHref(params: PlannerSearchParams): string {
   }
   const query = search.toString();
   return query ? `/planer?${query}` : "/planer";
+}
+
+// Buduje URL listy proponowanych baz wypadowych (/planer/bazy) z tymi
+// samymi parametrami — używane przez link powrotny z /planer/baza. Bez
+// "baza" (to pojęcie istnieje tylko na /planer/baza) ani "variant" (istnieje
+// tylko na /planer/wynik, druga ścieżka wizarda).
+export function bazyListHref(params: PlannerSearchParams): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "baza" || key === "variant" || !value) continue;
+    search.set(key, value);
+  }
+  const query = search.toString();
+  return query ? `/planer/bazy?${query}` : "/planer/bazy";
 }
 
 export function parsePlannerInitialValues(
