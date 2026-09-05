@@ -5,6 +5,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Place } from "@/data/places";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { getPlaceMapIcon } from "@/lib/placeMapIcon";
 
 export default function MapboxPlacesMap({ places }: { places: Place[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,14 +34,24 @@ export default function MapboxPlacesMap({ places }: { places: Place[] }) {
     const bounds = new mapboxgl.LngLatBounds();
 
     places.forEach((place) => {
+      // Zgłoszenie 05.09 (mapy z ikonami kategorii): pinezka pokazuje
+      // emoji kategorii miejsca (🏰 zamek, 🏖️ plaża, 🗼 latarnia...)
+      // zamiast jednolitej czerwonej kropki dla wszystkich miejsc naraz —
+      // patrz getPlaceMapIcon (ten sam mechanizm dopasowania co karty).
       const el = document.createElement("div");
-      el.style.background = "#dc2626";
-      el.style.width = "16px";
-      el.style.height = "16px";
+      el.style.background = "white";
+      el.style.width = "26px";
+      el.style.height = "26px";
       el.style.borderRadius = "50%";
-      el.style.border = "2px solid white";
+      el.style.border = "2px solid #dc2626";
       el.style.boxShadow = "0 0 4px rgba(0,0,0,0.4)";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+      el.style.fontSize = "14px";
+      el.style.lineHeight = "1";
       el.style.cursor = "pointer";
+      el.textContent = getPlaceMapIcon(place);
 
       const popup = new mapboxgl.Popup({
         offset: 12,

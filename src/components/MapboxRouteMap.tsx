@@ -6,6 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { Place } from "@/data/places";
 import type { GeocodedPlace } from "@/lib/geocoding";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
+import { getPlaceMapIcon } from "@/lib/placeMapIcon";
 
 type RouteInfo = {
   distanceKm: number;
@@ -273,28 +274,61 @@ export default function MapboxRouteMap({
     }
 
     stops.forEach((stop, index) => {
+      // Kontener pozycjonujący — samą numerowaną pinezkę i mały odznaczek
+      // ikony kategorii w jej rogu (patrz niżej) trzeba pozycjonować
+      // względem wspólnego rodzica, inaczej mapboxgl.Marker (który sam
+      // pozycjonuje SWÓJ element) nie wie, co ma być jednym markerem.
       const el = document.createElement("div");
-      el.style.background = "var(--color-wine-solid)";
-      el.style.color = "#fff";
+      el.style.position = "relative";
       el.style.width = "28px";
       el.style.height = "28px";
-      el.style.borderRadius = "50%";
-      el.style.display = "flex";
-      el.style.alignItems = "center";
-      el.style.justifyContent = "center";
-      el.style.fontSize = "13px";
-      el.style.fontWeight = "600";
-      el.style.border = "2px solid white";
-      el.style.boxShadow = "0 0 4px rgba(0,0,0,0.4)";
       el.style.cursor = "pointer";
-      el.textContent = String(index + 1);
+
+      // Zgłoszenie 05.09 (mapy z ikonami kategorii): numer kolejności na
+      // trasie zostaje głównym elementem pinezki (kluczowy do śledzenia
+      // trasy) — kategoria dochodzi jako mały, dodatkowy odznaczek w rogu,
+      // żeby nie zaśmiecić małej 28px pinezki, ale wciąż dać odpowiedź
+      // "co to za miejsce" bez klikania. Patrz getPlaceMapIcon (ten sam
+      // mechanizm dopasowania co karty/placeholdery).
+      const numberEl = document.createElement("div");
+      numberEl.style.background = "var(--color-wine-solid)";
+      numberEl.style.color = "#fff";
+      numberEl.style.width = "28px";
+      numberEl.style.height = "28px";
+      numberEl.style.borderRadius = "50%";
+      numberEl.style.display = "flex";
+      numberEl.style.alignItems = "center";
+      numberEl.style.justifyContent = "center";
+      numberEl.style.fontSize = "13px";
+      numberEl.style.fontWeight = "600";
+      numberEl.style.border = "2px solid white";
+      numberEl.style.boxShadow = "0 0 4px rgba(0,0,0,0.4)";
+      numberEl.textContent = String(index + 1);
+      el.appendChild(numberEl);
+
+      const categoryIcon = document.createElement("div");
+      categoryIcon.style.position = "absolute";
+      categoryIcon.style.top = "-6px";
+      categoryIcon.style.right = "-6px";
+      categoryIcon.style.width = "16px";
+      categoryIcon.style.height = "16px";
+      categoryIcon.style.borderRadius = "50%";
+      categoryIcon.style.background = "white";
+      categoryIcon.style.border = "1.5px solid var(--color-wine-solid)";
+      categoryIcon.style.display = "flex";
+      categoryIcon.style.alignItems = "center";
+      categoryIcon.style.justifyContent = "center";
+      categoryIcon.style.fontSize = "9px";
+      categoryIcon.style.lineHeight = "1";
+      categoryIcon.textContent = getPlaceMapIcon(stop);
+      el.appendChild(categoryIcon);
 
       const popup = new mapboxgl.Popup({
         offset: 16,
         closeButton: false,
         closeOnClick: false,
       }).setHTML(
-        `<div style="color:#111;"><strong>${index + 1}. ${stop.title}</strong><br>${stop.description}</div>`,
+        `<div style="color:#111;"><strong>${index + 1}. ${getPlaceMapIcon(stop)} ${stop.title}</strong><br>${stop.description}</div>`,
       );
 
       el.addEventListener("mouseenter", () => {

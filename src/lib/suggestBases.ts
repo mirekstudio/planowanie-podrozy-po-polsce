@@ -2,6 +2,7 @@ import type { Place } from "@/data/places";
 import { filterCandidates, type RouteOptions } from "@/lib/generateRoute";
 import { distanceKm } from "@/lib/geo";
 import { isWithinBounds, type Bounds } from "@/lib/poland";
+import { getPlaceMapIcon } from "@/lib/placeMapIcon";
 
 // Logika dla stylu podróży "Baza wypadowa" — CELOWO osobna od
 // generateRoute.ts/generateRouteVariants.ts. Tamten algorytm (najbliższy
@@ -25,6 +26,12 @@ export type BaseCandidate = {
   source: "curated" | "basic";
   // Placeholder graficzny dopasowany do kategorii — patrz Place.basicPlaceIcon.
   basicPlaceIcon?: string;
+  // Zgłoszenie 05.09 (mapy z ikonami kategorii): ikona do pokazania na
+  // PINEZCE mapy (nie na karcie) — patrz getPlaceMapIcon. W przeciwieństwie
+  // do basicPlaceIcon (tylko dla "basic", bo curated i tak ma zdjęcie na
+  // karcie) ta ikona jest liczona dla KAŻDEGO kandydata, curated i basic,
+  // bo mapa nigdy nie pokazuje zdjęcia — tylko pinezkę.
+  mapIcon: string;
   nearbyCount: number;
   radiusKm: number;
 };
@@ -147,6 +154,7 @@ export function suggestBaseCandidates(
     imagePosition: place.imagePosition,
     source: place.source ?? "curated",
     basicPlaceIcon: place.basicPlaceIcon,
+    mapIcon: getPlaceMapIcon(place),
     nearbyCount,
     radiusKm: BASE_SEARCH_RADIUS_KM,
   }));
@@ -190,7 +198,10 @@ const CURATED_SUB_REGION_RADIUS_KM = 120;
 // takiego etapu, granica `bounds` musi być sprawdzona od razu, dla
 // WSZYSTKICH miejsc (kuratorskich i "basic" — tag regionu w danych też
 // może się mylić, patrz ten sam komentarz w generateRoute.ts).
-export type PreviewPin = { lat: number; lng: number; title: string };
+// Zgłoszenie 05.09 (mapy z ikonami kategorii): `icon` domyślnie neutralne
+// 📍 dla fallbackowych kotwic (bez przypisanego konkretnego miejsca, patrz
+// niżej) — realne kandydaci zawsze niosą swoje mapIcon z BaseCandidate.
+export type PreviewPin = { lat: number; lng: number; title: string; icon: string };
 
 // Miniatura mapy na Poziomie 1 (wybór podregionu) ma pokazywać to, co
 // USER FAKTYCZNIE zobaczy po kliknięciu — nie stałe, orientacyjne kotwice
@@ -229,8 +240,8 @@ export function pinsFromBaseCandidates(
   candidates: BaseCandidate[],
   fallbackAnchors: { lat: number; lng: number }[],
 ): PreviewPin[] {
-  const pins = candidates.map((c) => ({ lat: c.lat, lng: c.lng, title: c.title }));
-  return pins.length > 0 ? pins : fallbackAnchors.map((a) => ({ ...a, title: "" }));
+  const pins = candidates.map((c) => ({ lat: c.lat, lng: c.lng, title: c.title, icon: c.mapIcon }));
+  return pins.length > 0 ? pins : fallbackAnchors.map((a) => ({ ...a, title: "", icon: "📍" }));
 }
 
 export function restrictToSubRegion(

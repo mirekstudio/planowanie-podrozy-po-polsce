@@ -329,7 +329,7 @@ test("pinsFromBaseCandidates spada na kotwice (bez tytułu), gdy suggestBaseCand
 
   assert.deepEqual(
     pins,
-    [{ lat: 54.5805, lng: 16.8614, title: "" }],
+    [{ lat: 54.5805, lng: 16.8614, title: "", icon: "📍" }],
     "bez żadnych kandydatów powinien użyć kotwic, ale bez zmyślonego tytułu",
   );
 });
