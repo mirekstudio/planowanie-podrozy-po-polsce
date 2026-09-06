@@ -46,4 +46,18 @@ export type Place = {
   // bocznym menu (patrz /miejsca?polecane=1). Miejsca "basic" nigdy nie
   // są polecane, bo nie przechodzą przez redakcyjną selekcję.
   featured: boolean;
+  // Ręcznie oznaczane w panelu admina: TEN rekord to pojedyncza atrakcja
+  // (zabytek, budynek, latarnia...), a nie samodzielna miejscowość z
+  // własnym noclegiem — mimo pełnego opisu redakcyjnego. Używane WYŁĄCZNIE
+  // przez suggestBases.ts, żeby taki rekord nie konkurował jako niezależny
+  // KANDYDAT NA BAZĘ wypadową z miejscowością, w której leży (np. Zamek
+  // Królewski/Cesarski w Poznaniu obok rekordu "poznan", Latarnia Morska
+  // Rozewie obok "jastrzebia-gora-chlapowo"). NIE wyklucza rekordu z
+  // niczego innego — nadal jest atrakcją na mapie, w kategoriach i w
+  // promieniu wybranej bazy. Analogiczne do isProtectedArea, ale że to
+  // ocena per rekord (a nie po tagu/nazwie — patrz komentarz w
+  // suggestBases.ts), musi być polem w bazie. Pole opcjonalne, jak
+  // basicPlaceIcon/source: brak = zwykłe miejsce; miejsca "basic" nigdy go
+  // nie mają (nie przechodzą redakcyjnej weryfikacji).
+  singleAttraction?: boolean;
 };

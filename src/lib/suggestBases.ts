@@ -123,13 +123,40 @@ export function functionsAsHotel(place: { description: string }): boolean {
   return ACTIVE_HOTEL_DESCRIPTION_PATTERN.test(place.description);
 }
 
-// Jedyne miejsce, gdzie te dwie reguły faktycznie WYKLUCZAJĄ z bycia
+// Zgłoszenie 06.09 (duplikaty lokalizacji): niezależnie od wzorca nazwy
+// wyżej, w bazie leżą OSOBNE rekordy pojedynczych zabytków/budynków w tej
+// samej miejscowości co już istniejący kuratorski rekord miasta —
+// sprawdzone wprost po współrzędnych wszystkich rekordów `places`:
+// "Zamek Królewski"/"Zamek Cesarski" ~1-2 km od rekordu "poznan"
+// (te akurat łapie już isCastleOrPalace), oraz "Latarnia Morska Rozewie"
+// ~2 km od "jastrzebia-gora-chlapowo" (tej NIE łapie żaden wzorzec nazwy).
+// Każdy z nich ma pełny opis redakcyjny, więc wchodził do
+// suggestBaseCandidates jako NIEZALEŻNY kandydat na bazę — a to nie osobna
+// miejscowość z własnym noclegiem, tylko pojedyncza atrakcja w mieście,
+// które jako baza jest już na liście (bez tego filtra Poznań zajmował ~3 z
+// 4 slotów, bo kuratorskie miejsca nie wykluczają się wzajemnie po
+// odległości — patrz komentarz przy suggestBaseCandidates niżej).
+//
+// Dla przypadków, których nie da się wyczytać z nazwy ani tagu (Latarnia
+// Rozewie, a w przyszłości dowolny podobny obiekt), redakcja oznacza rekord
+// ręcznie w panelu admina — stąd pole Place.singleAttraction (patrz
+// places.ts). Jak isProtectedArea/isCastleOrPalace: wyklucza z bycia
+// KANDYDATEM na bazę, ale NIE z puli `pool` (atrakcja nadal podnosi
+// atrakcyjność prawdziwej bazy w pobliżu i nadal pojawia się w promieniu
+// wybranej bazy, patrz nearbyPlacesWithDistance).
+function isSingleAttraction(place: Place): boolean {
+  return place.singleAttraction === true;
+}
+
+// Jedyne miejsce, gdzie te reguły faktycznie WYKLUCZAJĄ z bycia
 // kandydatem na bazę (Poziom 2) — dokładnie ten sam wzorzec co
 // isProtectedArea: `pool` użyty do liczenia gęstości (nearbyCount) zostaje
-// pełny, więc wykluczony zamek/pałac nadal podnosi atrakcyjność sąsiedniej,
-// prawdziwej miejscowości jako jedna z jej atrakcji w zasięgu.
+// pełny, więc wykluczony zamek/pałac/pojedyncza atrakcja nadal podnosi
+// atrakcyjność sąsiedniej, prawdziwej miejscowości jako jedna z jej
+// atrakcji w zasięgu.
 function isIneligibleAsBaseCandidate(place: Place): boolean {
   if (isProtectedArea(place)) return true;
+  if (isSingleAttraction(place)) return true;
   if (isCastleOrPalace(place)) return !functionsAsHotel(place);
   return false;
 }
