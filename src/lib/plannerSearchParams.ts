@@ -18,13 +18,20 @@ export type PlannerSearchParams = {
   // generowania trasy (to osobne, kolejne zadanie).
   travelStyle?: string;
   variant?: string;
-  // Slug wybranej bazy wypadowej — istnieje tylko na /planer/baza, ten sam
-  // wzorzec co "variant" dla /planer/wynik (patrz suggestBases.ts).
+  // Slug wybranej bazy wypadowej (miejscowości) — istnieje od
+  // /planer/baza-obiekt wzwyż, ten sam wzorzec co "variant" dla
+  // /planer/wynik (patrz suggestBases.ts).
   baza?: string;
   // ID podregionu wybrzeża (np. "srodkowe-wybrzeze") — pośredni poziom
   // ścieżki "Baza wypadowa": /planer/bazy bez tego pokazuje 3 karty
   // podregionów, z tym pokazuje propozycje baz W TYM podregionie.
   podregion?: string;
+  // Zgłoszenie 06.09: ID KONKRETNEGO obiektu noclegowego wybranego na
+  // Poziomie 2.5 (/planer/baza-obiekt) — istnieje tylko na /planer/baza.
+  // Format zgodny z AccommodationOption.id: uuid z tabeli `noclegi`,
+  // "geoapify-<id>" dla propozycji z Geoapify, albo "self-<slug bazy>",
+  // gdy sama baza (zamek/pałac z hotelem) reprezentuje samą siebie.
+  obiekt?: string;
 };
 
 const VALID_TRAVEL_STYLES: TravelStyle[] = ["baza_wypadowa", "trasa_objazdowa"];
@@ -68,13 +75,14 @@ export function plannerFormHref(params: PlannerSearchParams): string {
 }
 
 // Buduje URL listy proponowanych baz wypadowych (/planer/bazy) z tymi
-// samymi parametrami — używane przez link powrotny z /planer/baza. Bez
-// "baza" (to pojęcie istnieje tylko na /planer/baza) ani "variant" (istnieje
-// tylko na /planer/wynik, druga ścieżka wizarda).
+// samymi parametrami — używane przez link powrotny z /planer/baza-obiekt.
+// Bez "baza"/"obiekt" (te pojęcia istnieją dopiero od /planer/baza-obiekt
+// wzwyż) ani "variant" (istnieje tylko na /planer/wynik, druga ścieżka
+// wizarda).
 export function bazyListHref(params: PlannerSearchParams): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (key === "baza" || key === "variant" || !value) continue;
+    if (key === "baza" || key === "obiekt" || key === "variant" || !value) continue;
     search.set(key, value);
   }
   const query = search.toString();
@@ -89,11 +97,33 @@ export function bazyListHref(params: PlannerSearchParams): string {
 export function bazySubRegionPickerHref(params: PlannerSearchParams): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (key === "baza" || key === "variant" || key === "podregion" || !value) continue;
+    if (
+      key === "baza" ||
+      key === "obiekt" ||
+      key === "variant" ||
+      key === "podregion" ||
+      !value
+    )
+      continue;
     search.set(key, value);
   }
   const query = search.toString();
   return query ? `/planer/bazy?${query}` : "/planer/bazy";
+}
+
+// Zgłoszenie 06.09 (Poziom 2.5): buduje URL listy KONKRETNYCH obiektów
+// noclegowych dla już wybranej miejscowości (/planer/baza-obiekt) —
+// zostaje w "baza", ale usuwa "obiekt" (poprzedni wybór konkretnego
+// obiektu przestaje obowiązywać, gdy wraca się do listy obiektów tej samej
+// bazy) i "variant".
+export function bazaObiektListHref(params: PlannerSearchParams): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "obiekt" || key === "variant" || !value) continue;
+    search.set(key, value);
+  }
+  const query = search.toString();
+  return query ? `/planer/baza-obiekt?${query}` : "/planer/baza-obiekt";
 }
 
 export function parsePlannerInitialValues(

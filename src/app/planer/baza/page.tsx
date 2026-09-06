@@ -5,11 +5,18 @@ import {
   suggestBaseCandidates,
   restrictToSubRegion,
   nearbyPlacesWithDistance,
+  functionsAsHotel,
   DETAIL_MAX_RADIUS_KM,
 } from "@/lib/suggestBases";
+import { getAccommodationOptionsForBase } from "@/lib/accommodation";
 import { filterActiveRegionTypes } from "@/lib/placeFilters";
 import { COASTAL_SUB_REGIONS, type SubRegion } from "@/lib/poland";
-import { bazyListHref, type PlannerSearchParams } from "@/lib/plannerSearchParams";
+import {
+  bazaObiektListHref,
+  bazyListHref,
+  parseAccommodationType,
+  type PlannerSearchParams,
+} from "@/lib/plannerSearchParams";
 import BackLink from "@/components/BackLink";
 import BaseRadiusExplorer from "@/components/BaseRadiusExplorer";
 import SaveActiveTripButton from "@/components/SaveActiveTripButton";
@@ -85,15 +92,40 @@ export default async function PlanerBazaPage({
     redirect(bazyListHref(params));
   }
 
+  // Zgłoszenie 06.09, wymóg 4: promień atrakcji liczy się od KONKRETNEGO
+  // wybranego obiektu noclegowego (Poziom 2.5), nie od ogólnego środka
+  // miejscowości — odtwarzamy tę samą listę obiektów co na
+  // /planer/baza-obiekt (deterministycznie, z tych samych parametrów) i
+  // szukamy tego, którego `id` przyszło w URL. Brak "obiekt" w URL (stary
+  // link/zakładka sprzed tej zmiany) albo brak dopasowania — łagodne
+  // przejście na współrzędne samej miejscowości, tak jak działało to
+  // wcześniej, zamiast dead-endu.
+  const transport = params.transport === "camper" ? "camper" : "car";
+  const accommodationType = parseAccommodationType(params.accommodationType);
+  const accommodationOptions = await getAccommodationOptionsForBase(
+    base,
+    noclegi,
+    { transport, accommodationType },
+    functionsAsHotel(base),
+  );
+  const chosenAccommodation = params.obiekt
+    ? accommodationOptions.find((o) => o.id === params.obiekt)
+    : undefined;
+  const basePoint = {
+    slug: base.slug,
+    lat: chosenAccommodation?.lat ?? base.lat,
+    lng: chosenAccommodation?.lng ?? base.lng,
+  };
+
   // Liczone raz, do górnej granicy suwaka — dalsze filtrowanie po
   // przesunięciu suwaka dzieje się już w całości po stronie klienta
   // (patrz BaseRadiusExplorer.tsx), bez kolejnych zapytań do serwera.
-  const nearby = nearbyPlacesWithDistance(places, base, DETAIL_MAX_RADIUS_KM);
+  const nearby = nearbyPlacesWithDistance(places, basePoint, DETAIL_MAX_RADIUS_KM);
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <BackLink href={bazyListHref(params)} label="Wróć do listy baz" />
+        <BackLink href={bazaObiektListHref(params)} label="Wybierz inny nocleg" />
 
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
           {base.title}
@@ -101,6 +133,16 @@ export default async function PlanerBazaPage({
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           {base.description}
         </p>
+        {/* Zgłoszenie 06.09, wymóg 4: jawnie widoczne, OD CZEGO faktycznie
+            liczy się promień poniżej — bez tego wybór konkretnego obiektu
+            na Poziomie 2.5 byłby niewidoczny dla użytkownika na tym
+            ekranie. Brak, gdy nie udało się dopasować "obiekt" z URL
+            (basePoint spada wtedy na współrzędne samej miejscowości). */}
+        {chosenAccommodation && (
+          <p className="mt-1 text-sm font-medium text-wine">
+            📍 Twój nocleg: {chosenAccommodation.nazwa}
+          </p>
+        )}
 
         {/* Zgłoszenie 06.09: usunięty żółty komunikat "Tymczasowy widok —
             pełny plan wypadów dzień po dniu dopracujemy w kolejnym kroku"
@@ -113,16 +155,20 @@ export default async function PlanerBazaPage({
         <SaveActiveTripButton
           trip={{
             baseSlug: base.slug,
-            baseTitle: base.title,
-            baseLat: base.lat,
-            baseLng: base.lng,
+            baseTitle: chosenAccommodation ? `${chosenAccommodation.nazwa} (${base.title})` : base.title,
+            baseLat: basePoint.lat,
+            baseLng: basePoint.lng,
             region: subRegion ? `${regionTypes.join(", ")} — ${subRegion.title}` : regionTypes.join(", "),
             days,
           }}
         />
 
         <BaseRadiusExplorer
-          base={{ lat: base.lat, lng: base.lng, title: base.title }}
+          base={{
+            lat: basePoint.lat,
+            lng: basePoint.lng,
+            title: chosenAccommodation?.nazwa ?? base.title,
+          }}
           nearby={nearby}
         />
       </main>

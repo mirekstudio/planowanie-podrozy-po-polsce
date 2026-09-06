@@ -89,14 +89,60 @@ function isProtectedArea(place: Place): boolean {
   return place.tags.includes("Parki Narodowe") || PROTECTED_AREA_NAME_PATTERN.test(place.title);
 }
 
+// Zgłoszenie 06.09 (Poziomy 2/2.5 ścieżki "Baza wypadowa"): zamek/pałac/
+// dwór to, tak jak park narodowy, ATRAKCJA do której się jedzie, nie
+// miejscowość z realnym noclegiem — CHYBA że dany obiekt faktycznie
+// prowadzi dziś hotel (patrz functionsAsHotel niżej). Dopasowanie PO
+// NAZWIE (nie po tagu "Zamki i Pałace"!) — ten tag mają też prawdziwe,
+// wielomiejscowościowe bazy typu "Kórnik i Rogalin" (bo ich OPIS dotyczy
+// m.in. zamku), a te mają zostać pełnoprawnymi kandydatami. Wzorzec łapie
+// więc tylko rekordy, których TYTUŁ dosłownie zaczyna się od nazwy typu
+// budowli — sprawdzone bezpośrednio w całej bazie (06.09): dokładnie 8
+// takich rekordów, żaden fałszywie nie łapie żadnej realnej miejscowości.
+const CASTLE_PALACE_NAME_PATTERN = /^(zamek|pałac|dwór)\b/i;
+
+function isCastleOrPalace(place: Place): boolean {
+  return CASTLE_PALACE_NAME_PATTERN.test(place.title.trim());
+}
+
+// "dziś hotel" to redakcyjna fraza w krótkim polu `description`, używana
+// WYŁĄCZNIE gdy źródłowy przewodnik wprost potwierdza działającą funkcję
+// hotelową budynku — sprawdzone bezpośrednio w całej bazie (06.09):
+// dokładnie 2 rekordy mają w ogóle słowo "hotel" w opisie ("Zamek w
+// Rydzynie", "Pałac w Wąsowie"), oba dokładnie tą frazą. Nigdy nie
+// zgadywane z samego faktu, że budynek jest duży/zabytkowy — bez tej
+// frazy appka zakłada, że to zwykła atrakcja turystyczna, nie nocleg.
+// Eksportowana — Poziom 2.5 (nowa strona /planer/baza-obiekt) używa jej
+// wprost, żeby wiedzieć, czy dołożyć samą bazę jako własną opcję noclegu.
+// Przyjmuje samo `description` (nie cały Place) — Poziom 2.5 dostaje tam
+// gotowego BaseCandidate, nie pełny Place, a funkcji naprawdę potrzeba
+// tylko tego jednego pola.
+const ACTIVE_HOTEL_DESCRIPTION_PATTERN = /dziś hotel/i;
+
+export function functionsAsHotel(place: { description: string }): boolean {
+  return ACTIVE_HOTEL_DESCRIPTION_PATTERN.test(place.description);
+}
+
+// Jedyne miejsce, gdzie te dwie reguły faktycznie WYKLUCZAJĄ z bycia
+// kandydatem na bazę (Poziom 2) — dokładnie ten sam wzorzec co
+// isProtectedArea: `pool` użyty do liczenia gęstości (nearbyCount) zostaje
+// pełny, więc wykluczony zamek/pałac nadal podnosi atrakcyjność sąsiedniej,
+// prawdziwej miejscowości jako jedna z jej atrakcji w zasięgu.
+function isIneligibleAsBaseCandidate(place: Place): boolean {
+  if (isProtectedArea(place)) return true;
+  if (isCastleOrPalace(place)) return !functionsAsHotel(place);
+  return false;
+}
+
 // Zgłoszenie 06.09: "kryteria jakości bazy wypadowej", wspólne dla
 // WSZYSTKICH regionów appki, obecnych i przyszłych — bez ręcznego
-// dostrajania per region. `isProtectedArea` wyżej zostaje jedynym TWARDYM
-// wykluczeniem (park narodowy/rezerwat na pewno prawnie nie ma
-// infrastruktury noclegowej — to jedyny sygnał, co do którego appka może
-// być w 100% pewna, niezależnie od regionu). Cztery kryteria niżej działają
-// jako WAGI dodawane do nearbyCount (gęstość, wymóg 3 — zostaje bez zmian
-// jako dominujący składnik wyniku), nie jako kolejne twarde filtry —
+// dostrajania per region. `isIneligibleAsBaseCandidate` wyżej zostaje
+// jedynym TWARDYM wykluczeniem (obszar chroniony lub zabytek bez
+// działającego hotelu na pewno nie ma infrastruktury noclegowej — to
+// jedyny sygnał, co do którego appka może być w 100% pewna, niezależnie
+// od regionu). Cztery kryteria niżej działają jako WAGI dodawane do
+// nearbyCount (gęstość, wymóg 3 — zostaje bez zmian jako dominujący
+// składnik wyniku), nie jako kolejne twarde filtry —
 // uzasadnienie przy LODGING_BONUS niżej, bo to tam ta decyzja waży
 // najwięcej.
 
@@ -295,7 +341,7 @@ export function suggestBaseCandidates(
   const poolCentroid = centroid(pool);
   const totalDistinctTagsInPool = distinctTags(pool).size;
 
-  const eligible = pool.filter((place) => !isProtectedArea(place));
+  const eligible = pool.filter((place) => !isIneligibleAsBaseCandidate(place));
   const centroidDistances = poolCentroid
     ? eligible.map((place) => distanceKm(place, poolCentroid))
     : [0];

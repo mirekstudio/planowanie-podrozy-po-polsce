@@ -7,6 +7,7 @@ import {
   nearbyPlacesWithDistance,
   restrictToSubRegion,
   pinsFromBaseCandidates,
+  functionsAsHotel,
 } from "./suggestBases";
 
 function makeNocleg(overrides: Partial<Nocleg> & { lat: number; lng: number }): Nocleg {
@@ -657,6 +658,79 @@ test("kryterium 'centralne położenie': przy identycznej gęstości, różnorod
   assert.ok(
     idxC < idxB,
     `przy tej samej gęstości i różnorodności "Centralna" (bliżej środka ciężkości atrakcji regionu) powinna wyprzedzić "Brzegowa" (na skraju): ${JSON.stringify(slugs)}`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Zgłoszenie 06.09 (Poziom 2/2.5): zamek/pałac/dwór wyklucza się z bycia
+// bazą tak samo jak park narodowy — CHYBA że faktycznie prowadzi hotel.
+
+test("functionsAsHotel: rozpoznaje frazę 'dziś hotel' w opisie (Zamek w Rydzynie, Pałac w Wąsowie)", () => {
+  assert.equal(functionsAsHotel({ description: "Barokowa rezydencja, dziś hotel i restauracja." }), true);
+  assert.equal(functionsAsHotel({ description: "Renesansowa budowla, dziś muzeum i atrakcja turystyczna." }), false);
+});
+
+test("zamek/pałac/dwór (po nazwie) bez potwierdzonej funkcji hotelowej nie jest proponowany jako baza", () => {
+  const zamek = makePlace({
+    slug: "zamek-cesarski-w-poznaniu",
+    title: "Zamek Cesarski w Poznaniu",
+    lat: 52.4078,
+    lng: 16.9186,
+    tags: ["Historia", "Architektura", "Zamki i Pałace"],
+    description: "Monumentalna rezydencja ostatnich cesarzy niemieckich.",
+  });
+  const poznan = makePlace({
+    slug: "poznan",
+    title: "Poznań",
+    lat: 52.4103,
+    lng: 16.9486,
+    tags: ["Architektura", "Historia"],
+    description: "Stolica Wielkopolski.",
+  });
+
+  const candidates = suggestBaseCandidates([zamek, poznan], { interests: [], regionTypes: [] });
+
+  const slugs = candidates.map((c) => c.slug);
+  assert.ok(
+    !slugs.includes("zamek-cesarski-w-poznaniu"),
+    `zamek bez funkcji hotelowej nie powinien być propozycją bazy: ${JSON.stringify(slugs)}`,
+  );
+  assert.ok(slugs.includes("poznan"), "Poznań (prawdziwa miejscowość) powinien zostać zaproponowany");
+});
+
+test("miejsce nazwane 'Kórnik i Rogalin' MA tag 'Zamki i Pałace', ale NIE zaczyna się od 'Zamek'/'Pałac' — zostaje pełnoprawnym kandydatem", () => {
+  const kornik = makePlace({
+    slug: "kornik-i-rogalin",
+    title: "Kórnik i Rogalin",
+    lat: 52.25,
+    lng: 17.09,
+    tags: ["Historia", "Architektura", "Natura", "Zamki i Pałace"],
+    description: "Zamek Działyńskich w Kórniku i pałac Raczyńskich w Rogalinie.",
+  });
+
+  const candidates = suggestBaseCandidates([kornik], { interests: [], regionTypes: [] });
+
+  assert.ok(
+    candidates.some((c) => c.slug === "kornik-i-rogalin"),
+    "wielomiejscowościowa baza z tagiem 'Zamki i Pałace' (ale inną nazwą) nie powinna zostać wykluczona",
+  );
+});
+
+test("zamek/pałac z potwierdzoną funkcją hotelową ('dziś hotel' w opisie) MOŻE być propozycją bazy", () => {
+  const zamekHotel = makePlace({
+    slug: "zamek-w-rydzynie",
+    title: "Zamek w Rydzynie",
+    lat: 51.7874,
+    lng: 16.671,
+    tags: ["Historia", "Architektura", "Zamki i Pałace"],
+    description: "Barokowa rezydencja Leszczyńskich i Sułkowskich, dziś hotel i restauracja.",
+  });
+
+  const candidates = suggestBaseCandidates([zamekHotel], { interests: [], regionTypes: [] });
+
+  assert.ok(
+    candidates.some((c) => c.slug === "zamek-w-rydzynie"),
+    "zamek z potwierdzoną funkcją hotelową powinien zostać zaproponowany jako baza",
   );
 });
 

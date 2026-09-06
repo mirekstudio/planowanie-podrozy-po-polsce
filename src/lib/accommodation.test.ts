@@ -2,7 +2,11 @@ import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import type { Nocleg } from "@/data/noclegi";
 import type { ExternalPlaceResult } from "@/lib/placesProviders";
-import { getAccommodationOptions, looksLikeMembersOnlyAccommodation } from "./accommodation";
+import {
+  getAccommodationOptions,
+  getAccommodationOptionsForBase,
+  looksLikeMembersOnlyAccommodation,
+} from "./accommodation";
 
 // Dowód dla punktu 2 ścieżki naprawczej, część 2 (23.08): fallback
 // noclegowy miał wcześniej własny, osobny fetch do Geoapify — bez filtra
@@ -105,6 +109,74 @@ test("looksLikeMembersOnlyAccommodation NIE odrzuca normalnych kempingów/pól n
   assert.equal(looksLikeMembersOnlyAccommodation("Camping Tramp"), false);
   assert.equal(looksLikeMembersOnlyAccommodation("Pole namiotowe nad jeziorem"), false);
   assert.equal(looksLikeMembersOnlyAccommodation("Hotel Bałtyk"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Zgłoszenie 06.09 (Poziom 2.5 ścieżki "Baza wypadowa"): getAccommodationOptionsForBase.
+
+test("getAccommodationOptionsForBase: dopasowuje kuratorskie noclegi PO miejscePowiazane, nie po samej odległości", async () => {
+  const leba = { slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 };
+  const noclegi = [
+    makeNocleg({ id: "n-leba", nazwa: "Camp Na Wydmie", lat: 54.76, lng: 17.55, miejscePowiazane: "leba" }),
+    // Fizycznie blisko Łeby (byłby złapany przez zwykłe dopasowanie po
+    // odległości), ale przypisany do INNEJ miejscowości — nie powinien się
+    // pojawić jako opcja dla Łeby.
+    makeNocleg({
+      id: "n-inny",
+      nazwa: "Kemping sąsiedniej wsi",
+      lat: 54.77,
+      lng: 17.56,
+      miejscePowiazane: "inna-miejscowosc",
+    }),
+  ];
+  const fetchPlaces = mock.fn(async () => []);
+
+  const result = await getAccommodationOptionsForBase(leba, noclegi, { transport: "car" }, false, fetchPlaces);
+
+  assert.equal(fetchPlaces.mock.callCount(), 0, "przy dopasowaniu kuratorskim nie powinien pytać Geoapify");
+  assert.deepEqual(
+    result.map((r) => r.nazwa),
+    ["Camp Na Wydmie"],
+    "tylko nocleg PRZYPISANY do Łeby powinien się pojawić, nie fizycznie bliski nocleg innej miejscowości",
+  );
+});
+
+test("getAccommodationOptionsForBase: zamek/pałac z potwierdzoną funkcją hotelową reprezentuje sam siebie jako opcja", async () => {
+  const zamek = { slug: "zamek-w-rydzynie", title: "Zamek w Rydzynie", lat: 51.7874, lng: 16.671 };
+  const fetchPlaces = mock.fn(async () => []);
+
+  const result = await getAccommodationOptionsForBase(zamek, [], { transport: "car" }, true, fetchPlaces);
+
+  assert.equal(fetchPlaces.mock.callCount(), 0);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].nazwa, "Zamek w Rydzynie");
+  assert.equal(result[0].source, "curated");
+  assert.equal(result[0].id, "self-zamek-w-rydzynie");
+});
+
+test("getAccommodationOptionsForBase: brak kuratorskich obiektów i brak funkcji hotelowej → dociąga propozycje z Geoapify", async () => {
+  const miejscowosc = { slug: "przykladowa", title: "Przykładowa", lat: 52.4064, lng: 16.9252 };
+  const fetchPlaces = mock.fn(async () => [
+    makeExternal({ externalId: "geo-1", title: "Kemping Testowy", lat: 52.41, lng: 16.93, categories: ["camping.camp_site"] }),
+  ]);
+
+  const result = await getAccommodationOptionsForBase(miejscowosc, [], { transport: "car" }, false, fetchPlaces);
+
+  assert.ok(fetchPlaces.mock.callCount() > 0);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].source, "basic");
+  assert.equal(result[0].nazwa, "Kemping Testowy");
+});
+
+test("getAccommodationOptionsForBase: kuratorskie noclegi i funkcja hotelowa razem, bez Geoapify — sama baza pierwsza na liście", async () => {
+  const zamek = { slug: "zamek-w-wasowie", title: "Pałac w Wąsowie", lat: 52.3658, lng: 16.2487 };
+  const noclegi = [makeNocleg({ id: "n1", nazwa: "Kemping obok pałacu", lat: 52.37, lng: 16.25, miejscePowiazane: "zamek-w-wasowie" })];
+  const fetchPlaces = mock.fn(async () => []);
+
+  const result = await getAccommodationOptionsForBase(zamek, noclegi, { transport: "car" }, true, fetchPlaces);
+
+  assert.equal(fetchPlaces.mock.callCount(), 0);
+  assert.deepEqual(result.map((r) => r.nazwa), ["Pałac w Wąsowie", "Kemping obok pałacu"]);
 });
 
 test("fallback do Geoapify pomija obóz ZHP i proponuje kolejny, otwarty wynik", async () => {

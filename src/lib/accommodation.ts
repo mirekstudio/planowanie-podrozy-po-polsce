@@ -182,18 +182,24 @@ type FetchPlaces = (params: FetchProtectedPlacesParams) => Promise<ExternalPlace
 // country_code i bez looksLikeNonTouristPlace, więc dokładnie ten sam typ
 // błędu, który naprawiono dla tras 18.08 (np. gabinet lekarski zamiast
 // atrakcji), mógł wrócić tu jako proponowany nocleg.
-async function fetchAccommodationFallback(
+// Zgłoszenie 06.09 (Poziom 2.5 ścieżki "Baza wypadowa"): wydzielone z
+// dawnej fetchAccommodationFallback (dziś cienki wrapper na tę funkcję z
+// limit=1), żeby Poziom 2.5 mógł pokazać KILKA propozycji z Geoapify do
+// wyboru, nie tylko jedną najlepszą — bez duplikowania całego zapytania i
+// filtrowania.
+async function fetchAccommodationFallbackOptions(
   point: Coordinates,
   options: AccommodationMatchOptions,
   fetchPlaces: FetchPlaces,
-): Promise<AccommodationOption | null> {
+  limit: number,
+): Promise<AccommodationOption[]> {
   const categories = resolveFallbackCategories(options.accommodationType, options.transport);
 
   const results = await fetchPlaces({
     categories,
     center: point,
     radiusMeters: MAX_DISTANCE_KM * 1000,
-    limit: 5,
+    limit: Math.max(limit * 3, 5),
     exclude: [],
   });
 
@@ -209,23 +215,91 @@ async function fetchAccommodationFallback(
     .filter((r) => !looksLikeMembersOnlyAccommodation(r.title));
 
   // fetchProtectedPlaces zwraca wyniki w kolejności preferowanej przez
-  // "bias" Geoapify (najbliższe najpierw) — pierwszy pasujący jest więc
-  // najbliższym dopasowaniem.
-  const best = withinSupportedRegions[0];
-  if (!best) return null;
-
-  return {
-    id: `geoapify-${best.externalId}`,
-    nazwa: best.title,
-    typ: guessTypeFromCategories(best.categories),
-    lat: best.lat,
-    lng: best.lng,
-    distanceKm: distanceKm(point, best),
+  // "bias" Geoapify (najbliższe najpierw) — zostaje więc zachowana.
+  return withinSupportedRegions.slice(0, limit).map((result) => ({
+    id: `geoapify-${result.externalId}`,
+    nazwa: result.title,
+    typ: guessTypeFromCategories(result.categories),
+    lat: result.lat,
+    lng: result.lng,
+    distanceKm: distanceKm(point, result),
     udogodnienia: null,
     poziomKomfortu: null,
     source: "basic",
-    sourceUrl: best.sourceUrl,
+    sourceUrl: result.sourceUrl,
+  }));
+}
+
+async function fetchAccommodationFallback(
+  point: Coordinates,
+  options: AccommodationMatchOptions,
+  fetchPlaces: FetchPlaces,
+): Promise<AccommodationOption | null> {
+  const [best] = await fetchAccommodationFallbackOptions(point, options, fetchPlaces, 1);
+  return best ?? null;
+}
+
+// Zgłoszenie 06.09 (Poziom 2.5 ścieżki "Baza wypadowa"): w odróżnieniu od
+// pickCuratedAccommodation (dopasowanie po ODLEGŁOŚCI od dowolnego punktu
+// trasy objazdowej — słuszne tam, bo przystanek trasy nie ma z góry
+// żadnego "swojego" noclegu) tu dopasowanie jest po PRZYNALEŻNOŚCI
+// REDAKCYJNEJ (Nocleg.miejscePowiazane) — Poziom 2.5 ma pokazać KONKRETNE,
+// kuratorskie obiekty PRZYPISANE do tej miejscowości, nie "cokolwiek w
+// promieniu 20 km", co przy gęściej rozmieszczonych miejscowościach
+// mogłoby przypadkiem pokazać kemping z sąsiedniej miejscowości.
+function curatedAccommodationForPlace(placeSlug: string, noclegi: Nocleg[]): Nocleg[] {
+  return noclegi.filter((n) => n.miejscePowiazane === placeSlug);
+}
+
+// Sam zamek/pałac, który (patrz functionsAsHotel w suggestBases.ts)
+// faktycznie prowadzi dziś hotel — reprezentuje SAM SIEBIE jako opcję
+// noclegu na Poziomie 2.5, bez potrzeby osobnego wiersza w tabeli
+// `noclegi`. `id` z prefiksem "self-" (analogicznie do "geoapify-" dla
+// wyników z Geoapify) — używane jako wartość parametru `obiekt` w URL.
+function placeAsAccommodationOption(place: {
+  slug: string;
+  title: string;
+  lat: number;
+  lng: number;
+}): AccommodationOption {
+  return {
+    id: `self-${place.slug}`,
+    nazwa: place.title,
+    typ: "hotel",
+    lat: place.lat,
+    lng: place.lng,
+    distanceKm: 0,
+    udogodnienia: null,
+    poziomKomfortu: null,
+    source: "curated",
+    sourceUrl: null,
   };
+}
+
+// Zgłoszenie 06.09, wymogi 1-2 (Poziom 2.5): lista KONKRETNYCH obiektów
+// noclegowych do wyboru dla jednej miejscowości/bazy — w kolejności:
+// (1) sama baza, jeśli to zamek/pałac z potwierdzoną funkcją hotelową,
+// (2) kuratorskie noclegi z tabeli `noclegi` przypisane do tej miejscowości,
+// (3) TYLKO gdy (1)+(2) razem nic nie dały — do 5 propozycji z Geoapify
+// (kategorie camping/accommodation/hotel), oznaczonych jak zawsze
+// source: "basic" ("Odkryj więcej" w UI, patrz BaseRadiusExplorer.tsx).
+// Nigdy nie miesza kuratorskich i "basic" naraz — ten sam wzorzec co
+// getAccommodationOptions niżej (kuratorskie mają pierwszeństwo w całości,
+// Geoapify tylko jako uzupełnienie prawdziwej luki w danych).
+export async function getAccommodationOptionsForBase(
+  base: { slug: string; title: string; lat: number; lng: number },
+  noclegi: Nocleg[],
+  options: AccommodationMatchOptions,
+  baseFunctionsAsHotel: boolean,
+  fetchPlaces: FetchPlaces = fetchProtectedPlaces,
+): Promise<AccommodationOption[]> {
+  const curated = curatedAccommodationForPlace(base.slug, noclegi).map((n) => toOption(n, base));
+  const self = baseFunctionsAsHotel ? [placeAsAccommodationOption(base)] : [];
+  const combined = [...self, ...curated];
+
+  if (combined.length > 0) return combined;
+
+  return fetchAccommodationFallbackOptions(base, options, fetchPlaces, 5);
 }
 
 // Zwraca propozycje noclegu dla jednego punktu (ostatniego przystanku

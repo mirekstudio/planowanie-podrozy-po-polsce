@@ -28,21 +28,31 @@ type SearchParams = PlannerSearchParams;
 function hrefForSubRegion(params: SearchParams, subRegionId: string): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (key === "baza" || key === "variant" || key === "podregion" || !value) continue;
+    if (
+      key === "baza" ||
+      key === "obiekt" ||
+      key === "variant" ||
+      key === "podregion" ||
+      !value
+    )
+      continue;
     search.set(key, value);
   }
   search.set("podregion", subRegionId);
   return `/planer/bazy?${search.toString()}`;
 }
 
+// Zgłoszenie 06.09: prowadzi teraz do NOWEGO Poziomu 2.5
+// (/planer/baza-obiekt — wybór konkretnego obiektu noclegowego w tej
+// miejscowości), nie od razu do Poziomu 3 (/planer/baza).
 function hrefForBase(params: SearchParams, baseSlug: string): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (key === "baza" || key === "variant" || !value) continue;
+    if (key === "baza" || key === "obiekt" || key === "variant" || !value) continue;
     search.set(key, value);
   }
   search.set("baza", baseSlug);
-  return `/planer/baza?${search.toString()}`;
+  return `/planer/baza-obiekt?${search.toString()}`;
 }
 
 // Polska odmiana liczebnikowa — 1 atrakcja, 2-4 atrakcje (poza 12-14),
