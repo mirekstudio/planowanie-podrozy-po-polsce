@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getRoutePlaces } from "@/lib/getRoutePlaces";
+import { getNoclegi } from "@/lib/getNoclegi";
 import {
   suggestBaseCandidates,
   restrictToSubRegion,
@@ -61,12 +62,23 @@ export default async function PlanerBazaPage({
     ? restrictToSubRegion(allPlaces, subRegion.id, subRegion.anchors, subRegion.bounds)
     : allPlaces;
 
-  const candidates = suggestBaseCandidates(places, {
-    interests,
-    regionTypes,
-    surroundings: surroundingsFilter,
-    nearbyAttractions,
-  });
+  // Zgłoszenie 06.09 (kryteria jakości bazy): kryterium 1 (realna
+  // infrastruktura noclegowa) potrzebuje tabeli `noclegi`, żeby ocenić
+  // kandydatów, nie tylko wykluczyć parki narodowe — patrz komentarz przy
+  // hasConfirmedLodging w suggestBases.ts. Dociągane raz, tym samym
+  // wzorcem co w wyniku trasy objazdowej (getNoclegi w /planer/wynik).
+  const noclegi = await getNoclegi();
+
+  const candidates = suggestBaseCandidates(
+    places,
+    {
+      interests,
+      regionTypes,
+      surroundings: surroundingsFilter,
+      nearbyAttractions,
+    },
+    noclegi,
+  );
   const base = candidates.find((c) => c.slug === params.baza);
 
   if (!base) {

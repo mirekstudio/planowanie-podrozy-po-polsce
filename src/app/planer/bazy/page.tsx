@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRoutePlaces } from "@/lib/getRoutePlaces";
+import { getNoclegi } from "@/lib/getNoclegi";
 import {
   suggestBaseCandidates,
   restrictToSubRegion,
@@ -112,6 +113,12 @@ export default async function PlanerBazyPage({
   // to samo źródło danych dla obu poziomów.
   const allPlaces = await getRoutePlaces({ days, ...candidateOptions });
 
+  // Zgłoszenie 06.09 (kryteria jakości bazy): patrz identyczny komentarz w
+  // /planer/baza/page.tsx — jedno zapytanie, użyte we WSZYSTKICH
+  // wywołaniach suggestBaseCandidates niżej (Poziom 1 dla każdego
+  // podregionu naraz i Poziom 2 dla wybranego), tak samo jak allPlaces.
+  const noclegi = await getNoclegi();
+
   // POZIOM 1: dla "Morze" appka najpierw pyta o ODCINEK wybrzeża — te same
   // trzy podregiony (Zachodnie/Środkowe/Wschodnie), co warianty geograficzne
   // w ścieżce "Trasa objazdowa" (patrz SPREAD_REGION_SUB_REGIONS w
@@ -130,7 +137,7 @@ export default async function PlanerBazyPage({
   if (hasMorze && !params.podregion) {
     const subRegionCandidates = COASTAL_SUB_REGIONS.map((sub) => {
       const places = restrictToSubRegion(allPlaces, sub.id, sub.anchors, sub.bounds);
-      return { sub, candidates: suggestBaseCandidates(places, candidateOptions) };
+      return { sub, candidates: suggestBaseCandidates(places, candidateOptions, noclegi) };
     });
 
     return (
@@ -176,7 +183,7 @@ export default async function PlanerBazyPage({
     ? restrictToSubRegion(allPlaces, subRegion.id, subRegion.anchors, subRegion.bounds)
     : allPlaces;
 
-  const candidates = suggestBaseCandidates(places, candidateOptions);
+  const candidates = suggestBaseCandidates(places, candidateOptions, noclegi);
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans dark:bg-black">

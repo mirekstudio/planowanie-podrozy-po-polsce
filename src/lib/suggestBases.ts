@@ -1,6 +1,7 @@
 import type { Place } from "@/data/places";
+import type { Nocleg } from "@/data/noclegi";
 import { filterCandidates, type RouteOptions } from "@/lib/generateRoute";
-import { distanceKm } from "@/lib/geo";
+import { centroid, distanceKm } from "@/lib/geo";
 import { isWithinBounds, type Bounds } from "@/lib/poland";
 import { getPlaceMapIcon } from "@/lib/placeMapIcon";
 
@@ -62,10 +63,10 @@ export const DETAIL_MIN_RADIUS_KM = 5;
 export const DETAIL_MAX_RADIUS_KM = 50;
 export const DETAIL_DEFAULT_RADIUS_KM = 15;
 
-function countNearby(pool: Place[], center: Place, radiusKm: number): number {
+function nearbyMatches(pool: Place[], center: Place, radiusKm: number): Place[] {
   return pool.filter(
     (other) => other.slug !== center.slug && distanceKm(center, other) <= radiusKm,
-  ).length;
+  );
 }
 
 // Zgłoszenie 05.09: "Słowiński Park Narodowy" pojawiał się jako propozycja
@@ -88,6 +89,174 @@ function isProtectedArea(place: Place): boolean {
   return place.tags.includes("Parki Narodowe") || PROTECTED_AREA_NAME_PATTERN.test(place.title);
 }
 
+// Zgłoszenie 06.09: "kryteria jakości bazy wypadowej", wspólne dla
+// WSZYSTKICH regionów appki, obecnych i przyszłych — bez ręcznego
+// dostrajania per region. `isProtectedArea` wyżej zostaje jedynym TWARDYM
+// wykluczeniem (park narodowy/rezerwat na pewno prawnie nie ma
+// infrastruktury noclegowej — to jedyny sygnał, co do którego appka może
+// być w 100% pewna, niezależnie od regionu). Cztery kryteria niżej działają
+// jako WAGI dodawane do nearbyCount (gęstość, wymóg 3 — zostaje bez zmian
+// jako dominujący składnik wyniku), nie jako kolejne twarde filtry —
+// uzasadnienie przy LODGING_BONUS niżej, bo to tam ta decyzja waży
+// najwięcej.
+
+// --- Kryterium 1: realna infrastruktura noclegowa -------------------------
+//
+// Dwa NIEZALEŻNE, pozytywne sygnały (branie TYLKO nieobecności "to obszar
+// chroniony" za dowód "ma nocleg" byłoby, jak słusznie zauważono w
+// zgłoszeniu, za słabym testem):
+//   (a) redakcyjne pole Place.recommendedCampsites — wypełnione ręcznie
+//       dla części kuratorskich miejsc (patrz opisy_z_dusza... i wcześniejsza
+//       runda kuracji 06.09), samo w sobie już potwierdza nocleg "z pierwszej
+//       ręki";
+//   (b) tabela `noclegi` (osobna, ustrukturyzowana baza z własnymi
+//       współrzędnymi, patrz src/data/noclegi.ts) — sprawdzana PO
+//       WSPÓŁRZĘDNYCH kandydata, NIE po polu miejscePowiazane (to pole jest
+//       tylko redakcyjną notatką, nie autorytatywnym kluczem — działa więc
+//       tak samo dla kandydatów "basic"/Geoapify, które nigdy nie mają
+//       miejscePowiazane, jak i dla kuratorskich).
+//
+// DLACZEGO waga, nie twardy filtr: tabela `noclegi` ma dziś tylko 14
+// rekordów, a `recommendedCampsites` jest uzupełnione tylko dla części
+// kuratorskich miejsc — oba źródła są niekompletne, nie negatywne. Gdyby
+// brak potwierdzonego noclegu WYKLUCZAŁ kandydata, appka przestałaby
+// proponować Trójmiasto, Ustkę, Darłowo czy większość Wielkopolski
+// (Giecz, Kalisz, Strzelno, Kórnik i Rogalin...) — miejsca, które
+// oczywiście MAJĄ noclegi w rzeczywistości, po prostu appka nie ma tego
+// jeszcze w żadnej z tych dwóch baz. Twardy filtr ukarałby więc brak
+// DANYCH, nie brak noclegów — i to samo dotyczyłoby KAŻDEGO przyszłego
+// regionu, dopóki ktoś ręcznie nie uzupełni dla niego obu tabel (dokładne
+// przeciwieństwo wymogu "bez ręcznego dostrajania per region"). Waga
+// realnie premiuje potwierdzoną infrastrukturę tam, gdzie dane już są,
+// bez psucia regionów, gdzie danych jeszcze brak.
+const LODGING_SEARCH_RADIUS_KM = 20; // ten sam promień i to samo uzasadnienie co MAX_DISTANCE_KM w accommodation.ts — celowo duplikowane, nie importowane (patrz nota o niezależności tego pliku na górze)
+const LODGING_BONUS = 1.5;
+
+function hasConfirmedLodging(place: Place, noclegi: Nocleg[]): boolean {
+  if (place.recommendedCampsites.length > 0) return true;
+  return noclegi.some((n) => distanceKm(place, n) <= LODGING_SEARCH_RADIUS_KM);
+}
+
+// --- Kryterium 2: centralne położenie względem atrakcji regionu -----------
+//
+// Środek ciężkości (centroid, patrz geo.ts) liczony z CAŁEJ puli pasujących
+// atrakcji (`pool` — ten sam zbiór, którego już używa nearbyCount), nie z
+// samych kandydatów na bazę — chodzi o to, gdzie FAKTYCZNIE są atrakcje w
+// regionie, nie gdzie są potencjalne noclegi. Odległość każdego kandydata
+// od tego centroidu jest potem znormalizowana WZGLĘDEM innych kandydatów w
+// TYM SAMYM wywołaniu (dzielona przez największą taką odległość wśród
+// nich) — dzięki temu "centralność" jest zawsze relatywna do skali
+// bieżącego regionu (mały klaster Wielkopolski vs. rozciągnięte na setki
+// km wybrzeże) i nie wymaga żadnego stałego progu w kilometrach, który
+// trzeba by osobno dobierać dla każdego regionu.
+const CENTRALITY_MAX_BONUS = 1;
+
+function centralityBonusFor(
+  place: Place,
+  poolCentroid: { lat: number; lng: number } | null,
+  maxCentroidDistanceKm: number,
+): number {
+  if (!poolCentroid || maxCentroidDistanceKm <= 0) return 0;
+  const distance = distanceKm(place, poolCentroid);
+  return CENTRALITY_MAX_BONUS * (1 - distance / maxCentroidDistanceKm);
+}
+
+// --- Kryterium 4: różnorodność kategorii atrakcji w zasięgu ----------------
+//
+// Liczy tagi WYŁĄCZNIE wśród atrakcji faktycznie leżących w promieniu
+// BASE_SEARCH_RADIUS_KM od danego kandydata (ten sam zbiór, z którego
+// liczy się nearbyCount) — miejsce z 5 plażami w zasięgu (1 unikalny tag)
+// wypada gorzej na tym kryterium niż miejsce z historią + naturą +
+// aktywnością fizyczną (3 unikalne tagi), nawet przy tej samej liczbie
+// atrakcji. Mianownik (liczba unikalnych tagów w CAŁEJ puli, nie sztywna
+// lista kategorii appki) sam dopasowuje się do słownika tagów danego
+// regionu/zestawu zainteresowań — region, w którym w ogóle występują tylko
+// 2 różne tagi, nie jest z góry skazany na niski wynik różnorodności tylko
+// dlatego, że appka globalnie zna ich więcej.
+const DIVERSITY_MAX_BONUS = 1;
+
+function distinctTags(places: Place[]): Set<string> {
+  const tags = new Set<string>();
+  for (const place of places) {
+    for (const tag of place.tags) tags.add(tag);
+  }
+  return tags;
+}
+
+function diversityBonusFor(nearby: Place[], totalDistinctTagsInPool: number): number {
+  if (totalDistinctTagsInPool === 0) return 0;
+  return DIVERSITY_MAX_BONUS * (distinctTags(nearby).size / totalDistinctTagsInPool);
+}
+
+// --- Kryterium 5: wielkość/charakter miejscowości (najmniej istotne) ------
+//
+// Zgłoszenie 06.09 wprost każe to potraktować jako "opcjonalne, jeśli dane
+// są niepewne". Sprawdziłem: appka DZIŚ nigdzie nie pobiera ani nie
+// przechowuje population/typu miejscowości — ani Place, ani
+// ExternalPlaceResult z Geoapify (geoapify.ts) nie niosą takiego pola.
+// Geoapify SAM w sobie potrafi zwracać dane administracyjne
+// (`populated_place`), ale appka je dziś świadomie ODRZUCA jako fałszywe
+// atrakcje (patrz DISQUALIFYING_CATEGORY_PREFIXES w geoapify.ts) — dociąg
+// tej informacji naprawdę wymagałby OSOBNEGO zapytania geokodującego per
+// kandydat (nowy, síeciowy koszt na kandydata, którego dziś ta w pełni
+// synchroniczna funkcja nie ma). Zamiast zgadywać zastępczy sygnał (np.
+// mylić "dużo atrakcji" z "duża miejscowość" — to dwie różne rzeczy),
+// funkcja niżej to udokumentowany, NIEAKTYWNY dziś hak: zawsze zwraca 0,
+// gotowy do wypełnienia prawdziwym sygnałem, gdy appka faktycznie zacznie
+// gdzieś przechowywać dane o wielkości miejscowości. Docelowy sufit wagi,
+// gdy ten hak kiedyś zostanie wypełniony: ok. 0.3 — wyraźnie mniejszy niż
+// pozostałe trzy wagi, zgodnie z wymogiem "najmniej istotne kryterium".
+// Parametr zostaje w sygnaturze celowo: przyszła implementacja będzie
+// potrzebować współrzędnych/kategorii tego miejsca, żeby dociągnąć/ocenić
+// jego wielkość.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function settlementSizeBonusFor(place: Place): number {
+  return 0;
+}
+
+export type BaseQualityScore = {
+  nearbyCount: number;
+  hasLodging: boolean;
+  centralityBonus: number;
+  diversityBonus: number;
+  settlementSizeBonus: number;
+  total: number;
+};
+
+// Łączy wszystkie kryteria w jeden wynik do sortowania. nearbyCount
+// (wymóg 3) zostaje DOMINUJĄCYM składnikiem — w typowych dla appki
+// zakresach (0-10 atrakcji w promieniu) żadna kombinacja pozostałych wag
+// (maks. 1.5 + 1 + 1 + 0.3 = 3.8) nie odwróci przewagi kandydata z
+// wyraźnie większą liczbą atrakcji w zasięgu; te wagi rozstrzygają przede
+// wszystkim REMISY i BLISKIE przypadki (np. dwa miejsca z tą samą liczbą
+// atrakcji, z których jedno leży centralnie i ma noclegi, a drugie na
+// skraju regionu z samymi plażami).
+function scoreCandidate(
+  place: Place,
+  context: {
+    pool: Place[];
+    noclegi: Nocleg[];
+    poolCentroid: { lat: number; lng: number } | null;
+    maxCentroidDistanceKm: number;
+    totalDistinctTagsInPool: number;
+  },
+): BaseQualityScore {
+  const nearby = nearbyMatches(context.pool, place, BASE_SEARCH_RADIUS_KM);
+  const hasLodging = hasConfirmedLodging(place, context.noclegi);
+  const centrality = centralityBonusFor(place, context.poolCentroid, context.maxCentroidDistanceKm);
+  const diversity = diversityBonusFor(nearby, context.totalDistinctTagsInPool);
+  const size = settlementSizeBonusFor(place);
+
+  return {
+    nearbyCount: nearby.length,
+    hasLodging,
+    centralityBonus: centrality,
+    diversityBonus: diversity,
+    settlementSizeBonus: size,
+    total: nearby.length + (hasLodging ? LODGING_BONUS : 0) + centrality + diversity + size,
+  };
+}
+
 // Wybiera do MAX_BASE_CANDIDATES kandydatów na bazę wypadową spośród
 // `places`: miejsca z największą "gęstością" innych pasujących miejsc w
 // promieniu BASE_SEARCH_RADIUS_KM — to one najlepiej nadają się na
@@ -108,6 +277,11 @@ function isProtectedArea(place: Place): boolean {
 export function suggestBaseCandidates(
   places: Place[],
   options: Pick<RouteOptions, "interests" | "regionTypes" | "surroundings" | "nearbyAttractions">,
+  // Opcjonalny, domyślnie pusty — istniejące wywołania (i wszystkie testy
+  // sprzed zgłoszenia 06.09) nie muszą go znać. Bez tabeli `noclegi`
+  // hasConfirmedLodging spada na samo Place.recommendedCampsites (patrz
+  // komentarz przy Kryterium 1 wyżej) zamiast łamać się na braku danych.
+  noclegi: Nocleg[] = [],
 ): BaseCandidate[] {
   const matching = filterCandidates(places, options);
   // Ten sam kompromis co MIN_MATCHING_CURATED_PLACES w getRoutePlaces.ts —
@@ -115,19 +289,39 @@ export function suggestBaseCandidates(
   // lepiej zaproponować bazy z całej puli niż nie zaproponować niczego.
   const pool = matching.length >= MIN_BASE_CANDIDATES_BEFORE_FALLBACK ? matching : places;
 
-  const scored = pool
-    .map((place) => ({ place, nearbyCount: countNearby(pool, place, BASE_SEARCH_RADIUS_KM) }))
-    // Parki narodowe/rezerwaty odpadają TYLKO tutaj (z bycia kandydatem) —
-    // `pool` powyżej, użyty do liczenia nearbyCount, zostaje pełny, więc
-    // park w pobliżu nadal podbija atrakcyjność sąsiedniej, prawdziwej
-    // miejscowości.
-    .filter(({ place }) => !isProtectedArea(place))
-    .sort((a, b) => b.nearbyCount - a.nearbyCount);
+  // Kontekst wspólny dla WSZYSTKICH kandydatów w tym wywołaniu — liczony
+  // raz, nie per kandydat, żeby centralność/różnorodność (patrz kryteria
+  // 2 i 4 wyżej) były spójnie znormalizowane względem tej samej puli.
+  const poolCentroid = centroid(pool);
+  const totalDistinctTagsInPool = distinctTags(pool).size;
+
+  const eligible = pool.filter((place) => !isProtectedArea(place));
+  const centroidDistances = poolCentroid
+    ? eligible.map((place) => distanceKm(place, poolCentroid))
+    : [0];
+  const maxCentroidDistanceKm = Math.max(...centroidDistances, 0);
+
+  const scored = eligible
+    .map((place) => ({
+      place,
+      score: scoreCandidate(place, {
+        pool,
+        noclegi,
+        poolCentroid,
+        maxCentroidDistanceKm,
+        totalDistinctTagsInPool,
+      }),
+    }))
+    // Malejąco po łącznym wyniku; przy remisie (częste przy małych
+    // regionach, gdzie wiele wag wychodzi identycznie) tytuł jako ostatni,
+    // czysto techniczny tiebreaker — żeby kolejność była deterministyczna,
+    // nie zależała od niegwarantowanej kolejności wejściowej tablicy.
+    .sort((a, b) => b.score.total - a.score.total || a.place.title.localeCompare(b.place.title));
 
   const curatedScored = scored.filter((c) => c.place.source !== "basic");
   const basicScored = scored.filter((c) => c.place.source === "basic");
 
-  const selected: { place: Place; nearbyCount: number }[] = [];
+  const selected: { place: Place; score: BaseQualityScore }[] = [];
 
   for (const candidate of curatedScored) {
     if (selected.length >= MAX_BASE_CANDIDATES) break;
@@ -143,7 +337,7 @@ export function suggestBaseCandidates(
     selected.push(candidate);
   }
 
-  return selected.map(({ place, nearbyCount }) => ({
+  return selected.map(({ place, score }) => ({
     slug: place.slug,
     title: place.title,
     description: place.description,
@@ -155,7 +349,7 @@ export function suggestBaseCandidates(
     source: place.source ?? "curated",
     basicPlaceIcon: place.basicPlaceIcon,
     mapIcon: getPlaceMapIcon(place),
-    nearbyCount,
+    nearbyCount: score.nearbyCount,
     radiusKm: BASE_SEARCH_RADIUS_KM,
   }));
 }

@@ -1,12 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Place } from "@/data/places";
+import type { Nocleg } from "@/data/noclegi";
 import {
   suggestBaseCandidates,
   nearbyPlacesWithDistance,
   restrictToSubRegion,
   pinsFromBaseCandidates,
 } from "./suggestBases";
+
+function makeNocleg(overrides: Partial<Nocleg> & { lat: number; lng: number }): Nocleg {
+  return {
+    id: `test-nocleg-${overrides.lat}-${overrides.lng}`,
+    nazwa: "Testowy nocleg",
+    typ: "kemping",
+    miejscePowiazane: null,
+    udogodnienia: null,
+    poziomKomfortu: null,
+    ...overrides,
+  };
+}
 
 // Dowód, że suggestBaseCandidates NIGDY nie korzysta z generateRoute.ts —
 // patrz komentarz w suggestBases.ts. Testy sprawdzają tylko własną logikę
@@ -451,4 +464,209 @@ test("wykluczenie parku narodowego z bycia bazą NIE psuje jego wkładu w gęsto
     2,
     "gęstość Łeby powinna liczyć zarówno park narodowy, jak i trzecie miejsce — park odpada tylko z bycia SAMĄ bazą",
   );
+});
+
+// ---------------------------------------------------------------------------
+// Zgłoszenie 06.09: kryteria jakości bazy wypadowej (nocleg, centralność,
+// różnorodność) — trzy scenariusze niżej, każdy izoluje JEDNO kryterium,
+// trzymając pozostałe (gęstość, geometria) identyczne między porównywanymi
+// kandydatami, żeby zmiana rankingu dowodziła konkretnie tego jednego
+// mechanizmu, nie przypadkowego efektu ubocznego.
+//
+// Wspólny szkielet geometryczny: dwie "miejscowości" (kandydaci na bazę),
+// symetrycznie oddalone od punktu (54.0, 18.0) o 0.6° długości geogr.
+// (~78 km od siebie, bezpiecznie ponad BASE_SEARCH_RADIUS_KM=30 km — nie
+// liczą się nawzajem jako sąsiedzi). Każda ma własnych DWÓCH sąsiadów
+// przesuniętych o 0.16° szerokości (~17.8 km — w promieniu 30 km od
+// "swojej" miejscowości, ale >30 km od siebie nawzajem, więc nie liczą się
+// jako sąsiedzi MIĘDZY sobą) — dzięki temu każda miejscowość ma
+// jednoznacznie najwyższą gęstość (2) w swoim lokalnym klastrze, bez remisu
+// z własnymi sąsiadami.
+
+test("kryterium 'realna infrastruktura noclegowa': przy identycznej gęstości i różnorodności wygrywa miejscowość z potwierdzonym noclegiem", () => {
+  const zNoclegiem = makePlace({
+    slug: "z-noclegiem",
+    title: "Z noclegiem",
+    lat: 54.0,
+    lng: 17.4,
+    tags: ["Zamki i Pałace"],
+    recommendedCampsites: ["Kemping Testowy"],
+  });
+  const sasiedziA = [
+    makePlace({ slug: "a1", title: "A1", lat: 54.16, lng: 17.4, tags: ["Historia"] }),
+    makePlace({ slug: "a2", title: "A2", lat: 53.84, lng: 17.4, tags: ["Historia"] }),
+  ];
+  const bezNoclegu = makePlace({
+    slug: "bez-noclegu",
+    title: "Bez noclegu",
+    lat: 54.0,
+    lng: 18.6,
+    tags: ["Zamki i Pałace"],
+    recommendedCampsites: [],
+  });
+  const sasiedziB = [
+    makePlace({ slug: "b1", title: "B1", lat: 54.16, lng: 18.6, tags: ["Historia"] }),
+    makePlace({ slug: "b2", title: "B2", lat: 53.84, lng: 18.6, tags: ["Historia"] }),
+  ];
+
+  const candidates = suggestBaseCandidates(
+    [zNoclegiem, ...sasiedziA, bezNoclegu, ...sasiedziB],
+    { interests: [], regionTypes: ["Morze"] },
+    [], // brak tabeli `noclegi` — jedynym sygnałem jest recommendedCampsites
+  );
+
+  const slugs = candidates.map((c) => c.slug);
+  const idxZ = slugs.indexOf("z-noclegiem");
+  const idxBez = slugs.indexOf("bez-noclegu");
+  assert.ok(idxZ !== -1 && idxBez !== -1, `obie miejscowości powinny się pojawić: ${JSON.stringify(slugs)}`);
+  assert.ok(
+    idxZ < idxBez,
+    `przy tej samej gęstości i różnorodności "Z noclegiem" powinno wyprzedzić "Bez noclegu": ${JSON.stringify(slugs)}`,
+  );
+});
+
+test("kryterium 'realna infrastruktura noclegowa': tabela noclegi (po współrzędnych, nie po polu miejscePowiazane) też liczy się jako potwierdzony nocleg", () => {
+  const zNoclegiem = makePlace({
+    slug: "z-noclegiem-tabela",
+    title: "Z noclegiem z tabeli",
+    lat: 54.0,
+    lng: 17.4,
+    tags: ["Zamki i Pałace"],
+    recommendedCampsites: [], // celowo puste — sygnał ma przyjść WYŁĄCZNIE z tabeli noclegi
+  });
+  const sasiedziA = [
+    makePlace({ slug: "at1", title: "AT1", lat: 54.16, lng: 17.4, tags: ["Historia"] }),
+    makePlace({ slug: "at2", title: "AT2", lat: 53.84, lng: 17.4, tags: ["Historia"] }),
+  ];
+  const bezNoclegu = makePlace({
+    slug: "bez-noclegu-tabela",
+    title: "Bez noclegu z tabeli",
+    lat: 54.0,
+    lng: 18.6,
+    tags: ["Zamki i Pałace"],
+    recommendedCampsites: [],
+  });
+  const sasiedziB = [
+    makePlace({ slug: "bt1", title: "BT1", lat: 54.16, lng: 18.6, tags: ["Historia"] }),
+    makePlace({ slug: "bt2", title: "BT2", lat: 53.84, lng: 18.6, tags: ["Historia"] }),
+  ];
+  // Nocleg BEZ miejscePowiazane (dokładnie tak jak wpis zaimportowany z
+  // Geoapify wyglądałby) — celowo, żeby dowieść, że dopasowanie idzie po
+  // współrzędnych, nie po tym polu.
+  const nocleg = makeNocleg({ lat: 54.0, lng: 17.41 }); // ~0.6 km od zNoclegiem
+
+  const candidates = suggestBaseCandidates(
+    [zNoclegiem, ...sasiedziA, bezNoclegu, ...sasiedziB],
+    { interests: [], regionTypes: ["Morze"] },
+    [nocleg],
+  );
+
+  const slugs = candidates.map((c) => c.slug);
+  const idxZ = slugs.indexOf("z-noclegiem-tabela");
+  const idxBez = slugs.indexOf("bez-noclegu-tabela");
+  assert.ok(idxZ !== -1 && idxBez !== -1, `obie miejscowości powinny się pojawić: ${JSON.stringify(slugs)}`);
+  assert.ok(
+    idxZ < idxBez,
+    `nocleg z tabeli (dopasowany po współrzędnych) powinien wystarczyć, żeby wyprzedzić miejscowość bez żadnego potwierdzonego noclegu: ${JSON.stringify(slugs)}`,
+  );
+});
+
+test("kryterium 'różnorodność kategorii atrakcji': przy identycznej gęstości i braku noclegu wygrywa miejscowość z bardziej zróżnicowanymi sąsiadami", () => {
+  const zroznicowana = makePlace({
+    slug: "zroznicowana",
+    title: "Zróżnicowana",
+    lat: 54.0,
+    lng: 17.4,
+    tags: ["Zamki i Pałace"],
+  });
+  const sasiedziZroznicowani = [
+    makePlace({ slug: "hist", title: "Historyczne", lat: 54.16, lng: 17.4, tags: ["Historia"] }),
+    makePlace({ slug: "nat", title: "Przyrodnicze", lat: 53.84, lng: 17.4, tags: ["Natura"] }),
+  ];
+  const jednorodna = makePlace({
+    slug: "jednorodna",
+    title: "Jednorodna",
+    lat: 54.0,
+    lng: 18.6,
+    tags: ["Zamki i Pałace"],
+  });
+  const sasiedziJednorodni = [
+    makePlace({ slug: "relaks1", title: "Relaks 1", lat: 54.16, lng: 18.6, tags: ["Relaks"] }),
+    makePlace({ slug: "relaks2", title: "Relaks 2", lat: 53.84, lng: 18.6, tags: ["Relaks"] }),
+  ];
+
+  const candidates = suggestBaseCandidates(
+    [zroznicowana, ...sasiedziZroznicowani, jednorodna, ...sasiedziJednorodni],
+    { interests: [], regionTypes: ["Morze"] },
+  );
+
+  const slugs = candidates.map((c) => c.slug);
+  const idxZ = slugs.indexOf("zroznicowana");
+  const idxJ = slugs.indexOf("jednorodna");
+  assert.ok(idxZ !== -1 && idxJ !== -1, `obie miejscowości powinny się pojawić: ${JSON.stringify(slugs)}`);
+  assert.ok(
+    idxZ < idxJ,
+    `przy tej samej gęstości "Zróżnicowana" (Historia+Natura) powinna wyprzedzić "Jednorodna" (sam Relaks): ${JSON.stringify(slugs)}`,
+  );
+});
+
+test("kryterium 'centralne położenie': przy identycznej gęstości, różnorodności i noclegu wygrywa miejscowość bliższa środkowi ciężkości atrakcji regionu", () => {
+  const centralna = makePlace({
+    slug: "centralna",
+    title: "Centralna",
+    lat: 54.0,
+    lng: 17.4,
+    tags: ["Zamki i Pałace"],
+  });
+  const sasiedziCentralnej = [
+    makePlace({ slug: "c1", title: "C1", lat: 54.16, lng: 17.4, tags: ["Historia"] }),
+    makePlace({ slug: "c2", title: "C2", lat: 53.84, lng: 17.4, tags: ["Natura"] }),
+  ];
+  const brzegowa = makePlace({
+    slug: "brzegowa",
+    title: "Brzegowa",
+    lat: 54.0,
+    lng: 18.6,
+    tags: ["Zamki i Pałace"],
+  });
+  const sasiedziBrzegowej = [
+    makePlace({ slug: "e1", title: "E1", lat: 54.16, lng: 18.6, tags: ["Historia"] }),
+    makePlace({ slug: "e2", title: "E2", lat: 53.84, lng: 18.6, tags: ["Natura"] }),
+  ];
+  // Odosobniona atrakcja daleko na zachód — nie liczy się jako sąsiad
+  // ŻADNEJ z dwóch miejscowości (>30 km od obu), ale przesuwa środek
+  // ciężkości CAŁEJ puli w stronę "Centralnej", robiąc geometrię celowo
+  // ASYMETRYCZNĄ (w przeciwieństwie do dwóch testów wyżej).
+  const odlegleNaZachod = makePlace({
+    slug: "daleko-zachod",
+    title: "Daleko na zachodzie",
+    lat: 54.0,
+    lng: 16.5,
+    tags: ["Aktywność fizyczna"],
+  });
+
+  const candidates = suggestBaseCandidates(
+    [centralna, ...sasiedziCentralnej, brzegowa, ...sasiedziBrzegowej, odlegleNaZachod],
+    { interests: [], regionTypes: ["Morze"] },
+  );
+
+  const slugs = candidates.map((c) => c.slug);
+  const idxC = slugs.indexOf("centralna");
+  const idxB = slugs.indexOf("brzegowa");
+  assert.ok(idxC !== -1 && idxB !== -1, `obie miejscowości powinny się pojawić: ${JSON.stringify(slugs)}`);
+  assert.ok(
+    idxC < idxB,
+    `przy tej samej gęstości i różnorodności "Centralna" (bliżej środka ciężkości atrakcji regionu) powinna wyprzedzić "Brzegowa" (na skraju): ${JSON.stringify(slugs)}`,
+  );
+});
+
+test("suggestBaseCandidates bez podanej tabeli noclegi (parametr domyślny) działa identycznie jak wcześniej — kompatybilność wsteczna", () => {
+  const a = makePlace({ slug: "a", title: "A", lat: 54.0, lng: 17.0 });
+  const b = makePlace({ slug: "b", title: "B", lat: 54.05, lng: 17.05 });
+
+  // Brak trzeciego argumentu w ogóle — dokładnie tak, jak wołały to
+  // wszystkie testy w tym pliku sprzed zgłoszenia 06.09.
+  const candidates = suggestBaseCandidates([a, b], { interests: [], regionTypes: ["Morze"] });
+
+  assert.equal(candidates.length, 2);
 });
