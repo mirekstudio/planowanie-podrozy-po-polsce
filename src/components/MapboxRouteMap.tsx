@@ -310,10 +310,30 @@ export default function MapboxRouteMap({
     validStops.forEach((stop, index) => {
       // Kontener pozycjonujący — samą pinezkę z ikoną kategorii i mały
       // odznaczek numeru w jej rogu (patrz niżej) trzeba pozycjonować
-      // względem wspólnego rodzica, inaczej mapboxgl.Marker (który sam
-      // pozycjonuje SWÓJ element) nie wie, co ma być jednym markerem.
+      // względem wspólnego rodzica, żeby oba elementy tworzyły jeden
+      // marker.
+      //
+      // Zgłoszenie 06.09 (regres — pineski nieprzyklejone do mapy):
+      // TU był błąd. Własna klasa Mapboxa ".mapboxgl-marker" narzuca
+      // temu elementowi "position: absolute" (żeby marker w ogóle NIE
+      // uczestniczył w normalnym przepływie dokumentu — Mapbox pozycjonuje
+      // go WYŁĄCZNIE przez transform, niezależnie od DOM-owego sąsiedztwa).
+      // Poprzednia wersja nadpisywała to inline'em na "position: relative"
+      // (żeby dać kontekst pozycjonowania dla odznaczka numeru poniżej) —
+      // ale "relative" NIE wyjmuje elementu z przepływu, więc każda kolejna
+      // 32px-owa pinezka dosłownie "pchała" następne w dół normalnym
+      // block-flow, DODATKOWO do przesunięcia liczonego przez Mapbox.
+      // Efekt zmierzony bezpośrednio na żywej produkcji: błąd rósł
+      // liniowo, dokładnie 32px na każdą kolejną pinezkę (0, -32, -64,
+      // -97, -129...) — pierwsza pinezka (i marker startu, który nigdy
+      // nie miał tego nadpisania) były w porządku, każda następna coraz
+      // bardziej "odklejona" przy zoomowaniu/przesuwaniu.
+      // "position: absolute" TAKŻE tworzy kontekst pozycjonowania dla
+      // potomków (nie tylko "relative") — więc odznaczek numeru nadal
+      // poprawnie się zakotwicza, a sam marker wraca do wymaganego przez
+      // Mapbox zachowania.
       const el = document.createElement("div");
-      el.style.position = "relative";
+      el.style.position = "absolute";
       el.style.width = "32px";
       el.style.height = "32px";
       el.style.cursor = "pointer";
