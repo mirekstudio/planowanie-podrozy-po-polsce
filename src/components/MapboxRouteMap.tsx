@@ -7,6 +7,22 @@ import type { Place } from "@/data/places";
 import type { GeocodedPlace } from "@/lib/geocoding";
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/mapbox";
 import { getPlaceMapIcon } from "@/lib/placeMapIcon";
+import { isWithinPoland } from "@/lib/poland";
+
+// Zgłoszenie 05.09 (kontynuacja): dowód wprost pokazał, że TA konkretna
+// zgłoszona sprawa nie miała złych współrzędnych (sprawdzone bezpośrednio
+// dla wszystkich 8 miejsc w promieniu 30 km od Łeby — żadne nie miało
+// null/0,0/odstających wartości; przyczyną była przerwana w locie
+// animacja fitBounds, naprawiona osobno niżej). Mimo to warto mieć tu
+// niezależną, twardą ochronę na przyszłość — pojedyncze miejsce z
+// zepsutymi współrzędnymi (błąd parsowania Geoapify, literówka w danych
+// kuratorskich) mogłoby rozciągnąć fitBounds do absurdalnego kadru
+// dokładnie tak, jak zgłoszenie opisywało. isWithinPoland (poland.ts) w
+// jednym warunku łapie NaN/undefined (porównania liczbowe z nimi są
+// zawsze false), (0,0) i punkty ewidentnie spoza kraju.
+function hasSaneCoordinates(point: { lat: number; lng: number }): boolean {
+  return Number.isFinite(point.lat) && Number.isFinite(point.lng) && isWithinPoland(point);
+}
 
 type RouteInfo = {
   distanceKm: number;
@@ -158,14 +174,32 @@ export default function MapboxRouteMap({
     setError(false);
     setMapError(false);
 
-    const hasContent = stops.length > 0 || !!startPoint;
+    // Zgłoszenie 05.09: odrzucamy (i logujemy) miejsca z nieprawidłowymi
+    // współrzędnymi TU, raz, zanim cokolwiek — marker, bounds, waypoint
+    // Directions API — zdąży ich użyć. Patrz hasSaneCoordinates wyżej.
+    const validStops = stops.filter((stop) => {
+      if (hasSaneCoordinates(stop)) return true;
+      console.error(
+        `MapboxRouteMap: pomijam miejsce z nieprawidłowymi współrzędnymi (lat=${stop.lat}, lng=${stop.lng}): "${stop.title}" (${stop.slug})`,
+      );
+      return false;
+    });
+    const validStartPoint =
+      startPoint && hasSaneCoordinates(startPoint) ? startPoint : null;
+    if (startPoint && !validStartPoint) {
+      console.error(
+        `MapboxRouteMap: pomijam punkt startowy z nieprawidłowymi współrzędnymi (lat=${startPoint.lat}, lng=${startPoint.lng}): "${startPoint.label}"`,
+      );
+    }
+
+    const hasContent = validStops.length > 0 || !!validStartPoint;
     if (!containerRef.current || !hasContent || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    const initialCenter = startPoint
-      ? ([startPoint.lng, startPoint.lat] as [number, number])
-      : ([stops[0].lng, stops[0].lat] as [number, number]);
+    const initialCenter = validStartPoint
+      ? ([validStartPoint.lng, validStartPoint.lat] as [number, number])
+      : ([validStops[0].lng, validStops[0].lat] as [number, number]);
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -235,7 +269,7 @@ export default function MapboxRouteMap({
 
     const bounds = new mapboxgl.LngLatBounds();
 
-    if (startPoint) {
+    if (validStartPoint) {
       const el = document.createElement("div");
       el.style.background = "var(--honey)";
       el.style.color = "#fff";
@@ -256,24 +290,24 @@ export default function MapboxRouteMap({
         closeButton: false,
         closeOnClick: false,
       }).setHTML(
-        `<div style="color:#111;"><strong>Start: ${startPoint.label}</strong></div>`,
+        `<div style="color:#111;"><strong>Start: ${validStartPoint.label}</strong></div>`,
       );
 
       el.addEventListener("mouseenter", () => {
-        popup.setLngLat([startPoint.lng, startPoint.lat]).addTo(map);
+        popup.setLngLat([validStartPoint.lng, validStartPoint.lat]).addTo(map);
       });
       el.addEventListener("mouseleave", () => {
         popup.remove();
       });
 
       new mapboxgl.Marker({ element: el })
-        .setLngLat([startPoint.lng, startPoint.lat])
+        .setLngLat([validStartPoint.lng, validStartPoint.lat])
         .addTo(map);
 
-      bounds.extend([startPoint.lng, startPoint.lat]);
+      bounds.extend([validStartPoint.lng, validStartPoint.lat]);
     }
 
-    stops.forEach((stop, index) => {
+    validStops.forEach((stop, index) => {
       // Kontener pozycjonujący — samą pinezkę z ikoną kategorii i mały
       // odznaczek numeru w jej rogu (patrz niżej) trzeba pozycjonować
       // względem wspólnego rodzica, inaczej mapboxgl.Marker (który sam
@@ -350,17 +384,31 @@ export default function MapboxRouteMap({
       bounds.extend([stop.lng, stop.lat]);
     });
 
-    map.fitBounds(bounds, { padding: 60, maxZoom: 11 });
+    // Zgłoszenie 05.09 (kontynuacja — regres po poprzedniej naprawie):
+    // fitBounds domyślnie ANIMUJE przejście kamery ("flyTo"). Ten pierwszy
+    // wywołanie i drugie niżej (po dociągnięciu trasy) mogą wystrzelić
+    // blisko siebie w czasie — drugie przerywa animację pierwszego W
+    // LOCIE. Mapbox liczy wtedy nową krzywą lotu na podstawie AKTUALNEGO,
+    // pośredniego stanu kamery (który sam jest w trakcie przejścia) jako
+    // nowego punktu startowego — sprawdzone bezpośrednio (odczyt zoom/
+    // centrum tuż po starcie): potrafi to dać przejściowo znacznie bardziej
+    // oddalony kadr niż jakikolwiek z dwóch docelowych stanów osobno
+    // (np. zoom ~5.9, cały kraj, zamiast docelowego ~9, wybrzeże). Appka w
+    // końcu doganiała poprawny kadr, ale dopiero po dokończeniu animacji —
+    // do tego czasu użytkownik widział błędny, mocno oddalony widok.
+    // `animate: false` sprawia, że kamera skacze OD RAZU do policzonego
+    // celu — bez żadnej klatki pośredniej do przerwania.
+    map.fitBounds(bounds, { padding: 60, maxZoom: 11, animate: false });
 
     let cancelled = false;
 
     const waypoints = [
-      ...(startPoint ? [{ lat: startPoint.lat, lng: startPoint.lng }] : []),
-      ...stops.map((s) => ({ lat: s.lat, lng: s.lng })),
+      ...(validStartPoint ? [{ lat: validStartPoint.lat, lng: validStartPoint.lng }] : []),
+      ...validStops.map((s) => ({ lat: s.lat, lng: s.lng })),
     ];
 
     if (waypoints.length > 1) {
-      fetchDrivingRoute(waypoints, Boolean(startPoint))
+      fetchDrivingRoute(waypoints, Boolean(validStartPoint))
         .then((result) => {
           if (cancelled) return;
           if (!result) {
@@ -400,7 +448,10 @@ export default function MapboxRouteMap({
             // listy pod mapą nigdy nie wypadnie poza kadr, niezależnie od
             // kształtu samej trasy.
             result.geometry.coordinates.forEach((c) => bounds.extend(c));
-            map.fitBounds(bounds, { padding: 60, maxZoom: 11 });
+            // Bez animacji z tego samego powodu co pierwsze wywołanie
+            // wyżej — to drugie wywołanie jest właśnie tym, które ma
+            // szansę przerwać animację pierwszego w locie.
+            map.fitBounds(bounds, { padding: 60, maxZoom: 11, animate: false });
           };
 
           if (map.isStyleLoaded()) {
