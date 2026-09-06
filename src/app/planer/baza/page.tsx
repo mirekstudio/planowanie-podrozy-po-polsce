@@ -11,6 +11,7 @@ import { COASTAL_SUB_REGIONS, type SubRegion } from "@/lib/poland";
 import { bazyListHref, type PlannerSearchParams } from "@/lib/plannerSearchParams";
 import BackLink from "@/components/BackLink";
 import BaseRadiusExplorer from "@/components/BaseRadiusExplorer";
+import SaveActiveTripButton from "@/components/SaveActiveTripButton";
 
 export const dynamic = "force-dynamic";
 
@@ -89,11 +90,24 @@ export default async function PlanerBazaPage({
           {base.description}
         </p>
 
-        <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
-          Tymczasowy widok — pełny plan wypadów dzień po dniu z tej bazy
-          dopracujemy w kolejnym kroku. Na razie pokazujemy samą bazę i
-          miejsca w zasięgu, z suwakiem promienia.
-        </p>
+        {/* Zgłoszenie 06.09: usunięty żółty komunikat "Tymczasowy widok —
+            pełny plan wypadów dzień po dniu dopracujemy w kolejnym kroku"
+            — to podejście (planowanie z góry dzień po dniu) jest już
+            nieaktualne dla stylu "Baza wypadowa": zamiast sztywnego planu
+            appka wprowadza koncepcję "aktywnej podróży" (patrz
+            SaveActiveTripButton niżej i /dzis) — użytkownik zapisuje
+            wybraną bazę i na bieżąco sprawdza, co jest w zasięgu, zamiast
+            układać plan z wyprzedzeniem. */}
+        <SaveActiveTripButton
+          trip={{
+            baseSlug: base.slug,
+            baseTitle: base.title,
+            baseLat: base.lat,
+            baseLng: base.lng,
+            region: subRegion ? `${regionTypes.join(", ")} — ${subRegion.title}` : regionTypes.join(", "),
+            days,
+          }}
+        />
 
         <BaseRadiusExplorer
           base={{ lat: base.lat, lng: base.lng, title: base.title }}

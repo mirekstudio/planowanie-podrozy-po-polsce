@@ -220,6 +220,7 @@ export default function SideDrawer({
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [visitedCount, setVisitedCount] = useState(0);
   const [savedRoutesCount, setSavedRoutesCount] = useState(0);
+  const [activeTripBaseTitle, setActiveTripBaseTitle] = useState<string | null>(null);
   const [placesCount, setPlacesCount] = useState(0);
   const [featuredCount, setFeaturedCount] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
@@ -260,6 +261,15 @@ export default function SideDrawer({
       .from("saved_routes")
       .select("*", { count: "exact", head: true })
       .then(({ count }) => setSavedRoutesCount(count ?? 0));
+    // Zgłoszenie 06.09: "Dziś w [baza]" ma się pokazać w menu TYLKO gdy
+    // użytkownik ma aktywną, zapisaną podróż — active_trips ma co najwyżej
+    // jeden wiersz na użytkownika (user_id to klucz główny, patrz
+    // supabase/add_active_trips.sql), więc maybeSingle() zamiast listy.
+    supabase
+      .from("active_trips")
+      .select("base_title")
+      .maybeSingle()
+      .then(({ data }) => setActiveTripBaseTitle(data?.base_title ?? null));
   }, [open, user]);
 
   useEffect(() => {
@@ -463,6 +473,30 @@ export default function SideDrawer({
                   <circle cx="4" cy="6" r="1" fill="currentColor" />
                   <circle cx="4" cy="12" r="1" fill="currentColor" />
                   <circle cx="4" cy="18" r="1" fill="currentColor" />
+                </svg>
+              }
+            />
+          )}
+
+          {/* Zgłoszenie 06.09: tak jak "Moje trasy" — tylko dla
+              zalogowanych — ale DODATKOWO tylko gdy istnieje faktyczna
+              aktywna podróż (active_trips ma wtedy dokładnie jeden wiersz
+              tego użytkownika). Bez aktywnej podróży pozycja jest
+              CAŁKOWICIE ukryta, nie wyszarzona — w przeciwieństwie do
+              Ulubione/Odwiedzone (zawsze przydatne, każdy prędzej czy
+              później coś polubi) to jednorazowy, tymczasowy stan ("jestem
+              teraz w trasie"), więc pusty stan nie zasługuje na stałe
+              miejsce w menu. */}
+          {user && activeTripBaseTitle && (
+            <DrawerLink
+              href="/dzis"
+              onClick={onClose}
+              bold
+              label={`Dziś w ${activeTripBaseTitle}`}
+              icon={
+                <svg {...iconProps} className="h-5 w-5 shrink-0 text-honey">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" />
                 </svg>
               }
             />
