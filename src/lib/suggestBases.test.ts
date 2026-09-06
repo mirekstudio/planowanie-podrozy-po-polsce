@@ -468,6 +468,91 @@ test("wykluczenie parku narodowego z bycia bazą NIE psuje jego wkładu w gęsto
   );
 });
 
+// Zgłoszenie 06.09 (duplikaty lokalizacji): pojedyncze zabytki/budynki w
+// tej samej miejscowości co istniejący rekord miasta konkurowały jako
+// niezależni kandydaci na bazę. Część łapie już isCastleOrPalace (Zamek
+// Królewski/Cesarski w Poznaniu), ale "Latarnia Morska Rozewie" (~2 km od
+// "jastrzebia-gora-chlapowo") nie pasuje do żadnego wzorca nazwy — stąd
+// ręczna flaga Place.singleAttraction. Wyklucza z bycia bazą, ale zostawia
+// w puli gęstości.
+test("rekord oznaczony singleAttraction (bez dopasowania po nazwie) nie jest proponowany jako baza, choćby leżał w gęstym klastrze", () => {
+  // Prawdziwe współrzędne z bazy — Latarnia Rozewie tuż obok Jastrzębiej Góry.
+  const jastrzebia = makePlace({
+    slug: "jastrzebia-gora-chlapowo",
+    title: "Jastrzębia Góra i Chłapowo",
+    lat: 54.8358,
+    lng: 18.3011,
+    tags: ["Natura", "Aktywność fizyczna"],
+  });
+  const latarnia = makePlace({
+    slug: "rozewie",
+    title: "Latarnia Morska Rozewie",
+    lat: 54.8306,
+    lng: 18.3358,
+    tags: ["Historia", "Architektura"],
+    singleAttraction: true,
+  });
+  const wladyslawowo = makePlace({
+    slug: "wladyslawowo-polwysep-helski",
+    title: "Władysławowo i Półwysep Helski",
+    lat: 54.6053,
+    lng: 18.8028,
+    tags: ["Natura", "Historia", "Aktywność fizyczna"],
+  });
+
+  const candidates = suggestBaseCandidates([jastrzebia, latarnia, wladyslawowo], {
+    interests: [],
+    regionTypes: [],
+  });
+
+  const slugs = candidates.map((c) => c.slug);
+  assert.ok(
+    !slugs.includes("rozewie"),
+    `Latarnia Rozewie (singleAttraction) nie powinna być kandydatem na bazę: ${JSON.stringify(slugs)}`,
+  );
+  assert.ok(
+    slugs.includes("jastrzebia-gora-chlapowo"),
+    "Jastrzębia Góra (miejscowość, w której leży latarnia) powinna zostać zaproponowana",
+  );
+});
+
+test("wykluczenie singleAttraction NIE psuje jego wkładu w gęstość miejscowości, w której leży", () => {
+  const jastrzebia = makePlace({
+    slug: "jastrzebia-gora-chlapowo",
+    title: "Jastrzębia Góra i Chłapowo",
+    lat: 54.8358,
+    lng: 18.3011,
+  });
+  const latarnia = makePlace({
+    slug: "rozewie",
+    title: "Latarnia Morska Rozewie",
+    lat: 54.8306,
+    lng: 18.3358,
+    singleAttraction: true,
+  });
+  // Drugie miejsce w promieniu Jastrzębiej Góry, żeby jej nearbyCount > 0
+  // niezależnie od latarni — sprawdzamy, że LATARNIA TEŻ się wlicza.
+  const bialogora = makePlace({
+    slug: "bialogora-krokowa",
+    title: "Białogóra i Krokowa",
+    lat: 54.7889,
+    lng: 17.9833,
+  });
+
+  const candidates = suggestBaseCandidates([jastrzebia, latarnia, bialogora], {
+    interests: [],
+    regionTypes: [],
+  });
+
+  const jastrzebiaCandidate = candidates.find((c) => c.slug === "jastrzebia-gora-chlapowo");
+  assert.ok(jastrzebiaCandidate, "Jastrzębia Góra powinna pojawić się jako propozycja");
+  assert.equal(
+    jastrzebiaCandidate!.nearbyCount,
+    2,
+    "gęstość Jastrzębiej Góry powinna liczyć zarówno latarnię, jak i Białogórę — latarnia odpada tylko z bycia SAMĄ bazą",
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Zgłoszenie 06.09: kryteria jakości bazy wypadowej (nocleg, centralność,
 // różnorodność) — trzy scenariusze niżej, każdy izoluje JEDNO kryterium,

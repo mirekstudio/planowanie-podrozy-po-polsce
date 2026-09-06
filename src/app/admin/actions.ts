@@ -56,6 +56,7 @@ function readPlaceForm(formData: FormData) {
     rekomendowane_kempingi: recommendedCampsites,
     wskazowki_kulinarne: culinaryTip === "" ? null : culinaryTip,
     featured: formData.get("featured") === "on",
+    pojedyncza_atrakcja: formData.get("singleAttraction") === "on",
   };
 }
 
