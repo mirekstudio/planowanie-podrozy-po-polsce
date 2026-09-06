@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getActiveTrip } from "@/lib/activeTrip";
 import { getPlaces } from "@/lib/getPlaces";
 import { nearbyPlacesWithDistance, DETAIL_MAX_RADIUS_KM } from "@/lib/suggestBases";
+import { fetchCurrentWeather, describeWeatherCode, classifyWeatherMood } from "@/lib/weather";
+import { remainingTripDays, prioritizeForToday, describePriorityMode } from "@/lib/dzisPrioritization";
 import BackButton from "@/components/BackButton";
 import BaseRadiusExplorer from "@/components/BaseRadiusExplorer";
 import EndActiveTripButton from "@/components/EndActiveTripButton";
@@ -59,11 +61,23 @@ export default async function DzisPage() {
   }
 
   const curated = await getPlaces();
-  const nearby = nearbyPlacesWithDistance(
+  const rawNearby = nearbyPlacesWithDistance(
     curated,
     { slug: trip.baseSlug, lat: trip.baseLat, lng: trip.baseLng },
     DETAIL_MAX_RADIUS_KM,
   );
+
+  // Zgłoszenie 06.09: aktualna pogoda NA MIEJSCU (współrzędne zapisanej
+  // bazy), nie prognoza — patrz komentarz w weather.ts. `null`, gdy
+  // Open-Meteo jest niedostępne (fail-open: strona działa dalej, po
+  // prostu bez widżetu pogody i bez sortowania po pogodzie).
+  const weather = await fetchCurrentWeather(trip.baseLat, trip.baseLng);
+  const weatherMood = weather ? classifyWeatherMood(weather) : null;
+  const weatherDisplay = weather ? describeWeatherCode(weather.weatherCode) : null;
+
+  const remainingDays = remainingTripDays(trip.startDate, trip.days);
+  const nearby = prioritizeForToday(rawNearby, { weatherMood, remainingDays });
+  const priorityNote = describePriorityMode(weatherMood, remainingDays);
 
   const startDateLabel = new Date(trip.startDate).toLocaleDateString("pl-PL", {
     day: "numeric",
@@ -83,6 +97,33 @@ export default async function DzisPage() {
           {trip.region} · start {startDateLabel} · {trip.days}{" "}
           {trip.days === 1 ? "dzień" : "dni"} zaplanowane
         </p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {weather && weatherDisplay && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[.08] bg-white px-3 py-1.5 text-sm text-zinc-700 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-300">
+              <span aria-hidden>{weatherDisplay.emoji}</span>
+              {weatherDisplay.label} · {Math.round(weather.temperatureC)}°C
+              {weather.precipitationMm > 0 ? ` · ${weather.precipitationMm.toFixed(1)} mm opadu` : ""}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-black/[.08] bg-white px-3 py-1.5 text-sm text-zinc-700 dark:border-white/[.145] dark:bg-zinc-900 dark:text-zinc-300">
+            <span aria-hidden>📅</span>
+            {remainingDays === 0
+              ? "Ostatni dzień podróży"
+              : `Zostało ${remainingDays} ${remainingDays === 1 ? "dzień" : "dni"}`}
+          </span>
+        </div>
+        {/* Pogoda niedostępna (Open-Meteo nie odpowiedziało) — strona
+            działa dalej, po prostu bez tego widżetu i bez sortowania po
+            pogodzie (patrz weather.ts, fetchCurrentWeather: fail-open). */}
+        {!weather && (
+          <p className="mt-2 text-xs text-zinc-500">
+            Nie udało się pobrać aktualnej pogody — lista poniżej jest posortowana bez jej uwzględnienia.
+          </p>
+        )}
+        {priorityNote && (
+          <p className="mt-2 text-xs text-zinc-500">{priorityNote}</p>
+        )}
 
         <BaseRadiusExplorer
           base={{ lat: trip.baseLat, lng: trip.baseLng, title: trip.baseTitle }}

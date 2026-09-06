@@ -10,8 +10,22 @@ import {
   DETAIL_MAX_RADIUS_KM,
   DETAIL_DEFAULT_RADIUS_KM,
 } from "@/lib/suggestBases";
+import type { PriorityReason } from "@/lib/dzisPrioritization";
 import MapboxRouteMapLoader from "@/components/MapboxRouteMapLoader";
 import BasicPlaceThumbnail from "@/components/BasicPlaceThumbnail";
+
+// Zgłoszenie 06.09 (ekran "Dziś w [baza]"): `nearby` tam przychodzi z
+// dodatkowym polem `priorityReason` (patrz dzisPrioritization.ts) —
+// `import type` (zero śladu w bundlu klienckim) + pole opcjonalne, więc
+// Poziom 3 (/planer/baza), który tego pola nigdy nie ustawia, zachowuje
+// się DOKŁADNIE jak przed tą zmianą.
+type NearbyEntry = NearbyPlaceWithDistance & { priorityReason?: PriorityReason | null };
+
+const PRIORITY_BADGE_LABELS: Record<PriorityReason, { emoji: string; label: string }> = {
+  "rain-indoor": { emoji: "🌧️", label: "Dobre na deszcz" },
+  "nice-outdoor": { emoji: "☀️", label: "Idealne w tę pogodę" },
+  "low-days-featured": { emoji: "⭐", label: "Nie przegap" },
+};
 
 // Odstęp między ostatnim ruchem suwaka a faktycznym przeliczeniem
 // widocznej listy/mapy — bez tego przeciąganie suwaka wywoływałoby
@@ -24,7 +38,7 @@ export default function BaseRadiusExplorer({
   nearby,
 }: {
   base: { lat: number; lng: number; title: string };
-  nearby: NearbyPlaceWithDistance[];
+  nearby: NearbyEntry[];
 }) {
   // sliderValue: natychmiastowa wartość do wyświetlenia przy suwaku.
   // radiusKm: wartość faktycznie sterująca listą/mapą, aktualizowana z
@@ -82,8 +96,8 @@ export default function BaseRadiusExplorer({
         </p>
       ) : (
         <ol className="mt-4 flex flex-col gap-3">
-          {visible.map(({ place }) => (
-            <NearbyPlaceCard key={place.slug} place={place} />
+          {visible.map(({ place, priorityReason }) => (
+            <NearbyPlaceCard key={place.slug} place={place} priorityReason={priorityReason ?? null} />
           ))}
         </ol>
       )}
@@ -91,7 +105,13 @@ export default function BaseRadiusExplorer({
   );
 }
 
-function NearbyPlaceCard({ place }: { place: Place }) {
+function NearbyPlaceCard({
+  place,
+  priorityReason = null,
+}: {
+  place: Place;
+  priorityReason?: PriorityReason | null;
+}) {
   const isBasic = place.source === "basic";
 
   const content = (
@@ -122,15 +142,22 @@ function NearbyPlaceCard({ place }: { place: Place }) {
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {place.description}
         </p>
-        <span
-          className={`mt-1 inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-            isBasic
-              ? "bg-black/5 text-zinc-600 dark:bg-white/10 dark:text-zinc-400"
-              : "bg-honey/10 text-honey"
-          }`}
-        >
-          {isBasic ? "Odkryj więcej →" : "★ Poleca przewodnik"}
-        </span>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          <span
+            className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+              isBasic
+                ? "bg-black/5 text-zinc-600 dark:bg-white/10 dark:text-zinc-400"
+                : "bg-honey/10 text-honey"
+            }`}
+          >
+            {isBasic ? "Odkryj więcej →" : "★ Poleca przewodnik"}
+          </span>
+          {priorityReason && (
+            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-wine/10 px-2 py-0.5 text-xs font-medium text-wine">
+              {PRIORITY_BADGE_LABELS[priorityReason].emoji} {PRIORITY_BADGE_LABELS[priorityReason].label}
+            </span>
+          )}
+        </div>
       </div>
     </>
   );
