@@ -92,6 +92,19 @@ function emojiToImageData(emoji: string, size: number): ImageData {
 const ROUTE_SOURCE_ID = "driving-route";
 const ROUTE_LAYER_ID = "driving-route-line";
 
+// Zgłoszenie 06.09: kolor linii trasy — ten sam odcień, co domyślny
+// niebieski akcent suwaków appki ("Liczba dni", "Promień poszukiwań").
+// Te suwaki (zwykłe <input type="range">) NIE mają nigdzie w appce
+// zdefiniowanego własnego koloru (sprawdzone: brak `accent-color`/
+// `accent-*` w całym kodzie) — ich niebieski to domyślny, wbudowany
+// akcent Chromium dla natywnych kontrolek formularza, sprawdzony
+// bezpośrednio przez porównanie próbki #1a73e8 obok wyrenderowanego
+// suwaka (wizualnie nierozróżnialne). Zastąpione poprzednie bordo
+// (#6b1725, ten sam odcień co --color-wine-solid) tym niebieskim —
+// jedyne miejsce w appce rysujące linię trasy (używane zarówno przez
+// /planer/wynik, jak i widok bazy z promieniem w BaseRadiusExplorer).
+const ROUTE_LINE_COLOR = "#1a73e8";
+
 type PoiCategoryId = "fuel" | "restaurants" | "shops";
 
 const POI_CATEGORIES: {
@@ -453,7 +466,7 @@ export default function MapboxRouteMap({
               type: "line",
               source: ROUTE_SOURCE_ID,
               layout: { "line-join": "round", "line-cap": "round" },
-              paint: { "line-color": "#6b1725", "line-width": 4 },
+              paint: { "line-color": ROUTE_LINE_COLOR, "line-width": 4 },
             });
 
             // Zgłoszenie 05.09: ROZSZERZAMY te same `bounds`, które już
