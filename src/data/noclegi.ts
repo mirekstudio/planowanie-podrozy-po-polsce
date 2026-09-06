@@ -24,4 +24,8 @@ export type Nocleg = {
   miejscePowiazane: string | null;
   udogodnienia: string | null;
   poziomKomfortu: PoziomKomfortu | null;
+  // Zgłoszenie 06.09: link do oferty/rezerwacji u operatora zewnętrznego
+  // obiektu (np. Fly Resort) — patrz supabase/add_noclegi_link.sql. Nasze
+  // wcześniejsze wpisy (bez własnej strony/oferty) mają tu null.
+  link: string | null;
 };

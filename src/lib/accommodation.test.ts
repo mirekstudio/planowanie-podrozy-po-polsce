@@ -23,6 +23,7 @@ function makeNocleg(overrides: Partial<Nocleg> & { lat: number; lng: number }): 
     miejscePowiazane: null,
     udogodnienia: null,
     poziomKomfortu: null,
+    link: null,
     ...overrides,
   };
 }
@@ -139,6 +140,30 @@ test("getAccommodationOptionsForBase: dopasowuje kuratorskie noclegi PO miejsceP
     ["Camp Na Wydmie"],
     "tylko nocleg PRZYPISANY do Łeby powinien się pojawić, nie fizycznie bliski nocleg innej miejscowości",
   );
+});
+
+// Zgłoszenie 06.09 (Fly Resort): prawdziwe, komercyjne obiekty mają w
+// tabeli `noclegi` link do własnej oferty/rezerwacji (Nocleg.link) — musi
+// trafić do AccommodationOption.sourceUrl, żeby Poziom 2.5 mógł pokazać
+// "Zobacz ofertę / Zarezerwuj".
+test("getAccommodationOptionsForBase: Nocleg.link trafia do sourceUrl (dla 'Zobacz ofertę / Zarezerwuj')", async () => {
+  const leba = { slug: "leba", title: "Łeba", lat: 54.7597, lng: 17.5536 };
+  const noclegi = [
+    makeNocleg({
+      id: "n-fly-resort",
+      nazwa: "Camping Fly Resort Łeba",
+      lat: 54.7644,
+      lng: 17.5274,
+      miejscePowiazane: "leba",
+      link: "https://flyresort.pl/leba/fly-camp-leba/",
+    }),
+  ];
+  const fetchPlaces = mock.fn(async () => []);
+
+  const result = await getAccommodationOptionsForBase(leba, noclegi, { transport: "car" }, false, fetchPlaces);
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].sourceUrl, "https://flyresort.pl/leba/fly-camp-leba/");
 });
 
 test("getAccommodationOptionsForBase: zamek/pałac z potwierdzoną funkcją hotelową reprezentuje sam siebie jako opcja", async () => {

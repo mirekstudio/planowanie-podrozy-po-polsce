@@ -170,10 +170,10 @@ function AccommodationOptionCard({
   const isSelf = option.id.startsWith("self-");
 
   return (
-    <li>
+    <li className="overflow-hidden rounded-lg border border-black/[.08] bg-white dark:border-white/[.145] dark:bg-zinc-900">
       <Link
         href={href}
-        className="flex items-center gap-4 rounded-lg border border-black/[.08] bg-white p-4 transition-colors hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:border-wine active:bg-wine/5 dark:border-white/[.145] dark:bg-zinc-900 dark:hover:border-wine/50 dark:active:bg-wine/10"
+        className="flex items-center gap-4 p-4 transition-colors hover:border-wine/50 hover:shadow-md active:scale-[0.98] active:bg-wine/5 dark:hover:border-wine/50 dark:active:bg-wine/10"
       >
         <span className="text-2xl" aria-hidden>
           {emojiFor(option.typ)}
@@ -194,6 +194,22 @@ function AccommodationOptionCard({
           </span>
         </div>
       </Link>
+      {/* Zgłoszenie 06.09 (Fly Resort): link do PRAWDZIWEGO, komercyjnego
+          obiektu — poza <Link> powyżej (zagnieżdżanie linku w linku jest
+          nieprawidłowe w HTML), żeby kliknięcie w ofertę nie uruchamiało
+          jednocześnie nawigacji do Poziomu 3. Tylko gdy Nocleg.link istnieje
+          (patrz toOption w accommodation.ts) — nasze wcześniejsze wpisy bez
+          własnej strony nie pokazują tego wiersza. */}
+      {option.sourceUrl && (
+        <a
+          href={option.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block border-t border-black/[.08] px-4 py-2.5 text-sm font-medium text-wine transition-colors hover:bg-wine/5 active:bg-wine/10 dark:border-white/[.145]"
+        >
+          Zobacz ofertę / Zarezerwuj ↗
+        </a>
+      )}
     </li>
   );
 }

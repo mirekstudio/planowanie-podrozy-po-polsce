@@ -88,7 +88,10 @@ function toOption(nocleg: Nocleg, point: Coordinates): AccommodationOption {
     udogodnienia: nocleg.udogodnienia,
     poziomKomfortu: nocleg.poziomKomfortu,
     source: "curated",
-    sourceUrl: null,
+    // Zgłoszenie 06.09: prawdziwe, komercyjne obiekty (np. Fly Resort) mają
+    // tu link do własnej oferty/rezerwacji — nasze wcześniejsze wpisy bez
+    // takiej strony mają Nocleg.link = null, więc zachowują się jak dotąd.
+    sourceUrl: nocleg.link,
   };
 }
 

@@ -10,6 +10,7 @@ type NoclegRow = {
   miejsce_powiazane: string | null;
   udogodnienia: string | null;
   poziom_komfortu: string | null;
+  link: string | null;
 };
 
 function mapRow(row: NoclegRow): Nocleg {
@@ -22,6 +23,7 @@ function mapRow(row: NoclegRow): Nocleg {
     miejscePowiazane: row.miejsce_powiazane,
     udogodnienia: row.udogodnienia,
     poziomKomfortu: row.poziom_komfortu as Nocleg["poziomKomfortu"],
+    link: row.link,
   };
 }
 

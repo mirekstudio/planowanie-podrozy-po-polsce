@@ -18,6 +18,7 @@ function makeNocleg(overrides: Partial<Nocleg> & { lat: number; lng: number }): 
     miejscePowiazane: null,
     udogodnienia: null,
     poziomKomfortu: null,
+    link: null,
     ...overrides,
   };
 }
